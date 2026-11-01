@@ -1,0 +1,54 @@
+%==============================================================
+% bridges/main.tex —— 专题三：跨篇串讲（独立册）
+%==============================================================
+% 为什么单独成册（2026-11-02）:
+%   · 定位不同: A–R 主篇与专题一/二是**新知识**, 本册是「回头贯通」的连接
+%     (README.md 原话: 不是新知识点, 是篇与篇之间的连接)。
+%     这也是"为什么只拆专题三、不拆专题一/二"的答案。
+%   · 会持续追加: 每学到新的衔接点就加一篇, 单册便于增量维护与单独打印。
+%   · 拆分前提已验证: 四篇不含任何 \ref/\eqref, 也没有 equation/align/\tag,
+%     公式全为无编号 \[ \], 因此独立编译不会出现 ?? 与编号漂移。
+%
+% 编译（在 bridges/ 下执行）:
+%   latexmk -pdfxe -interaction=nonstopmode main.tex
+% 必须 -pdfxe; 用 -pdf 时 ctex 会报 fontset 'mac' unavailable 并卡在交互输入。
+%==============================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usepackage{mathtools}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+\pagestyle{fancy}
+\fancyhead[L]{现代数学物理与计算机图形学 · 专题三 跨篇串讲}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{}
+
+\title{\textbf{专题三：跨篇串讲}\\[4pt]
+       \large 篇与篇之间的连接 —— 读法是「回头贯通」，不是「逐篇学」}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% 四篇彼此独立，可单抽。
+\input{br1_slerp_geodesic}
+\input{br2_fourier_gauss}
+\input{br3_ode_pde_tensor_lie}
+\input{br4_probability_map}
+
+\end{document}

@@ -3,7 +3,9 @@
 四篇**贯通性**讲义，不是新知识点，是**篇与篇之间的连接**。
 
 - **读法**：回头贯通，不是逐篇学。建议在学过对应主篇之后读，用来把散点连成线。
-- **格式**：LaTeX，`\input` 自 `math/main.tex` 的 `\part{专题三：跨篇串讲}`。
+- **格式**：LaTeX，**独立册**（2026-11-02 从 `math/main.tex` 拆出）。
+  入口 `bridges/main.tex`，产物 `bridges/main.pdf`；`math/main.pdf` **不再包含**本专题。
+  编译（在本目录下）：`latexmk -pdfxe -interaction=nonstopmode main.tex`。
 - **公式编号**：`(BR1-n)` … `(BR4-n)`，与主篇的 `(Q1)`/`(MA1)`/`(SO1)`/`(C1)` 不冲突。
 
 ## 四篇索引

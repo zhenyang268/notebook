@@ -61,13 +61,16 @@
 \input{li/lie2}
 \input{li/lie3}
 
-\clearpage
-\part{专题三：跨篇串讲}
-% 读法是「回头贯通」，不是「逐篇学」。四篇彼此独立，可单抽。
-% 公式编号前缀 BR1–BR4，与 (Q1)/(MA1)/(SO1)/(C1) 等不冲突。
-\input{bridges/br1_slerp_geodesic}
-\input{bridges/br2_fourier_gauss}
-\input{bridges/br3_ode_pde_tensor_lie}
-\input{bridges/br4_probability_map}
+% ---------------------------------------------------------------------------
+% 专题三（跨篇串讲）已于 2026-11-02 拆为**独立册**：bridges/main.tex -> bridges/main.pdf
+%
+% 为什么只拆专题三、不拆专题一/二:
+%   专题一（微分方程）、专题二（李群）是**新知识**，属于本册主线；
+%   专题三是「回头贯通」的连接（见 bridges/README.md 第 3 行），
+%   且会随学习进度持续追加，单册便于增量维护与单独打印。
+%
+% 拆分前提已验证：四篇不含 \ref/\eqref，也没有 equation/align/\tag，
+%   公式全为无编号 \[ \]，独立编译不会出现 ?? 与编号漂移。
+% ---------------------------------------------------------------------------
 
 \end{document}
