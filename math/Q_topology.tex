@@ -1,0 +1,368 @@
+\section{Q. 拓扑学：从点集到同调}
+\label{sec:topology}
+
+\textbf{为什么单列一章：} A2 里我们已经在用「紧性」「完备性」这些词，但那是度量的版本；
+弱收敛、弱紧性、算子谱这些概念\textbf{在度量框架里根本表述不出来}，必须先把「邻近」这件事抽象出来。
+另一头，H1／M6 的网格拓扑（亏格、切割、Euler 特征）也需要同一套语言。
+
+\textbf{与 \emph{li} 专题的分工：} \textbf{lie2} 里的「拓扑结构」一节（基本群、高阶同伦群、纤维丛、de Rham 上同调）
+是\textbf{按李群路线切片}的版本；本章是\textbf{系统版}，二者互为参照，不必重复读。
+
+%--------------------------------------------------------------
+\subsection{Q1. 为什么需要拓扑}
+
+\textbf{度量的不便：} 度量空间里「$x$ 离 $y$ 多近」由具体数字给出，可是：
+\begin{itemize}
+  \item $L^p$ 与 $C^k$ 是\textbf{不同}的度量，但它们给出同一批「开集」——该保留的是后者，不是前者；
+  \item 弱收敛 $\langle f_n,\varphi\rangle\to\langle f,\varphi\rangle$ 对一切测试函数成立——
+        它\textbf{不是任何范数}诱导的，却是一个完全合理的「收敛」概念；
+  \item CG 里的网格粘合、切割、亏格，是纯粹的「邻接关系」问题，与边长无关。
+\end{itemize}
+
+所以\textbf{保留「哪些集合算开的」，丢掉具体距离}——这就是拓扑。
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{5.6cm}L{6.2cm}}
+\toprule
+\textbf{领域} & \textbf{用到的拓扑概念} & \textbf{用在哪} \\
+\midrule
+分析 & 紧性、可数性、分离公理 & Arzelà--Ascoli、弱*紧、$L^p$ 弱紧 \\
+PDE & 紧嵌入、弱拓扑 & Rellich--Kondrachov、变分法的直接方法（见 A4） \\
+几何 & 同胚、同伦、上同调 & 流形的定义（B2）、de Rham（A3） \\
+CG & 同调、Euler 特征、亏格 & 网格拓扑修复、切割、参数化的拓扑障碍 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%--------------------------------------------------------------
+\subsection{Q2. 拓扑空间与基}
+
+\textbf{拓扑空间：} 集合 $X$ 加一族子集 $\mathcal T$（称为\textbf{开集}），满足：
+\begin{itemize}
+  \item $\varnothing\in\mathcal T$，$X\in\mathcal T$；
+  \item \textbf{任意}并封闭：$\{U_\alpha\}\subset\mathcal T\Rightarrow\bigcup_\alpha U_\alpha\in\mathcal T$；
+  \item \textbf{有限}交封闭：$U_1,\dots,U_n\in\mathcal T\Rightarrow\bigcap_{i=1}^nU_i\in\mathcal T$。
+\end{itemize}
+
+\textbf{注意「任意」与「有限」的不对称}——与 A1 的 $\sigma$-代数（可数并）对照记忆：
+$\sigma$-代数是「可数并 $+$ 补」，拓扑是「任意并 $+$ 有限交 $+$ 无补」。
+
+\textbf{闭集：} 开集的补。有限并封闭、任意交封闭——注意开闭两族的封闭性方向正好相反。
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{拓扑} & \textbf{开集是什么} & \textbf{用途} \\
+\midrule
+度量拓扑 & 开球之并 & 标准分析 \\
+离散拓扑 & 所有子集 & 反例 \\
+平庸（平凡）拓扑 & 只有 $\varnothing,X$ & 反例（不 Hausdorff） \\
+余有限拓扑 & 补集有限的集合 $+\varnothing$ & 反例（紧但不 Hausdorff） \\
+子空间拓扑 & $U\cap A$，$U$ 开于 $X$ & $S^2\subset\mathbb R^3$、网格面 \\
+积拓扑 & 各分量开集之积生成 & $\mathbb R^n$、$\prod_i X_i$ \\
+商拓扑 & 使投影连续的最细拓扑 & 粘合、环面、射影平面 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{基与子基：} $\mathcal B\subset\mathcal T$ 是\textbf{基}，若每个开集都是 $\mathcal B$ 中元素之并。
+$\mathbb R^n$ 的开球构成基；子基是「生成」基的中间步骤。
+\textbf{细／粗：} 开集多者为细。细拓扑下连续更严格、紧更困难——\textbf{同一集合上的两种拓扑，性质可以完全不同}。
+
+%--------------------------------------------------------------
+\subsection{Q3. 连续性与同胚}
+
+\textbf{核心定义（比 $\varepsilon$-$\delta$ 更本质）：} $f:X\to Y$ 连续 $\iff$
+对每个开集 $V\subset Y$，原像 $f^{-1}(V)$ 是 $X$ 中的开集。
+
+\textbf{关键事实：} 度量空间中「开集原像开」与「$\varepsilon$-$\delta$ 定义」\textbf{等价}。
+所以这是同一概念的更一般版本——把「距离小于 $\varepsilon$」换成了「落在某个开集里」。
+
+\textbf{同胚：} 连续双射且逆也连续，记 $X\cong Y$。\textbf{拓扑学的中心问题就是分类同胚类。}
+（甜圈与咖啡杯同胚；$[0,1]$ 与 $[0,1]^2$ 不同胚——这需要不变量，见 Q8、Q9。）
+
+\textbf{三条实用判据：}
+\begin{itemize}
+  \item 连续映射把\textbf{紧}集送成\textbf{紧}集、把\textbf{连通}集送成\textbf{连通}集
+        （这是把分析定理「搬」到拓扑层的手段：极值定理、介值定理都是它的特例）；
+  \item 连续双射从紧空间到 Hausdorff 空间 $\Longrightarrow$ 同胚（\textbf{紧 Hausdorff 是「好」空间}）；
+  \item \textbf{嵌入}：$f$ 是同胚到其像，且像带子空间拓扑。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{Q4. 分离公理与可数性}
+
+\begin{center}
+\begin{tabular}{L{1.5cm}L{8.2cm}L{5.0cm}}
+\toprule
+\textbf{公理} & \textbf{条件} & \textbf{意义} \\
+\midrule
+$T_1$ & 任两点可各自被开集分开 & 单点集是闭集 \\
+$T_2$（Hausdorff） & 任两点有\textbf{不相交}的开邻域 & \textbf{极限唯一}、网收敛的起点 \\
+$T_3$（正则） & $T_1$ $+$ 点与不交闭集可被开集分开 & Urysohn 引理的前提 \\
+$T_4$（正规） & $T_1$ $+$ 两个不交闭集可被开集分开 & 连续函数的构造（单位分解） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{为什么 Hausdorff 是底线：} 没有它，序列（更一般是网）可以收敛到多个点，
+「$\lim$」这个记号就没有意义——而整个分析都是建立在取极限上的。
+
+\textbf{可数性（分析里更常用）：}
+\begin{itemize}
+  \item \textbf{第一可数}：每点有可数局部基（度量空间都有）$\Rightarrow$ 序列足够刻画连续与闭包；
+  \item \textbf{第二可数}：整个空间有可数基 $\Rightarrow$ 可分（$\mathbb R^n$ 都有）；
+  \item \textbf{可分}：存在可数稠密子集。$\mathbb R$ 可分这一点在 A1 里用过——
+        它正是「每个开集是可数个基开集之并」，也就是 Borel $\sigma$-代数只需可数层级就能生成的理由。
+\end{itemize}
+
+\textbf{两个结论（陈述，证明见点集拓扑教材）：}
+\begin{itemize}
+  \item \textbf{Urysohn 引理：} $X$ 正规，$A,B$ 不交闭集 $\Longrightarrow$ 存在连续 $f:X\to[0,1]$ 使 $f|_A=0$、$f|_B=1$；
+  \item \textbf{Urysohn 度量化定理：} 第二可数 $+$ 正则 $\Longrightarrow$ 可度量化。
+        （即：拓扑空间「看起来像度量空间」的充要条件之一。）
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{Q5. 紧性：分析里最有用的一个拓扑性质}
+
+\textbf{定义：} $K$ 紧 $\iff$ 任一开覆盖都有\textbf{有限}子覆盖。
+
+\textbf{等价刻画（度量空间）：} 每个序列都有收敛子列（列紧）$\iff$ 完备 $+$ 全有界。
+
+\begin{center}
+\begin{tabular}{L{4.0cm}L{10.6cm}}
+\toprule
+\textbf{结论} & \textbf{内容} \\
+\midrule
+Heine--Borel & $\mathbb R^n$ 中：紧 $\iff$ 有界且闭 \\
+连续像 & $f$ 连续，$K$ 紧 $\Longrightarrow$ $f(K)$ 紧 $\Rightarrow$ 极值定理（$\max$ 取到） \\
+Heine--Cantor & $f$ 在紧集上连续 $\Longrightarrow$ $f$ 在紧集上一致连续（$\delta$ 与点无关） \\
+Tychonoff & 任意一族紧空间的积仍紧（等价于选择公理） \\
+紧 $+$ Hausdorff & $\Longrightarrow$ 正规（故可构造连续函数、可单位分解） \\
+闭子集 & 紧空间的闭子集紧；Hausdorff 空间中的紧子集闭 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{紧性在 PDE 里为什么是命根子：} 变分法要「找一个使能量最小的 $u$」，
+标准套路是：取极小化序列 $u_n$ $\to$ 提取收敛子列 $\to$ 极限就是极小元。
+\textbf{「提取收敛子列」这一步百分之百靠紧性。} 相应地：
+\begin{itemize}
+  \item \textbf{Banach--Alaoglu：} 对偶空间的单位球在弱*拓扑下紧（\textbf{不需要自反性}）；
+  \item \textbf{Kakutani：} 自反空间（$1<p<\infty$ 的 $L^p$、Hilbert 空间）的单位球弱紧；
+  \item $L^1$ \textbf{不自反}，弱紧性得换条件——由 Dunford--Pettis 定理，等价条件正是\textbf{均匀可积}
+        （见 C6.3：与 DCT 的「盖子」是同一件事）；
+  \item \textbf{Arzelà--Ascoli：} $C(K)$ 中，等度连续 $+$ 一致有界 $\Longrightarrow$ 存在一致收敛子列；
+  \item \textbf{Rellich--Kondrachov（预告，见 A4）：} 有界区域上 $W^{1,p}\hookrightarrow\hookrightarrow L^p$ 是\textbf{紧嵌入}——
+        这是椭圆 PDE 存在性理论的地基。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{Q6. 连通性}
+
+\begin{itemize}
+  \item \textbf{连通：} 不能写成两个不交非空开集之并（$\varnothing,X$ 是仅有的既开又闭者）；
+  \item \textbf{道路连通：} 任意两点有连续道路相连。道路连通 $\Longrightarrow$ 连通，\textbf{反向不成立}；
+  \item \textbf{连通分支：} 极大连通子集；道路连通分支同理（可以严格多于连通分支）。
+\end{itemize}
+
+\textbf{介值定理是连通性的定理：} 连续像连通 $+$ $\mathbb R$ 中的连通集是区间 $\Rightarrow$ 取遍中间值。
+
+\textbf{两个标准反例}（值得记住，专治「显然」）：
+\begin{itemize}
+  \item \textbf{拓扑学家的正弦曲线} $\{(x,\sin\frac1x):x>0\}\cup(\{0\}\times[-1,1])$：连通但\textbf{不}道路连通；
+  \item \textbf{有理数集} $\mathbb Q$：完全不连通（每点是其连通分支），但仍可数稠密。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{Q7. 商空间：把东西粘起来}
+
+\textbf{商拓扑：} $X$ 上给定等价关系 $\sim$，$X/{\sim}$ 上取「使投影 $\pi:X\to X/{\sim}$ 连续」的\textbf{最细}拓扑。
+等价地：$U\subset X/{\sim}$ 开 $\iff$ $\pi^{-1}(U)$ 开于 $X$。
+
+\textbf{泛性质（实际操作时最有用的形式）：} 在 $X/{\sim}$ 上定义连续映射，只需在 $X$ 上定义、
+并验证它与 $\sim$ 相容（在等价类上取常值）。
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{商空间} & \textbf{从什么粘} & \textbf{Euler 特征} \\
+\midrule
+$S^1$（圆） & $[0,1]$ 粘两端 & $0$ \\
+$S^2$（球面） & 圆盘粘边界于一点 & $2$ \\
+$T^2$（环面） & 正方形对边粘合 & $0$ \\
+Möbius 带 & 长方形一边扭转后粘 & $0$ \\
+Klein 瓶 & 正方形一边扭转后粘 & $0$ \\
+$\mathbb{RP}^2$（射影平面） & 球面粘对径点 & $1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{在 CG 里这就是「网格的边界粘合」：} 三角网格 $=$ 单纯复形（Q9），
+它的\textbf{切割图（cut graph）}就是把曲面剪成圆盘的那组边——
+\textbf{球面可以一刀剪开铺平，环面必须剪两刀}。这个「几刀」就是亏格，就是拓扑障碍，
+也是 H1 的网格参数化为什么在环面上会失败的根源。
+
+%--------------------------------------------------------------
+\subsection{Q8. 同伦与基本群}
+
+\textbf{同伦：} $f,g:X\to Y$ 同伦，若存在连续 $H:X\times[0,1]\to Y$ 使 $H(\cdot,0)=f$、$H(\cdot,1)=g$。
+直观：一根连续地变形成另一根。\textbf{同伦等价}比同胚弱（$\mathbb R^n$ 与一点同伦等价，却不同胚）。
+
+\textbf{基本群：} 固定基点 $x_0$，闭道路的同伦类在「首尾相接」下成群，记 $\pi_1(X,x_0)$。
+\textbf{函子性：} 连续映射 $f$ 诱导同态 $f_*:\pi_1(X)\to\pi_1(Y)$，且同伦等价 $\Longrightarrow$ 同构。
+\textbf{同胚 $\Rightarrow$ 同伦等价 $\Rightarrow$ $\pi_1$ 同构}——所以 $\pi_1$ 是分类同胚类的\textbf{不变量}。
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{空间} & $\pi_1$ \\
+\midrule
+$S^1$ & $\mathbb Z$（绕数） \\
+$S^n$，$n\ge2$ & $0$（平凡） \\
+$T^2$ & $\mathbb Z^2$ \\
+$\mathbb{RP}^2$ & $\mathbb Z/2$ \\
+$\mathbb R^n$、任意凸集 & $0$（可缩） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{$\pi_1(S^1)=\mathbb Z$ 的用法（几个「一眼看出」的定理）：}
+\begin{itemize}
+  \item \textbf{Brouwer 不动点定理（二维）：} $f:D^2\to D^2$ 连续必有不动点；
+  \item \textbf{毛球定理：} 偶数维球面 $S^{2k}$ 上的连续切向量场必有零点——
+        所以\textbf{球面上不可能处处有非零风向}，而环面上可以；
+  \item 代数基本定理（复系数多项式必有根）也有一个纯拓扑证明。
+\end{itemize}
+
+\textbf{计算工具（陈述）：} \textbf{Seifert--van Kampen 定理}——把 $X=U\cup V$ 的 $\pi_1$
+用 $\pi_1(U)$、$\pi_1(V)$、$\pi_1(U\cap V)$ 的自由积拼出来（环面的 $\mathbb Z^2$ 就是这么算的）。
+\textbf{更多同伦群与纤维丛}见 lie2 的「拓扑结构」一节，本章不重复。
+
+%--------------------------------------------------------------
+\subsection{Q9. 单纯同调与 Euler 特征}
+
+同伦群（Q8）计算极难（$\pi_n(S^m)$ 至今未全知），\textbf{同调群}则是可算的——
+它是「同伦群的线性化」。
+
+\subsubsection{链条与边界算子}
+
+把空间剖分为\textbf{单纯复形}（顶点、边、三角形、四面体……）。记 $C_k$ 为 $k$ 维单形的形式线性组合
+（系数取 $\mathbb Z$ 或 $\mathbb Z/2$）。\textbf{边界算子} $\partial_k:C_k\to C_{k-1}$ 把每个 $k$-单形映为其 $k+1$ 个
+$(k-1)$-面之和（带符号）。核心恒等式：
+\[
+\partial_{k-1}\circ\partial_k=0 \qquad(\text{“边界的边界为零”})
+\]
+它的连续对应物就是 A3 的 $d^2=0$。
+
+\subsubsection{同调群与 Betti 数}
+
+\[
+H_k=\frac{\ker\partial_k}{\operatorname{im}\partial_{k+1}}
+\qquad(\text{闭链 模去 边界})
+\]
+$b_k=\operatorname{rank}H_k$ 称为 \textbf{Betti 数}：$b_0=$ 连通分支数，$b_1=$ 「独立环路数」，$b_2=$ 「封闭空腔数」。
+
+\begin{center}
+\begin{tabular}{l l l l l}
+\toprule
+\textbf{空间} & $b_0$ & $b_1$ & $b_2$ & $\chi=\sum_k(-1)^kb_k$ \\
+\midrule
+$S^2$ & $1$ & $0$ & $1$ & $2$ \\
+$T^2$ & $1$ & $2$ & $1$ & $0$ \\
+$\mathbb{RP}^2$ & $1$ & $0$（$\mathbb Z/2$）& $0$ & $1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Euler 特征}
+
+\[
+\chi=V-E+F\qquad(\text{三角剖分：顶点}-\text{边}+\text{面})
+\]
+\textbf{它是拓扑不变量，与剖分无关}——这正是它有用的原因：换一个更细的网格，$\chi$ 不变。
+亏格 $g$ 的闭可定向曲面：$\chi=2-2g$（球面 $g=0$，环面 $g=1$）。
+
+\textbf{离散 Gauss--Bonnet（与 H1 直接对接）：}
+\[
+\sum_{i}\Big(2\pi-\sum_{j\in N(i)}\theta_{ij}\Big)=2\pi\chi
+\]
+左边是 H1 的\textbf{角度亏损}（离散高斯曲率）之和，右边只依赖拓扑。
+\textbf{一句话：曲率的积分是拓扑的}——这是「离散微分几何」最漂亮的一条桥。
+
+\textbf{在 CG 中的用途：}
+\begin{itemize}
+  \item 网格亏格 $=$ 手柄数，决定参数化策略与切割图（Q7）；
+  \item $\chi\ne2-2g$ 说明网格有孔洞、非流形边或自交——\textbf{网格修复的判据}；
+  \item Betti 数用于形状分析、拓扑简化、特征匹配。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{Q10. de Rham 上同调：分析与拓扑的合流}
+
+同调把空间变成群；\textbf{上同调}则从\textbf{函数（微分形式）}出发反过来读拓扑。
+
+\textbf{构造（对照 A3 与 M6）：} 微分形式 $+$ 外微分 $d$ 构成复形
+\[
+\Omega^0\xrightarrow{\ d\ }\Omega^1\xrightarrow{\ d\ }\Omega^2\xrightarrow{\ d\ }\cdots,
+\qquad d^2=0
+\]
+于是可以定义
+\[
+H^k_{dR}(M)=\frac{\ker d_k}{\operatorname{im}d_{k-1}}
+\qquad(\text{闭形式 模去 恰当形式})
+\]
+
+\textbf{de Rham 定理（陈述）：} 光滑流形上 $H^k_{dR}(M)\cong H^k(M;\mathbb R)$（与单纯上同调同构）。
+\textbf{这条定理把「解微分方程（找 $d\omega=\alpha$）」与「数洞」变成同一件事。}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{问题} & \textbf{差分几何语言} & \textbf{拓扑语言} \\
+\midrule
+$\mathbf F$ 有势 $\iff$ $\nabla\times\mathbf F=0$（单连通域） & 闭 1-形式是恰当 1-形式 & $H^1=0$ \\
+$\oint_C\mathbf F\cdot d\mathbf l$ 绕洞不为零 & 闭而非恰当 & $H^1\ne0$ \\
+磁单极不存在 & $dF=0$ 且 $F$ 恰当 & $H^2(\mathbb R^3)=0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{离散版本就是 M6 的 DEC：} 把 $\Omega^k$ 换成「$k$ 维单形上的值」，$d$ 换成关联矩阵，
+$d^2=0$ 在离散层面\textbf{精确}成立（不是近似）。\textbf{Hodge 理论}（每个上同调类有唯一调和代表元）
+则是「$d^2=0$ 拉普拉斯方程 $\leftrightarrow$ 同调」的进一步合流，与 A2 的谱理论、H1 的离散 Laplace 是同一主线。
+
+%--------------------------------------------------------------
+\subsection{Q11. 小结：拓扑概念在两条主线上的落点}
+
+\begin{center}
+\begin{tabular}{L{3.0cm}L{5.4cm}L{5.6cm}}
+\toprule
+\textbf{概念} & \textbf{PDE／分析线上的落点} & \textbf{CG／几何线上的落点} \\
+\midrule
+紧性（Q5） & Arzelà--Ascoli、弱*紧、直接方法、Rellich--Kondrachov（A4） &
+参数域是紧流形；网格有限性 \\
+\addlinespace
+分离公理（Q4） & 极限唯一、弱拓扑的 Hausdorff 性 & —— \\
+\addlinespace
+可数性（Q4） & 可分 $\Rightarrow$ Borel $\sigma$-代数可数生成（A1） & 网格可数性、有限元剖分 \\
+\addlinespace
+商空间（Q7） & 商测度、周期边界条件 & 网格粘合、切割图、参数化障碍 \\
+\addlinespace
+$\pi_1$（Q8） & 定义域拓扑 $\Rightarrow$ 解的量子化／障碍 & 环路、形变、形状匹配 \\
+\addlinespace
+同调／Euler 特征（Q9） & 指标定理、临界点计数 & 亏格、网格修复、拓扑简化 \\
+\addlinespace
+上同调（Q10） & 解的存在性障碍（闭 vs 恰当） & DEC／Hodge 分解（M6） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{与既有章节的接口：}
+\begin{itemize}
+  \item 微分形式与 $d^2=0$ 见 A3；离散版本见 M6；
+  \item 流形与切空间见 B2；李群本人的拓扑（$\pi_1$、覆盖空间）见 lie1 与 lie2；
+  \item 紧性与弱收敛的\textbf{分析侧用法}见 A2 与 A4；
+  \item 离散 Gauss--Bonnet 与角度亏损见 H1；$\chi$ 与亏格在渲染管线中的用法见 lie3 的「拓扑在 CG 中的应用」一节。
+\end{itemize}

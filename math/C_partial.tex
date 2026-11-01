@@ -1,0 +1,414 @@
+\section{C. 概率与测度}
+
+\subsection{C1. 概率的测度论基础}
+
+\textbf{概率空间} $(\Omega, \mathcal{F}, P)$：
+\begin{itemize}
+  \item $\Omega$：样本空间
+  \item $\mathcal{F}$：$\sigma$-代数（事件集合）
+  \item $P$：概率测度，$P(\Omega) = 1$
+\end{itemize}
+
+\textbf{随机变量：} 可测函数 $X: (\Omega, \mathcal{F}) \to (\mathbb{R}, \mathcal{B}(\mathbb{R}))$
+
+\textbf{分布函数：} $F_X(x) = P(X \leq x)$
+
+\textbf{密度函数（如果存在）：} $f_X(x) = F_X'(x)$，$P(X \in A) = \int_A f_X\,dx$
+
+\subsection{C2. 重要分布族}
+
+\begin{center}
+\begin{tabular}{L{3cm}L{5cm}L{2cm}L{3.5cm}}
+\toprule
+\textbf{分布} & \textbf{密度/质量函数} & \textbf{参数} & \textbf{应用} \\
+\midrule
+均匀 $U(a,b)$ & $\frac{1}{b-a}$ & $a, b$ & 随机采样基础 \\
+正态 $N(\mu, \sigma^2)$ & $\frac{1}{\sqrt{2\pi}\sigma}e^{-\frac{(x-\mu)^2}{2\sigma^2}}$ & $\mu, \sigma$ & 中心极限定理、噪声 \\
+指数 $\text{Exp}(\lambda)$ & $\lambda e^{-\lambda x}$ & $\lambda$ & 光子自由程 \\
+泊松 $\text{Pois}(\lambda)$ & $\frac{\lambda^k e^{-\lambda}}{k!}$ & $\lambda$ & 光子计数、散粒噪声 \\
+冯·米塞斯--费歇尔 & $C(\kappa)e^{\kappa \mu \cdot x}$（球面上） & $\kappa, \mu$ & 方向统计 \\
+GGX & $\frac{\alpha^2}{\pi(\cos^2\theta(\alpha^2-1)+1)^2}$ & $\alpha$ & 微表面 BRDF \\
+Beta & $\frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha,\beta)}$ & $\alpha, \beta$ & 共轭先验 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{C3. 多维分布与独立性}
+
+$X, Y$ 独立 $\iff$ $f_{X,Y}(x,y) = f_X(x)\,f_Y(y)$ $\iff$ $F_{X,Y}(x,y) = F_X(x)\,F_Y(y)$
+
+\textbf{换元与独立性：} 设 $(U,V) = g(X,Y)$，则：
+\[
+f_{U,V}(u,v) = f_{X,Y}(g^{-1}(u,v)) \cdot |J|
+\]
+其中 $J = \det\frac{\partial(x,y)}{\partial(u,v)}$ 是雅可比行列式。
+
+\textbf{关键洞察：} 独立性不是变换不变的。极坐标变换 $(x,y) \to (r,\theta)$ 中，如果 $(X,Y)$ 是标准正态，则 $R$ 和 $\Theta$ 独立；但一般情况下换元后独立性可能被破坏或创造。
+
+在 CG 中：球面采样需要 $\theta = \arccos(1-2u_1)$，$\phi = 2\pi u_2$；雅可比行列式在路径追踪的变量替换中至关重要。
+
+\subsection{C4. 条件期望与鞅}
+
+\textbf{条件期望：} $E[X|\mathcal{G}]$ 是关于子 $\sigma$-代数 $\mathcal{G}$ 可测的随机变量，满足：
+\[
+\int_A E[X|\mathcal{G}]\,dP = \int_A X\,dP, \quad \forall A \in \mathcal{G}
+\]
+
+\textbf{鞅：} $E[X_{n+1}|\mathcal{F}_n] = X_n$
+
+在 CG 中：俄罗斯轮盘（Russian Roulette）和分裂（Splitting）的无偏性证明、路径追踪中估计量的方差分析。
+
+\subsection{C5. 随机过程}
+
+\textbf{布朗运动 $W_t$：}
+\begin{itemize}
+  \item $W_0 = 0$
+  \item 独立增量
+  \item $W_t - W_s \sim N(0, t-s)$
+  \item 路径连续但处处不可微
+\end{itemize}
+
+\textbf{随机微分方程（SDE）：}
+\[
+dX_t = \mu(X_t, t)\,dt + \sigma(X_t, t)\,dW_t
+\]
+
+在 CG 中：布朗运动（粒子模拟、烟雾）、朗之万方程（分子动力学）。更完整的 Itô 微积分见 C10。
+
+%--------------------------------------------------------------
+\subsection{C6. 收敛模式与极限定理}
+\label{subsec:convergence-modes}
+
+这是 C1--C5 之后最该补的一块：前面都在讲「分布是什么」，这里讲「一列随机变量怎么趋近另一个」。
+
+\subsubsection{四种收敛模式}
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{5.6cm}L{6.4cm}}
+\toprule
+\textbf{模式} & \textbf{定义} & \textbf{一句话} \\
+\midrule
+几乎必然（a.s.） & $\mathbb P(X_n\to X)=1$ & 轨道意义上逐点收敛 \\
+依概率（$\xrightarrow{\ \mathbb P\ }$） & $\forall\varepsilon>0:\ \mathbb P(|X_n-X|>\varepsilon)\to0$ &
+大偏差事件的概率消失 \\
+$L^p$（$\xrightarrow{\ L^p\ }$） & $\mathbb E|X_n-X|^p\to0$ & 平均意义（$p=1$ 即 $L^1$） \\
+依分布（$\Rightarrow$） & $F_n(x)\to F(x)$ 在 $F$ 的连续点 & 只看分布形状，不管耦合方式 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{层级关系}（唯一需要背的一张图）：
+\[
+\text{a.s.}\ \Longrightarrow\ \text{依概率}\ \Longrightarrow\ \text{依分布},
+\qquad
+L^p\ \Longrightarrow\ \text{依概率}
+\]
+\textbf{四个箭头都不可逆。} 反向需要一个额外条件：均匀可积性（C6.3）或常数列（若 $X$ 是常数，
+则依概率收敛与依分布收敛等价）。
+
+\subsubsection{反例博物馆：为什么箭头不可逆}
+
+\begin{center}
+\begin{tabular}{L{3.4cm}L{5.2cm}L{5.6cm}}
+\toprule
+\textbf{要否定的箭头} & \textbf{反例} & \textbf{机理} \\
+\midrule
+依概率 $\not\Rightarrow$ a.s. & 区间 $[0,1]$ 上的「打字机」序列
+$X_n=\mathbf 1_{[k/2^m,(k+1)/2^m]}$（把 $[0,1]$ 按 $2^m$ 等分后逐个扫过） &
+每点被命中无穷多次，故 a.s. 不收敛；但 $\mathbb P(X_n=1)=2^{-m}\to0$ \\
+\addlinespace
+a.s. $\not\Rightarrow L^1$ & $X_n=n\cdot\mathbf 1_{(0,1/n)}$ &
+a.s. 收敛到 $0$，但 $\mathbb E X_n=1\not\to0$：质量「挤进零测点」 \\
+\addlinespace
+依分布 $\not\Rightarrow$ 依概率 & 取 $X_n$ 与 $X$ 独立同分布（如都 $\sim N(0,1)$） &
+$F_n=F$ 故依分布收敛；但 $X_n-X$ 的方差恒为 $2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{注意第二个反例}——它和 A1 里 DCT 那个「盖子」是同一件事的两面：a.s. 收敛之所以推不出 $L^1$ 收敛，
+就是因为极限过程的「质量」可以逃到无穷远或挤进零测集。$X_n=n\mathbf 1_{(0,1/n)}$ 正是教科书里的标准反例。
+
+\subsubsection{一致可积性：让「依概率」升到 $L^1$}
+
+\textbf{定义：} 族 $\{X_n\}$ 称为\textbf{均匀可积}（uniformly integrable, UI），若
+\[
+\lim_{M\to\infty}\sup_n \mathbb E\big[|X_n|\,\mathbf 1_{\{|X_n|>M\}}\big]=0
+\]
+即「大值部分对期望的贡献可以被一致地压小」。
+
+\textbf{核心定理（Vitali 收敛定理）：} 若 $\mathbb E|X_n|<\infty$，$X_n\xrightarrow{\ \mathbb P\ }X$，且 $\{X_n\}$ 均匀可积，则
+$X_n\xrightarrow{\ L^1\ }X$ 且 $\mathbb E X_n\to\mathbb E X$。
+
+\textbf{为什么这等于给 DCT 换了一副面孔：} DCT 用「被一个可积函数盖住」来保证 $L^1$ 收敛；
+均匀可积是它的抽象化——$|X_n|\le g\in L^1$ 本身就是均匀可积性的一个充分条件。
+\textbf{一句话：DCT 的盖子 $\iff$ 均匀可积性。} 这正是 A1 中「三大收敛定理」那条线索的收口。
+
+\subsubsection{三大定理之外的收敛定理}
+
+\begin{center}
+\begin{tabular}{L{3.0cm}L{5.0cm}L{6.2cm}}
+\toprule
+\textbf{定理} & \textbf{条件} & \textbf{结论} \\
+\midrule
+Egorov & 有限测度，$f_n\to f$ a.e. & 对任意 $\varepsilon>0$，去掉一个测度 $<\varepsilon$ 的集合后\textbf{一致}收敛
+（a.e. 收敛 $\approx$ 一致收敛，代价是丢掉一小块）\\
+\addlinespace
+Scheffé & $f_n,f\ge0$ 可积，$f_n\to f$ a.e.，且 $\int f_n\to\int f$ & $\int|f_n-f|\to0$（即 $L^1$ 收敛） \\
+\addlinespace
+Vitali 收敛 & $\mu$ 有限，$f_n\to f$ a.e.，$\{f_n\}$ 均匀可积 & $\int|f_n-f|\to0$ \\
+\addlinespace
+单调类定理（Dynkin $\pi$--$\lambda$） & $\mathcal P$ 是 $\pi$-系，$\mathcal L$ 是 $\lambda$-系，$\mathcal P\subset\mathcal L$ &
+$\sigma(\mathcal P)\subset\mathcal L$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{单调类定理为什么重要：} 它把「证明两个测度相等」从「对一切可测集验证」压缩成「只在一个生成 $\pi$-系上验证」。
+典型用法：$\mu,\nu$ 是 $(\Omega,\sigma(\mathcal P))$ 上的概率测度，若 $\mu|_{\mathcal P}=\nu|_{\mathcal P}$ 且 $\mathcal P$ 是 $\pi$-系，则 $\mu=\nu$。
+这是测度论里最省力的证明手段之一。
+
+\subsubsection{Borel--Cantelli 与两种大数定律}
+
+\textbf{Borel--Cantelli 引理：}
+\begin{itemize}
+  \item 第一引理（不需要独立性）：$\sum_n\mathbb P(A_n)<\infty\ \Longrightarrow\ \mathbb P(\limsup_n A_n)=0$，
+        即「几乎必然只有有限多个 $A_n$ 发生」。
+  \item 第二引理（需要独立性）：$A_n$ 相互独立且 $\sum_n\mathbb P(A_n)=\infty\ \Longrightarrow\ \mathbb P(\limsup_n A_n)=1$。
+\end{itemize}
+（$\limsup_n A_n=\bigcap_N\bigcup_{n\ge N}A_n$ 表示「无穷多个 $A_n$ 发生」，即 $A_n$ i.o. 事件。）
+
+\textbf{大数定律：} 设 $X_n$ 独立同分布，$\mathbb E X_1=\mu$（有限）。
+\begin{itemize}
+  \item \textbf{弱大数定律}（Khinchin）：$\bar X_n\xrightarrow{\ \mathbb P\ }\mu$，不需要方差有限。
+  \item \textbf{强大数定律}（Kolmogorov）：$\bar X_n\to\mu$ a.s.（需要 $\mathbb E|X_1|<\infty$ 且独立同分布）。
+\end{itemize}
+
+\textbf{在 CG 中的意义：} 蒙特卡洛估计量的一致性正是（弱）大数定律——$\bar X_n\to I$ 依概率。
+没有它，$L^1$ 收敛 $\Rightarrow$ 依概率收敛这条链路断了，「多采样就能逼近」就没有理论保证（见 C9）。
+
+%--------------------------------------------------------------
+\subsection{C7. 特征函数与中心极限定理}
+
+\subsubsection{定义与基本性质}
+
+\[
+\varphi_X(t)=\mathbb E\big[e^{itX}\big]=\int_{\mathbb R}e^{itx}\,dF_X(x)
+\]
+
+特征函数就是分布的（反向）Fourier 变换——所以 P5 的 Euler 公式与 A2 的 Fourier 分析在这里合流。
+
+\begin{itemize}
+  \item $\varphi_{a+bX}(t)=e^{iat}\varphi_X(bt)$；
+  \item $X,Y$ 独立 $\Longrightarrow$ $\varphi_{X+Y}=\varphi_X\varphi_Y$（\textbf{卷积变乘法}，这是它最有用的一条）；
+  \item $|\varphi_X(t)|\le1$，$\varphi_X(0)=1$，$\varphi_X$ 在 $\mathbb R$ 上一致连续；
+  \item $\mathbb E X^k=(-i)^k\varphi_X^{(k)}(0)$（矩由原点处的导数读出）；
+  \item \textbf{一一对应：} $\varphi_X$ 唯一决定 $F_X$（反演公式），且两分布弱收敛 $\iff$ $\varphi_n\to\varphi$（局部一致）。
+\end{itemize}
+
+\subsubsection{算例：正态分布}
+
+对 $X\sim N(0,1)$，由 P8 的高斯积分：
+\[
+\varphi_X(t)=\frac{1}{\sqrt{2\pi}}\int e^{itx}e^{-x^2/2}dx
+=\frac{1}{\sqrt{2\pi}}\int e^{-(x-it)^2/2}dx\cdot e^{-t^2/2}=e^{-t^2/2}
+\]
+（配方后把被积函数补成完整的高斯积分 $=\sqrt{2\pi}$，余下的 $e^{-t^2/2}$ 就是答案。）
+
+\subsubsection{中心极限定理（CLT）}
+
+\textbf{定理（Lévy--Lindeberg）：} $X_n$ 独立同分布，$\mathbb E X_1=\mu$，$\operatorname{Var}X_1=\sigma^2\in(0,\infty)$，则
+\[
+\sqrt n\,\frac{\bar X_n-\mu}{\sigma}\ \xrightarrow{\ d\ }\ N(0,1)
+\]
+
+\textbf{证明路线（三步，必须会复述）：}
+\begin{enumerate}
+  \item 令 $Y_i=(X_i-\mu)/\sigma$，标准化后 $\varphi_Y(0)=1$、$\varphi_Y'(0)=0$、$\varphi_Y''(0)=-1$；
+  \item 把 $\varphi_Y$ 在 $0$ 处 Taylor 展开到二阶：$\varphi_Y(t)=1-\dfrac{t^2}{2}+o(t^2)$
+        （这一步用到 $e^{iu}=1+iu-\frac{u^2}{2}+O(u^3)$，即 P7 的 Maclaurin 表）；
+  \item 独立性使和的特征函数相乘：
+        \[
+        \varphi_{S_n/\sqrt n}(t)=\Big[\varphi_Y\Big(\frac{t}{\sqrt n}\Big)\Big]^n
+        =\Big[1-\frac{t^2}{2n}+o\Big(\frac1n\Big)\Big]^n\ \longrightarrow\ e^{-t^2/2}.
+        \]
+        右边正是 $N(0,1)$ 的特征函数，由 C7.1 的连续性定理即得依分布收敛。
+\end{enumerate}
+
+\textbf{直觉：} 每加一个独立变量，在特征函数上就是乘一次「略小于 $1$ 的因子」；
+乘 $n$ 次的累积效果恰好复现 Gaussian 的 $e^{-t^2/2}$——这就是「为什么到处是指数」。
+（$n\to\infty$ 那步本质上是 P4 的 $\big(1+\frac xn\big)^n\to e^x$。）
+
+\textbf{在 CG 中的意义：} 蒙特卡洛估计量的误差估计
+$\big|\bar X_n-I\big|\lesssim \sigma/\sqrt n$ 与置信区间全部来自 CLT——
+\textbf{这就是路径追踪「采样数翻四倍、噪声减半」的出处}。
+
+%--------------------------------------------------------------
+\subsection{C8. 马尔可夫链与 MCMC}
+
+\subsubsection{基本对象}
+
+\textbf{马尔可夫链：} $\mathbb P(X_{n+1}\in A\mid X_0,\dots,X_n)=\mathbb P(X_{n+1}\in A\mid X_n)$。
+离散状态时由\textbf{转移矩阵} $P=(p_{ij})$ 描述。
+
+\begin{itemize}
+  \item \textbf{Chapman--Kolmogorov：} $P^{(m+n)}=P^{(m)}P^{(n)}$（矩阵幂 $=$ 多步转移）。
+  \item \textbf{平稳分布：} $\pi$ 满足 $\pi P=\pi$，$\pi_i\ge0$，$\sum_i\pi_i=1$。
+  \item \textbf{细致平衡（可逆性）：} $\pi_ip_{ij}=\pi_jp_{ji}$ $\Longrightarrow$ $\pi P=\pi$
+        （对 $j$ 求和即得）。\textbf{这是 MCMC 的构造原则}——不去解 $\pi P=\pi$，而是直接造一个满足细致平衡的 $P$。
+\end{itemize}
+
+\textbf{遍历定理：} 若链不可约、非周期且正常返，则转移矩阵 $P^{(n)}$ 的每一行都收敛到平稳分布 $\pi$，
+且时间平均几乎必然收敛到空间平均：
+\[
+\frac1n\sum_{k=1}^n f(X_k)\ \longrightarrow\ \sum_i\pi_i f(i)\qquad(\text{a.s.})
+\]
+（遍历定理是强大数定律在相依序列上的版本——C6 的独立性在这里被换成了马尔可夫性。）
+
+\subsubsection{Metropolis--Hastings 与 MLT}
+
+\textbf{Metropolis--Hastings：} 想从目标分布 $\pi$（可能只知道到差一个常数因子的密度）采样时：
+
+\begin{enumerate}
+  \item 从提议分布 $q(\cdot\mid x)$ 抽 $y$；
+  \item 以概率 $\alpha(x,y)=\min\Big\{1,\ \dfrac{\pi(y)q(x\mid y)}{\pi(x)q(y\mid x)}\Big\}$ 接受 $y$，否则留在 $x$。
+\end{enumerate}
+
+\textbf{为什么它是无偏的：} 接受率的分母设计出来就是为了让 $\pi$ 满足细致平衡——这解释了「为什么未知归一化常数不影响结果」。
+
+\textbf{与渲染的接口：} 路径追踪本质上是\textbf{在路径空间上做积分}（H3）。当路径空间的分布高度集中
+（焦散、间接光、窄光源）时，逐样本独立采样效率极低；\textbf{MLT（Metropolis Light Transport）}
+就是在这条路径空间上跑 MCMC，让「好路径」附近被采得更密。这是 MCMC 在 CG 里最直接的落地。
+
+\subsubsection{随机游走}
+
+一维简单随机游走（$\pm1$ 等概率）在 $\mathbb Z$ 上是\textbf{常返}的（$d\le2$ 常返，$d\ge3$ 瞬态——
+但 $d=2$ 是临界，返回时间期望无穷）。布朗运动（C5）是随机游走的连续极限。
+C8.1 的平稳分布 $\pi$ 在 Monte Carlo 里就是「长期采样的直方图」——这正是 MCMC 能估计积分的原因。
+
+%--------------------------------------------------------------
+\subsection{C9. 蒙特卡洛与方差缩减}
+
+\subsubsection{估计量、偏差与误差量级}
+
+要算 $I=\int_\Omega f\,dx$，取 $X_i\sim p$ 独立同分布，用
+\[
+\hat I_N=\frac1N\sum_{i=1}^N\frac{f(X_i)}{p(X_i)}
+\]
+（要 $\operatorname{supp}p\supset\operatorname{supp}f$ 以保证无偏。）
+
+\begin{itemize}
+  \item \textbf{无偏：} $\mathbb E[\hat I_N]=I$（由线性性，不需要任何极限定理）。
+  \item \textbf{一致性：} $\hat I_N\to I$ 依概率（C6 弱大数定律）；
+        若 $\mathbb E[(f/p)^2]<\infty$ 则 a.s. 收敛（强大数定律）。
+  \item \textbf{误差量级：} 由 CLT，$\hat I_N-I$ 的分布近似 $N\!\big(0,\ \sigma^2/N\big)$，
+        其中 $\sigma^2=\operatorname{Var}[f(X)/p(X)]$。
+        \textbf{所以误差 $\sim\sigma/\sqrt N$：维数无关（这是 MC 战胜求积公式的唯一理由），但收敛极慢}——
+        降方差只有两条路：增大 $N$（贵），或减小 $\sigma$（聪明）。
+\end{itemize}
+
+\textbf{方差公式}（与 H4 一致）：
+\[
+\operatorname{Var}[\hat I_N]=\frac1N\Big(\int\frac{f^2}{p}\,dx-I^2\Big)
+\]
+
+\subsubsection{方差缩减技术}
+
+\begin{center}
+\begin{tabular}{L{3.0cm}L{6.0cm}L{5.2cm}}
+\toprule
+\textbf{技术} & \textbf{做法} & \textbf{为什么有效} \\
+\midrule
+重要性采样 & 取 $p\propto|f|$；理论上 $\sigma^2=0$（$f\ge0$ 时） &
+把「采样力气」花在 $f$ 大的地方；$p\propto|f|$ 使被积函数变常数 \\
+\addlinespace
+MIS（多策略） & $w_j=\dfrac{n_jp_j}{\sum_kn_kp_k}$（平衡启发式） &
+多套 $p_j$ 各自不完美，加权后互补；避免单一策略的尾部灾难 \\
+\addlinespace
+分层抽样 & 把 $\Omega$ 切成若干层，各层配额采样 &
+层内方差被消掉，只剩层间方差；$\sigma^2_{\text{分层}}\le\sigma^2_{\text{朴素}}$ \\
+\addlinespace
+对偶变量 & 用 $U$ 与 $1-U$ 配对，取平均 &
+两者的负相关抵消线性项误差 \\
+\addlinespace
+控制变量 & $\hat I_\alpha=\hat I-\alpha(\hat C-\mathbb E C)$ &
+减去一个已知期望的相关量；$\alpha^*=\operatorname{Cov}(\hat I,\hat C)/\operatorname{Var}(\hat C)$ \\
+\addlinespace
+俄式轮盘 & 以概率 $q$ 终止并除以 $(1-q)$ 补偿 &
+由条件期望／鞅（C4）保证\textbf{无偏}，同时砍掉低贡献路径 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{拟蒙特卡洛（QMC）：} 用低差异序列替代随机样本，误差量级由
+\[
+O(N^{-1/2})\qquad\text{改善为}\qquad O\big((\log N)^d/N\big)
+\]
+（Koksma--Hlawka 不等式，见 H6）。\textbf{注意维数 $d$ 出现在对数里}——
+这是 QMC 在高维（路径积分）里收益递减的原因，也是它通常只用于低维积分（如面光源、环境光）的原因。
+
+\textbf{偏差 $-$ 方差权衡：} 上述除 QMC 外都是无偏的；一旦引入有偏估计（如模糊近似、预滤波），
+误差里就多出一项系统性偏差，它\textbf{不会随 $N$ 变小}——这是渲染里「模糊比噪声更致命」的数学根源。
+
+%--------------------------------------------------------------
+\subsection{C10. Itô 微积分入门}
+
+\subsubsection{Wiener 过程与二次变差}
+
+\textbf{Wiener 过程（布朗运动）$W_t$：} $W_0=0$；增量独立；$W_t-W_s\sim N(0,t-s)$；轨道连续。
+（这四条正是 C5 的四条性质，此处升级为可积分的对象。）
+
+\textbf{关键新事实：二次变差不为零。} 对分割 $0=t_0<\cdots<t_n=t$，
+\[
+\sum_i(W_{t_{i+1}}-W_{t_i})^2\ \xrightarrow{\ L^2\ }\ t
+\]
+把它写成微分形式就是 $dW^2=dt$，即 $(dW)^2$ 与 $dt$ \textbf{同阶}。
+（对比普通函数的二次变差为零：$dt^2$ 是 $dt$ 的高阶无穷小。）
+
+\textbf{后果：} $W_t$ 的轨道几乎必然处处不可微（C5 已提），
+所以 $\int_0^t H\,dW$ \textbf{不能}定义为 Riemann--Stieltjes 积分——必须重新定义。
+
+\subsubsection{Itô 积分与 Itô 引理}
+
+\textbf{Itô 积分：} 对适应过程 $H$（只看 $t$ 之前的信息），沿分割取\textbf{左端点}值求和再取 $L^2$ 极限：
+\[
+\int_0^t H_s\,dW_s=\lim_{n\to\infty}\sum_i H_{t_i}\big(W_{t_{i+1}}-W_{t_i}\big)
+\]
+（取左端点使 $H_{t_i}$ 与增量 $W_{t_{i+1}}-W_{t_i}$ 独立，于是 $\mathbb E\int H\,dW=0$——这就是\textbf{鞅}，
+与 C4 接上。）
+
+\textbf{Itô 引理（链式法则的修正版）：} 若 $f\in C^{2}$，
+\[
+df(W_t)=f'(W_t)\,dW_t+\frac12f''(W_t)\,dt
+\]
+多出来的 $\frac12f''dt$ \textbf{完全来自二次变差 $dW^2=dt$}。
+若照搬普通链式法则，这一项就会丢掉——这是初学者 90\% 错误的来源。
+
+\textbf{算例：} 令 $X_t=\exp(\sigma W_t-\frac{\sigma^2}{2}t)$，用 $f=e^x$：
+\[
+dX_t=X_t\Big(\sigma\,dW_t-\frac{\sigma^2}{2}dt\Big)+\frac12X_t\sigma^2dt=X_t\sigma\,dW_t
+\]
+故 $X_t$ 是鞅，且 $\mathbb E X_t=X_0$。这个「补 $\frac{\sigma^2}{2}$ 的修正项」在金融与统计物理里反复出现。
+
+\subsubsection{SDE 与 Fokker--Planck}
+
+一般 SDE：
+\[
+dX_t=\mu(X_t,t)\,dt+\sigma(X_t,t)\,dW_t
+\]
+
+\textbf{例（几何布朗运动）：} $dX_t=\mu X_t\,dt+\sigma X_t\,dW_t$，解为
+$X_t=X_0\exp\big((\mu-\frac{\sigma^2}{2})t+\sigma W_t\big)$——注意指数上的 $-\frac{\sigma^2}{2}$ 修正，
+它使 $\mathbb E X_t=e^{\mu t}X_0$ \textbf{与} 典型样本轨道 $e^{(\mu-\sigma^2/2)t}$ 的增长率不同。
+\textbf{这个差距不是笔误，而是「期望 vs 典型」的分野}，也是 C6 中 a.s. 收敛与 $L^1$ 收敛方向不同的另一种面孔。
+
+\textbf{Fokker--Planck（前向 Kolmogorov）：} 转移密度 $p(x,t)$ 满足
+\[
+\frac{\partial p}{\partial t}=-\frac{\partial}{\partial x}\big(\mu p\big)+\frac12\frac{\partial^2}{\partial x^2}\big(\sigma^2p\big)
+\]
+右边是「对流 $+$ 扩散」——这正是 I 章流体的对流扩散方程的形式。
+\textbf{随机微分方程（SDE）与抛物型 PDE 是同一件事的两种语言}：SDE 描述单条轨道，Fokker--Planck 描述密度的演化。
+
+\textbf{在 CG 中的接口：} M5 的朗之万方程 $m\ddot x=-\gamma\dot x+\sqrt{2\gamma k_BT}\,\xi(t)+F(x)$
+就是 SDE 的牛顿版（$\xi$ 是白噪声，即 $dW/dt$）；
+其 Fokker--Planck 方程给出位置与速度的联合密度演化——分子动力学与被动标量（烟雾）模拟的理论骨架。

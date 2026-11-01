@@ -1,0 +1,99 @@
+\section{J. 光线追踪的深层数学}
+
+\subsection{J1. 从几何光学到波动光学}
+
+\textbf{程函方程：}
+\[
+|\nabla S|^2 = n^2(\mathbf{x})
+\]
+
+\textbf{光线方程：}
+\[
+\frac{d}{ds}\left(n\frac{d\mathbf{x}}{ds}\right) = \nabla n
+\]
+
+\textbf{亥姆霍兹方程：}
+\[
+\nabla^2 \mathbf{E} + k^2 \mathbf{E} = 0, \quad k = \frac{2\pi}{\lambda}
+\]
+
+\textbf{自由空间格林函数：}
+\[
+G(\mathbf{x}, \mathbf{x}') = \frac{e^{ik|\mathbf{x}-\mathbf{x}'|}}{4\pi|\mathbf{x}-\mathbf{x}'|}
+\]
+
+\subsection{J2. 衍射}
+
+\subsubsection{夫琅禾费衍射（远场）}
+
+衍射图案是孔径函数的傅里叶变换：
+\[
+U(\theta_x, \theta_y) \propto \mathcal{F}\{A(x,y)\}\bigg|_{f_x = \theta_x/\lambda,\; f_y = \theta_y/\lambda}
+\]
+
+\subsubsection{菲涅尔衍射（近场）}
+
+\[
+U(x,y,z) = \frac{e^{ikz}}{i\lambda z}\iint u_0(x',y') \exp\left[\frac{ik}{2z}((x-x')^2 + (y-y')^2)\right]dx'\,dy'
+\]
+
+\subsection{J3. 偏振}
+
+\textbf{Fresnel 方程：}
+\[
+r_s = \frac{n_1\cos\theta_i - n_2\cos\theta_t}{n_1\cos\theta_i + n_2\cos\theta_t}, \quad
+r_p = \frac{n_2\cos\theta_i - n_1\cos\theta_t}{n_2\cos\theta_i + n_1\cos\theta_t}
+\]
+
+\textbf{Brewster 角：} $\theta_B = \arctan(n_2/n_1)$，此时 $r_p = 0$。
+
+\subsection{J4. 相干性}
+
+\textbf{互相干函数：}
+\[
+\Gamma(\mathbf{r}_1, \mathbf{r}_2, \tau) = \langle E^*(\mathbf{r}_1, t)\, E(\mathbf{r}_2, t+\tau) \rangle
+\]
+
+$|\gamma| = 1$：完全相干（激光）；$|\gamma| = 0$：完全不相干（热光源）。
+
+大多数渲染假设不相干光（强度叠加）。
+
+\subsection{J5. 参与介质}
+
+\textbf{辐射传输方程（RTE）：}
+\[
+\frac{dL}{ds} = -\sigma_t L + \sigma_a L_e + \sigma_s \int_{S^2} p(\omega', \omega)\, L(\omega')\, d\omega'
+\]
+
+\textbf{Beer--Lambert 定律：} $T = e^{-\tau}$，$\tau = \displaystyle\int_0^s \sigma_t\, ds'$
+
+\textbf{Delta tracking（Woodcock tracking）：} 对非均匀介质，用最大消光系数 $\sigma_{\max}$ 做包络。
+
+\subsection{J6. 次表面散射（SSS）}
+
+\textbf{BSSRDF：} $S(x_i, \omega_i;\, x_o, \omega_o)$，入射点和出射点可以不同。
+
+\textbf{偶极近似：} 将次表面散射近似为两个虚拟点源，得到解析的扩散剖面。
+
+\subsection{J7. 路径采样策略}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{方法} & \textbf{描述} & \textbf{优势} \\
+\midrule
+路径追踪 (PT) & 从相机逐步采样 & 简单通用 \\
+双向路径追踪 (BDPT) & 光源+相机同时构建 & 处理焦散 \\
+光子映射 & 从光源发射光子 & 焦散、参与介质 \\
+MLT & MCMC 在路径空间 & 复杂光路 \\
+VCM/UPBP & BDPT + 光子映射统一 & 通用 \\
+SPPM & 渐进收敛的光子映射 & 焦散 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{J8. 焦散与灾变理论}
+
+几何光学在焦散处预言无限亮度（振幅发散）。波动光学给出有限值（Airy 函数、Pearcey 函数）。
+
+焦散的形态（尖点、褶皱）由灾变理论分类。

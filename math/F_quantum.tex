@@ -1,0 +1,88 @@
+\section{F. 量子力学的数学结构}
+
+\subsection{F1. 希尔伯特空间与态}
+
+\textbf{量子态：} 希尔伯特空间 $\mathcal{H}$ 中的射线（等价类 $|\psi\rangle \sim e^{i\theta}|\psi\rangle$）。
+
+\textbf{Dirac 符号：}
+\begin{itemize}
+  \item 右矢 $|\psi\rangle \in \mathcal{H}$
+  \item 左矢 $\langle\psi| \in \mathcal{H}^*$
+  \item 内积 $\langle\phi|\psi\rangle$
+  \item 外积 $|\psi\rangle\langle\phi|$（秩 1 算子）
+\end{itemize}
+
+\textbf{叠加原理：} $|\psi\rangle = \alpha|0\rangle + \beta|1\rangle$，$|\alpha|^2 + |\beta|^2 = 1$
+
+\subsection{F2. 可观测量与算子}
+
+\textbf{可观测量 = 自伴算子：} $\hat{A} = \hat{A}^\dagger$
+
+\textbf{测量公设：} 测量 $\hat{A}$ 得到特征值 $a_n$ 的概率为 $|\langle a_n|\psi\rangle|^2$
+
+\textbf{期望值：} $\langle \hat{A} \rangle = \langle\psi|\hat{A}|\psi\rangle$
+
+\textbf{不确定性原理：}
+\[
+\Delta A \cdot \Delta B \geq \frac{1}{2}|\langle[\hat{A}, \hat{B}]\rangle|
+\]
+其中 $[\hat{A}, \hat{B}] = \hat{A}\hat{B} - \hat{B}\hat{A}$ 是对易子。
+
+\textbf{基本对易关系：} $[\hat{x}, \hat{p}] = i\hbar$
+
+\subsection{F3. 薛定谔方程}
+
+\[
+i\hbar\frac{\partial}{\partial t}|\psi(t)\rangle = \hat{H}|\psi(t)\rangle
+\]
+
+\textbf{形式解：} $|\psi(t)\rangle = e^{-i\hat{H}t/\hbar}|\psi(0)\rangle$
+
+时间演化算子 $U(t) = e^{-i\hat{H}t/\hbar}$ 是\textbf{酉算子}（保持内积，即保持概率）。
+
+\subsection{F4. 角动量与自旋}
+
+\textbf{角动量算子：} $\hat{\mathbf{L}} = \hat{\mathbf{r}} \times \hat{\mathbf{p}}$
+
+\textbf{对易关系：} $[\hat{L}_i, \hat{L}_j] = i\hbar\varepsilon_{ijk}\hat{L}_k$（$\mathfrak{so}(3)$ 的李代数）
+
+\textbf{量子化：}
+\begin{itemize}
+  \item $\hat{L}^2|l,m\rangle = \hbar^2 l(l+1)|l,m\rangle$
+  \item $\hat{L}_z|l,m\rangle = \hbar m|l,m\rangle$
+  \item $l = 0, 1, 2, \ldots$，$m = -l, -l+1, \ldots, l$
+\end{itemize}
+
+球谐函数 $Y_l^m(\theta, \phi)$ 是 $\hat{L}^2$ 和 $\hat{L}_z$ 的共同本征函数。
+
+\textbf{自旋：} 内禀角动量，不对应空间旋转，但满足相同的代数。电子自旋 $s = 1/2$。
+
+\subsection{F5. 路径积分（Feynman 表述）}
+\label{subsec:pi-brief}
+
+\[
+\langle x_f, t_f | x_i, t_i \rangle = \int \mathcal{D}[x(t)]\, e^{iS[x]/\hbar}
+\]
+
+其中 $S[x] = \displaystyle\int L\,dt$ 是经典作用量。
+
+\textbf{经典极限：} $\hbar \to 0$ 时，相位快速振荡，只有作用量取极值的路径（经典路径）贡献显著（稳相近似）。
+
+\textbf{完整推导（时间切片法）、自由粒子与谐振子的显式计算、Wick 转动，以及与路径追踪的逐项类比，见第~\ref{sec:path-integral}~节（K 章）。}
+
+\subsection{F6. 量子力学与 CG 的交叉}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{量子概念} & \textbf{CG 对应} \\
+\midrule
+波函数 $\psi$ & 光场/辐射度分布 \\
+$|\psi|^2$ = 概率密度 & 辐射度 = 能量密度 \\
+薛定谔方程 & 波动方程/亥姆霍兹方程 \\
+路径积分 & 路径追踪 \\
+算子谱 & 频率分解/球谐分解 \\
+不确定性原理 & 时频分辨率的 trade-off \\
+\bottomrule
+\end{tabular}
+\end{center}

@@ -1,0 +1,97 @@
+\section{G. 数值方法与计算数学}
+
+\subsection{G1. 常微分方程数值解}
+
+\subsubsection{经典 RK4}
+
+\begin{align*}
+k_1 &= f(t_n, y_n) \\
+k_2 &= f(t_n + h/2,\; y_n + hk_1/2) \\
+k_3 &= f(t_n + h/2,\; y_n + hk_2/2) \\
+k_4 &= f(t_n + h,\; y_n + hk_3) \\
+y_{n+1} &= y_n + \frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)
+\end{align*}
+
+\subsubsection{辛积分器}
+
+\textbf{Verlet 积分：}
+\[
+x_{n+1} = 2x_n - x_{n-1} + a_n h^2
+\]
+
+\textbf{Leapfrog（蛙跳）：}
+\begin{align*}
+v_{n+1/2} &= v_{n-1/2} + a_n h \\
+x_{n+1} &= x_n + v_{n+1/2} h
+\end{align*}
+
+辛积分器能量在 bounded 范围内振荡，不会系统性漂移。布料模拟、刚体模拟、粒子系统都用辛积分器。
+
+\subsection{G2. 偏微分方程数值解}
+\label{subsec:pde-numerics}
+
+\subsubsection{有限差分法（FDM）}
+
+\[
+\frac{\partial u}{\partial x} \approx \frac{u_{i+1} - u_{i-1}}{2h}, \quad
+\frac{\partial^2 u}{\partial x^2} \approx \frac{u_{i+1} - 2u_i + u_{i-1}}{h^2}
+\]
+
+\textbf{CFL 条件：} 对波动方程，$\dfrac{c\,\Delta t}{\Delta x} \leq 1$。
+
+\subsubsection{有限元法（FEM）}
+
+\textbf{弱形式：}
+\[
+\int_\Omega \nabla u \cdot \nabla v\,d\Omega = \int_\Omega fv\,d\Omega
+\]
+
+\textbf{刚度矩阵：} $K_{ij} = \displaystyle\int_\Omega \nabla\phi_i \cdot \nabla\phi_j\,d\Omega$
+
+\subsubsection{谱方法}
+
+用全局正交基（傅里叶、切比雪夫、球谐）展开解。对光滑解指数收敛。
+
+\textbf{有限差分/有限元/谱方法的稳定性分析、格式对比与半拉格朗日方法，见第~\ref{sec:de-numerics}~节（第八层：数值方法）。}
+
+\subsection{G3. 数值线性代数}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{分解} & \textbf{形式} & \textbf{应用} \\
+\midrule
+LU & $A = LU$ & 解线性系统 \\
+QR & $A = QR$ & 最小二乘、特征值 \\
+SVD & $A = U\Sigma V^T$ & PCA、伪逆、低秩近似 \\
+Cholesky & $A = LL^T$（正定） & 快速求解 \\
+特征分解 & $A = P\Lambda P^{-1}$ & 谱分析、矩阵函数 \\
+Schur & $A = QTQ^*$ & 数值稳定的特征值计算 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{迭代法：} 共轭梯度法（CG）、GMRES、多重网格。
+
+\subsection{G4. 逼近论}
+
+\subsubsection{Padé 近似}
+
+\[
+f(x) \approx \frac{P_m(x)}{Q_n(x)} = \frac{a_0 + a_1 x + \cdots + a_m x^m}{1 + b_1 x + \cdots + b_n x^n}
+\]
+
+可以逼近有极点的函数（泰勒级数做不到），收敛半径通常更大。
+
+\subsubsection{切比雪夫逼近}
+
+切比雪夫节点：$x_k = \cos\dfrac{(2k+1)\pi}{2(n+1)}$（避免 Runge 现象）。
+
+\subsection{G5. 优化}
+
+\begin{itemize}
+  \item 梯度下降：$x_{k+1} = x_k - \alpha \nabla f(x_k)$
+  \item 牛顿法：$x_{k+1} = x_k - H^{-1}\nabla f$
+  \item L-BFGS（拟牛顿，CG 中广泛使用）
+  \item 拉格朗日乘子法、KKT 条件
+\end{itemize}

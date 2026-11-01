@@ -1,0 +1,23 @@
+# kaoyan/ 是嵌套的独立 git 仓（有自己的 .git 与 remote），本仓不跟踪
+kaoyan/
+
+# LaTeX 编译产物
+*.aux
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.synctex
+*.xdv
+
+# Python
+__pycache__/
+.pytest_cache/
+
+# 编辑器 / 系统
+.DS_Store
+.vscode/
+.idea/
+.workbuddy/
+.codebuddy/

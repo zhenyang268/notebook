@@ -1,0 +1,283 @@
+%==============================================================
+\section{第七层：微分方程的内在联系}
+%==============================================================
+
+\subsection{从泰勒展开到 Laplace 变换：统一视角}
+
+\subsubsection{两种“将微分方程化为代数”的方法}
+
+\begin{center}
+\begin{tabular}{L{2cm}L{5cm}L{5cm}}
+\toprule
+ & \textbf{Taylor 展开/幂级数} & \textbf{Laplace 变换} \\
+\midrule
+信息类型 & 局部（各阶导数在一点） & 全局（指数加权积分） \\
+微分算子作用 & $D \to$ 移位（指标 $n \to n-1$） & $D \to$ 乘以 $s$（减去初值） \\
+适用域 & 常点/正则奇点附近 & $[0,\infty)$，初值问题 \\
+收敛性 & 需要收敛半径 & 需要指数阶增长 \\
+复平面 & 收敛圆内解析 & 半平面 $\text{Re}(s) > \sigma$ 解析 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Taylor 展开的算子视角}
+
+Taylor 公式可以写成：
+\[
+f(x + h) = e^{hD}f(x) = \sum_{n=0}^{\infty} \frac{h^n}{n!}D^n f(x)
+\]
+
+其中 $D = d/dx$。\textbf{平移算子就是微分算子的指数。}
+
+\subsubsection{Laplace 变换的算子视角}
+
+$\mathcal{L}$ 将 $D$ 变为“乘以 $s$”（减去初值项）：
+\[
+\mathcal{L}\{Df\} = s\mathcal{L}\{f\} - f(0)
+\]
+
+在“零初值”的理想情况下，$\mathcal{L}$ 将 $D$ 对角化为乘以 $s$。
+
+\textbf{类比：}
+\begin{itemize}
+  \item Taylor/幂级数：$D$ 在基 $\{x^n/n!\}$ 下是\textbf{移位算子}
+  \item Laplace 变换：$D$ 在“指数基” $\{e^{st}\}$ 下是\textbf{乘法算子}（乘以 $s$）
+  \item Fourier 变换：$D$ 在“平面波基” $\{e^{i\xi x}\}$ 下是\textbf{乘法算子}（乘以 $i\xi$）
+\end{itemize}
+
+\textbf{统一：} 所有积分变换都是在找微分算子的“特征函数基”，使其对角化。
+
+\subsubsection{复平面上的联系}
+
+\textbf{Laplace 变换：} $\hat{f}(s) = \int_0^\infty f(t)e^{-st}\,dt$，$s = \sigma + i\omega$
+
+\textbf{Fourier 变换是 Laplace 变换在 $\sigma = 0$ 时的特例：}
+\[
+\hat{f}(i\omega) = \int_0^\infty f(t)e^{-i\omega t}\,dt
+\]
+
+\textbf{极点与解的行为：}
+\begin{itemize}
+  \item $\hat{f}(s)$ 在 $s = s_0$ 有极点 → $f(t)$ 含 $e^{s_0 t}$ 项
+  \item 极点的实部决定增长/衰减，虚部决定振荡频率
+  \item 重极点 → $t^k e^{s_0 t}$（共振！）
+\end{itemize}
+
+\textbf{这与特征方程的根完全对应：}
+\begin{itemize}
+  \item 特征根 $r$ $\leftrightarrow$ Laplace 域的极点 $s = r$
+  \item 重根 $\leftrightarrow$ 重极点 $\leftrightarrow$ $t^k e^{rt}$
+  \item 复根 $\alpha \pm i\beta$ $\leftrightarrow$ 共轭极点 $\leftrightarrow$ $e^{\alpha t}\cos\beta t$
+\end{itemize}
+
+\subsection{幂级数与无穷维矩阵}
+\label{subsec:infdim-matrix}
+
+\subsubsection{微分算子的矩阵表示}
+
+\textbf{选择基：} $e_n = \frac{x^n}{n!}$，$n = 0, 1, 2, \ldots$
+
+\textbf{微分算子 $D = d/dx$ 在此基下的作用：}
+\[
+D e_n = D\frac{x^n}{n!} = \frac{x^{n-1}}{(n-1)!} = e_{n-1} \quad (n \geq 1), \quad De_0 = 0
+\]
+
+\textbf{矩阵表示（无穷维）：}
+\[
+D = \begin{pmatrix} 0 & 1 & 0 & 0 & \cdots \\ 0 & 0 & 1 & 0 & \cdots \\ 0 & 0 & 0 & 1 & \cdots \\ 0 & 0 & 0 & 0 & \cdots \\ \vdots & & & & \ddots \end{pmatrix}
+\]
+
+这是\textbf{无穷维移位算子}（将第 $n$ 个分量移到第 $n-1$ 个位置）。
+
+\subsubsection{矩阵指数与 Taylor 公式}
+
+\[
+e^{tD} = I + tD + \frac{t^2}{2!}D^2 + \frac{t^3}{3!}D^3 + \cdots
+\]
+
+作用在 $f(x) = \sum a_n e_n$ 上：
+\[
+e^{tD}f(x) = f(x + t)
+\]
+
+\textbf{这就是 Taylor 公式！} 平移 = 微分算子的指数。
+
+\subsubsection{ODE 作为无穷维矩阵方程}
+
+\textbf{一阶方程 $y' = f(x)y$：}
+
+设 $y = \sum a_n e_n$，$f(x) = \sum b_n e_n$。
+
+$y' = \sum a_{n+1} e_n$（移位），$f(x)y$ 是卷积（Cauchy 乘积）。
+
+方程变为：
+\[
+a_{n+1} = \sum_{k=0}^n b_k a_{n-k} \quad \text{（递推关系）}
+\]
+
+这可以写成\textbf{无穷维下三角矩阵}乘以向量 $\mathbf{a} = (a_0, a_1, a_2, \ldots)^T$ 的形式。
+
+\textbf{二阶方程 $y'' + P(x)y' + Q(x)y = 0$：}
+
+设 $y = \sum a_n x^n$（用标准幂基），代入得：
+\[
+(n+2)(n+1)a_{n+2} + \sum_{k=0}^n [\text{coefficients}] a_k = 0
+\]
+
+这是\textbf{无穷维带状矩阵}的零空间问题。
+
+\subsubsection{特征值问题的无穷维矩阵视角}
+
+\textbf{Sturm--Liouville 问题} $-y'' = \lambda y$，$y(0) = y(\pi) = 0$：
+
+在基 $\{\sin nx\}$ 下，$-D^2$ 的矩阵是\textbf{对角的}：
+\[
+-D^2 \sin nx = n^2 \sin nx
+\]
+
+特征值 $\lambda_n = n^2$，特征向量就是基向量本身。
+
+\textbf{变系数情况} $-(p(x)y')' + q(x)y = \lambda w(x)y$：
+
+在某个基下，算子变成\textbf{无穷维矩阵}，特征值问题变成无穷维矩阵的特征值问题。
+
+\textbf{截断近似：} 取前 $N$ 个基函数，得到 $N \times N$ 矩阵的特征值问题。这就是\textbf{Galerkin 方法/谱方法}的本质。
+
+\subsubsection{若尔当标准型的无穷维推广}
+
+\textbf{有限维：} 重特征值 → 若尔当块 → $t^k e^{\lambda t}$
+
+\textbf{无穷维：} 微分算子的“广义特征函数”
+
+\textbf{示例：} $(D - r)^2 y = 0$
+
+在基 $\{e^{rx}, xe^{rx}\}$ 下，$D - r$ 的矩阵是 $\begin{pmatrix} 0 & 1 \\ 0 & 0 \end{pmatrix}$（$2\times 2$ 若尔当块）。
+
+推广到无穷维：$(D - r)^k y = 0$ 的解空间由 $\{e^{rx}, xe^{rx}, \ldots, x^{k-1}e^{rx}\}$ 张成。
+
+\subsubsection{生成函数与转移矩阵}
+
+\textbf{递推关系} $a_{n+1} = c \cdot a_n$ 的生成函数：
+\[
+A(z) = \sum_{n=0}^{\infty} a_n z^n = \frac{a_0}{1 - cz}
+\]
+
+\textbf{更一般的递推} $a_{n+2} = pa_{n+1} + qa_n$：
+\[
+A(z) = \frac{a_0 + (a_1 - pa_0)z}{1 - pz - qz^2}
+\]
+
+\textbf{分母的根} $1 - pz - qz^2 = 0$ 与特征方程 $r^2 - pr - q = 0$ 直接相关（$z = 1/r$）。
+
+\textbf{统一：} 生成函数是离散版本的 Laplace 变换（$z$ 变换），递推关系是离散版本的微分方程。
+
+\subsection{多元微分方程求解的系统方法}
+
+\subsubsection{方法总览}
+
+\begin{center}
+\begin{tabular}{L{3cm}L{4cm}L{4cm}}
+\toprule
+\textbf{方法} & \textbf{适用场景} & \textbf{核心思想} \\
+\midrule
+分离变量 & 有界域，规则几何 & 在特征函数基上展开 \\
+特征线法 & 双曲型，一阶 & 沿特征线化为 ODE \\
+Green 函数 & 线性，任意源 & 点源响应叠加 \\
+积分变换 & 无界/半无界域 & 将微分化为代数 \\
+变分/弱形式 & 复杂几何，数值 & 能量最小化 \\
+行波/自相似 & 有对称性 & 利用对称性降维 \\
+摄动法 & 有小参数 & 渐近展开 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{分离变量在不同坐标系}
+
+\begin{center}
+\begin{tabular}{L{3cm}L{3.5cm}L{4cm}}
+\toprule
+\textbf{坐标系} & \textbf{分离形式} & \textbf{特殊函数} \\
+\midrule
+直角 $(x,y,z)$ & $X(x)Y(y)Z(z)$ & 三角/指数 \\
+柱 $(r,\theta,z)$ & $R(r)\Theta(\theta)Z(z)$ & Bessel \\
+球 $(r,\theta,\phi)$ & $R(r)Y(\theta,\phi)$ & 球谐 + 球 Bessel \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{球坐标下 Laplace 方程的完整分离：}
+
+设 $u = R(r)\Theta(\theta)\Phi(\phi)$，代入 $\nabla^2 u = 0$：
+
+\textbf{$\phi$ 方程：} $\Phi'' + m^2\Phi = 0$ → $\Phi = e^{im\phi}$
+
+\textbf{$\theta$ 方程：} 连带 Legendre 方程 → $P_l^m(\cos\theta)$
+
+\textbf{$r$ 方程：} $r^2 R'' + 2rR' - l(l+1)R = 0$ → $R = Ar^l + Br^{-l-1}$
+
+\textbf{通解：}
+\[
+u(r,\theta,\phi) = \sum_{l=0}^{\infty}\sum_{m=-l}^{l} \left(A_{lm}r^l + B_{lm}r^{-l-1}\right)Y_l^m(\theta,\phi)
+\]
+
+\subsubsection{Green 函数的构造方法}
+
+\textbf{方法一：镜像法}（简单几何）
+
+半空间 $z > 0$，Dirichlet 条件 $u|_{z=0} = 0$：
+\[
+G(\mathbf{x}, \mathbf{x}') = \frac{1}{4\pi|\mathbf{x}-\mathbf{x}'|} - \frac{1}{4\pi|\mathbf{x}-\mathbf{x}'^*|}
+\]
+其中 $\mathbf{x}'^*$ 是 $\mathbf{x}'$ 关于 $z=0$ 的镜像。
+
+\textbf{方法二：特征函数展开}
+
+\[
+G(\mathbf{x}, \mathbf{x}') = \sum_n \frac{\phi_n(\mathbf{x})\phi_n(\mathbf{x}')}{\lambda_n}
+\]
+
+其中 $\phi_n$ 是 $-\nabla^2$ 的特征函数，$\lambda_n$ 是特征值。
+
+\textbf{方法三：Fourier/Laplace 变换}
+
+对无界域，直接变换求解。
+
+\subsection{从 ODE 到 PDE：维度提升的关键变化}
+
+\begin{center}
+\begin{tabular}{L{3cm}L{4cm}L{4cm}}
+\toprule
+\textbf{一维（ODE）} & \textbf{多维（PDE）} & \textbf{新现象} \\
+\midrule
+两个初始条件 & 整个边界上的条件 & 适定性更复杂 \\
+特征点 & 特征线/特征面 & 信息有方向传播 \\
+Fourier 级数 & Fourier 变换/球谐 & 基函数更丰富 \\
+Green 函数分段 & Green 函数奇异 & $\delta$ 函数、主值 \\
+解的奇性孤立 & 奇性沿特征传播 & 激波、焦散 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{微分方程、积分方程与算子方程的统一}
+
+\textbf{微分方程：} $Lu = f$（$L$ 是微分算子）
+
+\textbf{积分方程：} $u = g + \mathcal{K}u$（$\mathcal{K}$ 是积分算子）
+
+\textbf{联系：}
+\begin{itemize}
+  \item 微分方程 + 边界条件 → 等价于积分方程（通过 Green 函数）
+  \item $Lu = f$ → $u = L^{-1}f = \int G(x,\xi)f(\xi)\,d\xi$
+  \item 渲染方程 $L = L_e + \mathcal{T}L$ 就是第二类 Fredholm 积分方程
+\end{itemize}
+
+\textbf{Neumann 级数（积分方程）：}
+\[
+u = \sum_{k=0}^{\infty} \mathcal{K}^k g
+\]
+
+\textbf{类比：}
+\begin{itemize}
+  \item ODE 的 Picard 迭代 $\leftrightarrow$ 积分方程的 Neumann 级数 $\leftrightarrow$ 路径追踪的弹射展开
+  \item 收敛条件：$\|\mathcal{K}\| < 1$（算子范数）
+\end{itemize}

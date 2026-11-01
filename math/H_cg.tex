@@ -1,0 +1,171 @@
+\section{H. 计算机图形学中的数学}
+
+\subsection{H1. 离散微分几何}
+
+\textbf{离散拉普拉斯算子：}
+\[
+(\Delta f)_i = \sum_{j \in N(i)} w_{ij}(f_j - f_i)
+\]
+
+权重选择：
+\begin{itemize}
+  \item 均匀权重：$w_{ij} = 1$
+  \item 余切权重：$w_{ij} = \cot\alpha_{ij} + \cot\beta_{ij}$（FEM 离散化，推荐）
+\end{itemize}
+
+\textbf{离散高斯曲率（角度亏损）：}
+\[
+K_i = 2\pi - \sum_{j} \theta_j
+\]
+
+\textbf{离散平均曲率：}
+\[
+H_i = \frac{1}{2A_i}\sum_{j} (\cot\alpha_{ij} + \cot\beta_{ij})(v_i - v_j)
+\]
+
+\subsection{H2. 渲染方程与 BRDF}
+
+\textbf{渲染方程：}
+\[
+L_o(\mathbf{x}, \omega_o) = L_e(\mathbf{x}, \omega_o) + \int_{\Omega} f_r(\mathbf{x}, \omega_i, \omega_o)\, L_i(\mathbf{x}, \omega_i)\, \cos\theta_i\, d\omega_i
+\]
+
+\textbf{算子形式：} $L = L_e + \mathcal{T}L$
+
+\textbf{Neumann 级数：} $L = \displaystyle\sum_{k=0}^{\infty} \mathcal{T}^k L_e$
+
+\textbf{BRDF 定义：}
+\[
+f_r(\omega_i, \omega_o) = \frac{dL_o(\omega_o)}{L_i \cos\theta_i\, d\omega_i}
+\]
+
+\textbf{性质：} 互易性、能量守恒、正定性。
+
+\textbf{微表面模型：}
+\[
+f_r = f_{\text{diffuse}} + \frac{D \cdot F \cdot G}{4\cos\theta_i \cos\theta_o}
+\]
+
+\subsection{H3. 路径空间公式化}
+
+\textbf{路径} $\bar{x} = (x_0, x_1, \ldots, x_k)$
+
+\textbf{路径贡献：}
+\[
+f(\bar{x}) = L_e(x_0 \to x_1) \prod_{i=1}^{k-1} f_r(x_i)\, G(x_i \leftrightarrow x_{i+1})
+\]
+
+\textbf{几何项：}
+\[
+G(x \leftrightarrow y) = \frac{\cos\theta_x \cos\theta_y}{|x - y|^2}
+\]
+
+\textbf{路径积分：}
+\[
+I = \int_{\Omega} f(\bar{x})\, d\mu(\bar{x})
+\]
+
+\subsection{H4. 蒙特卡洛积分}
+
+\[
+\int_\Omega f(x)\,dx \approx \frac{1}{N}\sum_{i=1}^N \frac{f(X_i)}{p(X_i)}, \quad X_i \sim p
+\]
+
+\textbf{方差：}
+\[
+\text{Var}[\hat{I}] = \frac{1}{N}\left(\int \frac{f^2}{p}\,dx - I^2\right)
+\]
+
+\textbf{MIS 权重（平衡启发式）：}
+\[
+w_j(x) = \frac{n_j\, p_j(x)}{\sum_k n_k\, p_k(x)}
+\]
+
+\subsection{H5. 球谐函数在 CG 中的应用}
+
+\begin{itemize}
+  \item 环境光照表示（通常 $l \leq 2$，9 个系数）
+  \item 预计算辐射传输（PRT）
+  \item 球面卷积在球谐域变成逐元素乘法
+\end{itemize}
+
+\subsection{H6. 采样理论}
+
+\subsubsection{低差异序列}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{序列} & \textbf{构造} & \textbf{特点} \\
+\midrule
+Halton & 基于不同素数的 radical inverse & 简单，高维有相关 \\
+Sobol & 基于方向数 & 高维表现好 \\
+Cranley--Patterson 旋转 & 随机偏移 & 去相关 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Koksma--Hlawka 不等式：}
+\[
+\left|\frac{1}{N}\sum f(x_i) - \int f\right| \leq V(f) \cdot D_N^*
+\]
+
+\subsubsection{蓝噪声}
+
+功率谱中低频分量被抑制，高频分量保留。视觉上最均匀的随机分布。
+
+\subsection{H7. 辐射度量学}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{量} & \textbf{符号} & \textbf{单位} & \textbf{定义} \\
+\midrule
+辐射通量 & $\Phi = dQ/dt$ & W & \\
+辐射强度 & $I = d\Phi/d\omega$ & W/sr & 点源 \\
+辐射照度 & $E = d\Phi/dA$ & W/m$^2$ & 到达表面 \\
+辐射度 & $L = \frac{d^2\Phi}{dA\cos\theta\,d\omega}$ & W/(m$^2\cdot$sr) & \textbf{核心量} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{光度学转换：}
+\[
+\Phi_v = 683 \int_0^\infty \Phi_e(\lambda)\, V(\lambda)\, d\lambda
+\]
+
+\subsection{H8. 物理模拟}
+
+\subsubsection{流体模拟}
+\label{subsec:cg-fluid}
+
+\textbf{Navier--Stokes 方程（不可压缩）：}
+\[
+\frac{\partial \mathbf{u}}{\partial t} + (\mathbf{u}\cdot\nabla)\mathbf{u} = -\frac{1}{\rho}\nabla p + \nu\nabla^2\mathbf{u} + \mathbf{g}, \quad \nabla \cdot \mathbf{u} = 0
+\]
+
+\textbf{压力投影：}
+\begin{enumerate}
+  \item $\mathbf{u}^* = \mathbf{u}^n + \Delta t(\text{对流} + \text{粘性})$
+  \item $\nabla^2 p = \frac{1}{\Delta t}\nabla\cdot\mathbf{u}^*$
+  \item $\mathbf{u}^{n+1} = \mathbf{u}^* - \Delta t\nabla p$
+\end{enumerate}
+
+\textbf{守恒律的完整推导、应力张量本构关系、涡量动力学与守恒性保持，见第~\ref{sec:fluid}~节（I 章）。}
+
+\subsubsection{刚体模拟}
+
+\textbf{运动方程：}
+\[
+\dot{\mathbf{x}} = \mathbf{v}, \quad \dot{R} = [\boldsymbol{\omega}]_\times R
+\]
+\[
+m\dot{\mathbf{v}} = \mathbf{F}, \quad I\dot{\boldsymbol{\omega}} + \boldsymbol{\omega} \times I\boldsymbol{\omega} = \boldsymbol{\tau}
+\]
+
+\subsubsection{布料与软体}
+
+\begin{itemize}
+  \item 质点--弹簧模型：$m\ddot{x} = -k(x - x_0) - c\dot{x} + f_{\text{ext}}$
+  \item 位置基动力学（PBD/XPBD）：直接操作位置满足约束，无条件稳定
+\end{itemize}

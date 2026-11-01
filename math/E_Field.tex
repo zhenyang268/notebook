@@ -1,0 +1,66 @@
+\section{E. 场论与微分形式}
+
+\subsection{E1. 向量分析的微分形式统一}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{向量分析} & \textbf{微分形式} & \textbf{运算} \\
+\midrule
+标量场 $f$ & 0-形式 & $df$ = 梯度 \\
+向量场 $\mathbf{F}$ & 1-形式 $\omega$ & $d\omega$ = 旋度 \\
+向量场 $\mathbf{F}$ & 2-形式 $\eta$ & $d\eta$ = 散度 \\
+$\nabla \cdot (\nabla \times \mathbf{F}) = 0$ & $d^2 = 0$ & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{E2. 麦克斯韦方程的微分形式表述}
+
+\textbf{电磁场张量：} $F = dA$，其中 $A$ 是电磁势 1-形式。
+
+\[
+dF = 0 \quad \text{（Faraday 定律 + 无磁单极）}
+\]
+\[
+d{*}F = J \quad \text{（Ampère 定律 + Gauss 定律）}
+\]
+
+其中 $*$ 是 Hodge 星算子，$J$ 是电流 3-形式。
+
+\textbf{规范不变性：} $A \to A + d\lambda$ 不改变 $F = dA$（因为 $d^2 = 0$）。这就是 $U(1)$ 规范对称性。
+
+\subsection{E3. 闵可夫斯基时空}
+
+\textbf{度规：} $\eta_{\mu\nu} = \text{diag}(-1, 1, 1, 1)$
+
+\textbf{间隔：} $ds^2 = -c^2 dt^2 + dx^2 + dy^2 + dz^2$
+
+\textbf{四维向量：}
+\begin{itemize}
+  \item 位置：$x^\mu = (ct, x, y, z)$
+  \item 四维动量：$p^\mu = (E/c, \mathbf{p})$
+  \item 四维电流：$J^\mu = (c\rho, \mathbf{J})$
+\end{itemize}
+
+\textbf{质能关系：} $p^\mu p_\mu = -m^2 c^2$，即 $E^2 = p^2 c^2 + m^2 c^4$
+
+\subsection{E4. 规范场论初步}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{规范群} & \textbf{规范场} & \textbf{物理} \\
+\midrule
+$U(1)$ & 电磁场 $A_\mu$ & 电磁力 \\
+$SU(2)$ & $W$ 玻色子 & 弱力 \\
+$SU(3)$ & 胶子 $G_\mu^a$ & 强力 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{协变导数：} $D_\mu = \partial_\mu - igA_\mu$
+
+\textbf{场强：} $F_{\mu\nu} = \partial_\mu A_\nu - \partial_\nu A_\mu - ig[A_\mu, A_\nu]$
+
+\textbf{Yang--Mills 作用量：} $S = -\dfrac{1}{4}\displaystyle\int F_{\mu\nu}^a F^{a\mu\nu}\,d^4x$

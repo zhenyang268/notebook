@@ -1,0 +1,262 @@
+\section{N. 核心公式速查表}
+
+\subsection{分析}
+\[
+\int_{\partial M} \omega = \int_M d\omega \qquad \text{（广义 Stokes）}
+\]
+\[
+\|f\|_{L^2}^2 = \sum_n |\hat{f}_n|^2 \qquad \text{（Parseval）}
+\]
+
+\subsection{代数}
+\[
+\exp: \mathfrak{g} \to G, \quad [\mathfrak{g}, \mathfrak{g}] \subset \mathfrak{g}
+\]
+\[
+SU(2) \cong \text{单位四元数}, \quad SU(2) \to SO(3) \text{（2:1 覆盖）}
+\]
+
+\subsection{概率}
+\[
+E[X] = \int_\Omega X\,dP = \int_{\mathbb{R}} x\,dF_X(x)
+\]
+\[
+\text{Var}[\hat{I}_{MC}] = \frac{1}{N}\left(\int \frac{f^2}{p}\,dx - I^2\right)
+\]
+
+\subsection{力学}
+\[
+\delta S = 0 \implies \frac{d}{dt}\frac{\partial L}{\partial \dot{q}} = \frac{\partial L}{\partial q}
+\]
+\[
+\{f, H\} = \dot{f}
+\]
+
+\subsection{量子}
+\[
+i\hbar\frac{\partial}{\partial t}|\psi\rangle = \hat{H}|\psi\rangle
+\]
+\[
+[\hat{x}, \hat{p}] = i\hbar, \quad \Delta x \cdot \Delta p \geq \frac{\hbar}{2}
+\]
+
+\subsection{渲染}
+\[
+L_o = L_e + \int_\Omega f_r\, L_i \cos\theta\, d\omega
+\]
+\[
+w_j = \frac{n_j\, p_j}{\sum_k n_k\, p_k} \qquad \text{（MIS 权重）}
+\]
+
+%==============================================================
+\section{O. 推荐学习路径}
+%==============================================================
+
+\subsection{第一阶段：夯实基础（1--2 个月）}
+\begin{enumerate}
+  \item 实分析/测度论：Folland《Real Analysis》或 Stein《Real Analysis》
+  \item 线性代数深化：Strang + Trefethen《Numerical Linear Algebra》
+  \item 概率论严格化：Durrett《Probability: Theory and Examples》
+\end{enumerate}
+
+\subsection{第二阶段：核心数学物理（2--3 个月）}
+\begin{enumerate}
+  \setcounter{enumi}{3}
+  \item 微分几何：do Carmo $\to$ Lee《Introduction to Smooth Manifolds》
+  \item 经典力学：Arnold《Mathematical Methods of Classical Mechanics》
+  \item 泛函分析：Kreyszig《Introductory Functional Analysis with Applications》
+\end{enumerate}
+
+\subsection{第三阶段：量子与场论（2--3 个月）}
+\begin{enumerate}
+  \setcounter{enumi}{6}
+  \item 量子力学：Shankar《Principles of Quantum Mechanics》或 Sakurai
+  \item 电动力学/场论：Griffiths $\to$ Baez \& Muniain《Gauge Fields, Knots and Gravity》
+\end{enumerate}
+
+\subsection{第四阶段：计算与 CG（持续）}
+\begin{enumerate}
+  \setcounter{enumi}{8}
+  \item 数值方法：Trefethen《Spectral Methods in MATLAB》+ 各种 FEM 教材
+  \item 渲染：PBRT 源码 + Kajiya 1986 原始论文
+  \item 几何处理：Botsch et al.《Polygon Mesh Processing》+ Crane 的离散微分几何课程
+  \item 物理模拟：Bridson《Fluid Simulation for Computer Graphics》+ 各种 SIGGRAPH 课程笔记
+\end{enumerate}
+
+\clearpage
+\subsection{章节与教材对照索引}
+
+读某一节卡住时，按下表直接翻到对应位置，不必通读全书。
+（章节代号用笔记内的局部编号：“A1” 指 A 篇第 1 小节，“A1.5” 指其下第 5 小目。）
+
+\begin{center}
+\begin{tabular}{L{3.9cm}L{5.2cm}L{5.5cm}}
+\toprule
+\textbf{本笔记章节} & \textbf{首选教材} & \textbf{对应位置} \\
+\midrule
+A1 测度与勒贝格积分 & Folland \emph{Real Analysis} & Ch.1--2（\S1.4 外测度、\S2.4 收敛定理） \\
+A1.5 $L^p$ 空间 & Folland & Ch.6（\S6.3 插值可略） \\
+A2 泛函分析 & Kreyszig & Ch.2--3（赋范/内积）、Ch.7（谱理论） \\
+A2.4 谱理论（进阶） & Reed--Simon Vol.1 & Ch.VI--VIII \\
+A3 微分形式 & Lee \emph{Smooth Manifolds} & Ch.14（形式）、Ch.16--17（de Rham 与积分） \\
+A4 Sobolev 与弱解 & Evans \emph{PDE} + Brezis \emph{Functional Analysis} & Evans Ch.5（Sobolev）、Brezis Ch.8--9 \\
+B1 李群与李代数 & Lee \emph{Smooth Manifolds} & Ch.7--8 \\
+B1.3 表示论 & Hall \emph{Lie Groups, Lie Algebras} & Ch.3--5 \\
+B2 曲线曲面 & do Carmo & Ch.1--2、Ch.4（内蕴几何） \\
+B2.3 黎曼几何 & Lee \emph{Riemannian Manifolds} & Ch.3--6 \\
+C1--C4 概率的测度论基础 & Durrett & Ch.1--2、Ch.4（条件期望）、Ch.5（鞅） \\
+C6--C10 概率深化 & Durrett + Williams \emph{Probability with Martingales} & Durrett Ch.3--4（收敛与 CLT）、Ch.7--8（马尔可夫链、SDE） \\
+D1--D3 经典力学 & Arnold & Ch.1--3（含 Noether 定理） \\
+E1--E2 场论与微分形式 & Baez \& Muniain & Part I--II \\
+F1--F4 量子力学 & Shankar & Ch.1--7、Ch.12（角动量） \\
+G1--G5 数值方法 & Trefethen \emph{Spectral Methods} / \emph{Num.\ Lin.\ Alg.} & 谱方法全书；线代 Ch.1--20 \\
+H1 离散微分几何 & Botsch et al. \emph{Polygon Mesh Processing} & Ch.2--3 \\
+H2--H4 渲染方程 & Kajiya 1986 & \emph{The Rendering Equation}（11 页，必读原文） \\
+H4 MIS & Veach 1997 博士论文 & Ch.9（MIS 的出处） \\
+I1--I4、I9 流体力学 & Bridson \emph{Fluid Simulation for CG} & 全书（偏实现） \\
+K1--K4 路径积分、L1--L8 QFT & Peskin \& Schroeder & Ch.9（路径积分）、Ch.4--7（Feynman 规则） \\
+de1--de4 微分方程专题 & 丁同仁《常微分方程教程》 + Evans \emph{PDE} & 丁 Ch.1--4；Evans Ch.2（分类）、Ch.5--6（弱解） \\
+lie1--lie3 李群专题 & Hall & 全书（比 B1 深一档） \\
+M6 离散外微分 & Crane 的 DDG 课程笔记 & 前 5 讲 \\
+M7 变分积分器 & Hairer--Lubich--Wanner \emph{GNI} & Part I Ch.III（辛积分器） \\
+P 计算必修（P1--P9） & Graham--Knuth--Patashnik \emph{Concrete Mathematics} + Hardy--Littlewood--Pólya \emph{Inequalities} & CM Ch.2--7（求和与递推）；Ineq. 全书（不等式） \\
+Q 拓扑（点集 $+$ 同调） & Munkres \emph{Topology} + Hatcher & Munkres Ch.2--4、Ch.7；Hatcher Ch.1--2 \\
+R 复分析 & Ahlfors \emph{Complex Analysis} + Needham \emph{Visual Complex Analysis} & Ahlfors Ch.4--5（积分与留数）、Ch.6（共形映射） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{精读/略读分级：}
+\begin{itemize}
+  \item \textbf{必须自己推一遍：} A1.3 三大收敛定理、A1.4 可数可加的必要性、A4 Lax--Milgram 的验证两步、
+        B1.2 指数映射与 Rodrigues 公式、C7 特征函数证 CLT、H4 重要性采样方差、R4 留数定理算一个实积分
+  \item \textbf{看结论即可：} A2.4 无限维谱定理、C6.3 均匀可积性、E3 闵可夫斯基时空、L7 重整化、M2 黑体辐射、
+        Q5 Tychonoff、Q8 Seifert--van Kampen、R5 Riemann 映射定理
+  \item \textbf{写代码时再查：} G 全章、H1 离散算子权重、I9 守恒性格式、M4 LCP 求解器、
+        Q9 Euler 特征与网格修复、P10 必修优先级总表
+\end{itemize}
+
+\clearpage
+\subsection{分层导读：按章分配阅读深度}
+\label{subsec:reading-depth}
+
+上一节按「进度阶段」排，本节按\textbf{阅读深度}排——同一个问题换一个问法：
+\textbf{这些章节，每一章该投入多少？}判据只有一条：\textbf{它与你的目标（PDE $+$ 计算机图形学）之间隔了几层依赖}。
+
+\begin{center}
+\begin{tabular}{L{1.7cm}L{12.9cm}}
+\toprule
+\textbf{层} & \textbf{判据与达标要求} \\
+\midrule
+承重墙 & 缺了它后面直接走不下去。要求：\textbf{闭卷能推}（不看笔记写出证明要点），能写代码验证。 \\
+支撑 & 不理解就讲不清主线的「为什么」。要求：\textbf{能复述结论与用法}，细节允许回查。 \\
+工具 & 只需知道「这里有这个」。要求：\textbf{记得索引}，用到时能翻回来。 \\
+延伸 & 知道它存在、知道它在哪。要求：知道\textbf{它解决什么问题}，暂不投入。 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{第一层 · 承重墙（八项）}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{12.0cm}}
+\toprule
+\textbf{章} & \textbf{为什么它在最里层} \\
+\midrule
+A1 分析基础 & 三大收敛定理回答「极限与积分何时可换」——后面每一个能量估计、每一次取极限都在用它；
+Leray--Hopf 存在性直接靠 $L^2$ 完备性（Riesz--Fischer）。 \\
+A2 泛函分析 & 没有 Hilbert 空间就没有 Lax--Milgram，没有分布就没有「$\delta$ 源」的严格含义。
+这是 PDE 的语法层。 \\
+A4 Sobolev 与弱解 & NS 的「解」按定义就是弱解。这一章不是前置知识，而是 L2/L3 的门槛本身。 \\
+B2 微分几何 & PDE 的定义域是流形，CG 的网格是离散流形——两条线共用同一套语言，省不掉。 \\
+P 计算必修 & 重点在 P3（不等式）与 P9（能量法五步）：P3 是「每次证明都要掏口袋」的工具箱，
+P9 是唯一性证明的收尾手法。手不好使，看得懂也推不动。 \\
+H 图形学数学 & 目标本身。H1（离散微分几何）、H3（路径空间）、H4（蒙特卡洛）是引擎，其余是外围。 \\
+I 流体力学 & NS 目标的正面战场：I1/I2 是方程的来源，I4 涡量动力学是三维湍流的钥匙，
+I9 是「离散格式为什么会掉能量」。 \\
+Q5 紧性 & 从 Q 章单独提出来：变分法「取极小化序列 $\to$ 提收敛子列 $\to$ 极限是极小元」的第二步
+100\% 靠紧性；Rellich--Kondrachov 是椭圆理论的地基。（Q 章其余部分在第二层。） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{第二层 · 支撑（十二项）}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{12.0cm}}
+\toprule
+\textbf{章} & \textbf{为什么不到承重，又不能不读} \\
+\midrule
+A3 微分形式 & 它把梯度/旋度/散度三条公式收成一条 $\int_{\partial M}\omega=\int_M d\omega$，
+M6 的 DEC 就是它的离散版。可以边用边学，但缺了它 E 章与 DEC 都是黑话。 \\
+B1 群论与李群入门 & 旋转代码（四元数、$\exp([\omega]_\times)$ 与 Rodrigues 公式）的直接依据；
+深化版在 lie 专题，所以这里只需读懂。 \\
+C1--C5 概率测度基础 & 渲染的蒙特卡洛挂在概率空间上；俄式轮盘的无偏性直接就是鞅的定理（C4）。 \\
+C6--C9 概率深化 & C6 的四层收敛模式解释「MC 为什么收敛」，C7 给 CLT 的证明；
+\textbf{C9 实际上够承重}——它是写渲染器时的误差手册（误差 $\sim\sigma/\sqrt N$，采样翻四倍、噪声减半）。 \\
+D 经典力学 & Noether 定理是「对称性 $\to$ 守恒律」的枢纽，从 PDE 到 CG 一路在用；
+D3 哈密顿力学是辛积分器的来源。 \\
+E 场论与微分形式 & A3 的物理落地。「场」的几何结构（主丛上的联络）看 B2 的纤维丛一节与 E4，
+这是理解「场」的最短路径。 \\
+F 量子力学 & 它是 A2 谱理论的\textbf{物理直觉来源}——形式化的谱定理在这里有图景。
+\textbf{F5 的路径积分与 H3 的路径积分逐项同构}（K5 有对照表），是渲染方程最深的解释。 \\
+G 数值方法 & 骨架已有，深化在 de4 与 P9。先把 G1（时间步进）、G2（PDE 离散）、
+G3（矩阵分解）的结论记牢。 \\
+Q 拓扑学（除 Q5） & Q7 商空间是网格粘合与切割图的语言（球面一刀、环面两刀）；
+Q9 同调与 Euler 特征是网格修复与亏格判定的依据。 \\
+R 复分析 & 二维 PDE（位势、调和函数）与 CG 共形参数化的共同基础；
+但三维以上用不上（Riemann 映射定理无高维对应），所以停在支撑层。 \\
+de1 第三层 & 特殊函数与级数（Bessel、Legendre、幂级数解法）是分离变量法的核心，
+PDE 里会一次次回来。（de1 第一、二层见第四层。） \\
+lie1--lie3 & 对称性方法的完整版；lie3 的「在 CG 中的应用」（旋转、球谐、等变神经网络）
+对你的工程线是直接可用的。 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{第三层 · 工具（八项）}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{12.0cm}}
+\toprule
+\textbf{章} & \textbf{什么时候翻它} \\
+\midrule
+C7 特征函数 & 要算误差的分布、或想自己独立证一遍 CLT 时才翻。 \\
+C8 马尔可夫链与 MCMC & 写 MLT / 采样器时才需要；平时记住「MLT $=$ 路径空间上的 MCMC」即可。 \\
+J 光线追踪深层数学 & 做到体积渲染（J5 参与介质）、次表面散射（J6）、焦散（J8）时按标题回查。 \\
+M1--M5 补充章 & M4（LCP）做刚体接触求解时必查；M5（朗之万）做粒子噪声时必查；M1/M2/M3 按需。 \\
+M7 变分积分器 & 做长时程保能量模拟时查；与 G1 的辛积分器、D3 的哈密顿力学呼应。 \\
+P8 欧拉积分 & 它在正态归一化（C2）、PDE 特殊函数、组合估计处冒出来，届时回查。 \\
+N 速查表 & 想不起某条公式时先翻这里，翻不到再回原章。 \\
+O 学习路径 $+$ §15.5 & 导航本身：卡在某节时先查教材对照表，再决定翻哪本书。 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{第四层 · 延伸（七项）}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{12.0cm}}
+\toprule
+\textbf{章} & \textbf{为什么现在不投入} \\
+\midrule
+de1 第一--二层 & 考研/高数级 ODE 套路与系统理论——你的底子够用，需要时回查即可。 \\
+de2 第四层 & 李群方法解 ODE 很漂亮，但用得少；知道「对称性怎么找」就够。 \\
+C10 Itô 微积分 & 除非要做\textbf{随机流体/随机 NS}，先记住一句：
+「SDE 与抛物型 PDE 是同一件事的两种语言」。 \\
+K 路径积分专题 & 与渲染的逐项类比极漂亮（K5），但不是工程必需。 \\
+L QFT 微扰论 & 同理；L7 重整化是思想性收益，与你的路线接口弱。 \\
+E3--E4 时空与规范场 & 物理兴趣向，与 PDE／CG 的接口很弱。 \\
+M6 离散外微分 & 若你确定走\textbf{几何处理}方向，把它提到支撑层；否则先知道它在 M6。 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{怎么用这张表：}
+\begin{itemize}
+  \item \textbf{时间分配}按层：承重墙占七成，支撑占两成，工具与延伸共占一成（延伸层现在是零）。
+  \item \textbf{层内按依赖走}，不要按字母顺序：P 计算必修 $\to$ A1 $\to$ A2 $\to$ A3 $\to$ A4 $\to$ B2 $\to$ Q $\to$ R，
+        这条链走完，L2/L3 的地基就齐了；H 与 I 可以与之并行推进（它们是目标，不是前置）。
+  \item \textbf{例外比标签重要}：Q5（紧性）、C9（方差缩减）、de1 第三层（特殊函数）、
+        F5（路径积分）在各自章里都够承重级——章级标签只给整体印象，不要因为标签而跳过它们。
+\end{itemize}

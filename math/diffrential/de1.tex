@@ -1,0 +1,439 @@
+%==============================================================
+\section{第一层：考研/高数级别的 ODE 解题套路}
+%==============================================================
+
+\subsection{核心思想}
+
+所有方法本质上都在做两件事之一：
+\begin{enumerate}
+  \item \textbf{变量分离}：将 $x$ 和 $y$ 分到等式两边
+  \item \textbf{凑全微分}：将方程写成 $dF(x,y) = 0$ 的形式
+\end{enumerate}
+
+\subsection{一阶方程分类与解法}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{4cm}L{4cm}L{3cm}}
+\toprule
+\textbf{类型} & \textbf{标准形式} & \textbf{解法} & \textbf{本质} \\
+\midrule
+可分离变量 & $y' = f(x)g(y)$ & $\frac{dy}{g(y)} = f(x)\,dx$ & 直接分离 \\
+齐次方程 & $y' = \varphi(y/x)$ & 令 $u = y/x$ & 尺度不变性 \\
+一阶线性 & $y' + P(x)y = Q(x)$ & 积分因子 $\mu = e^{\int P\,dx}$ & 凑全微分 \\
+Bernoulli & $y' + Py = Qy^n$ & 令 $z = y^{1-n}$ & 非线性$\to$线性 \\
+全微分 & $M\,dx + N\,dy = 0$ & 找 $F$ 使 $dF = M\,dx + N\,dy$ & 恰当形式 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{积分因子的系统求法}
+
+对 $M\,dx + N\,dy = 0$（不满足 $\frac{\partial M}{\partial y} = \frac{\partial N}{\partial x}$），找 $\mu$ 使得：
+\[
+\frac{\partial(\mu M)}{\partial y} = \frac{\partial(\mu N)}{\partial x}
+\]
+
+展开得：
+\[
+M\frac{\partial \mu}{\partial y} - N\frac{\partial \mu}{\partial x} = \mu\left(\frac{\partial N}{\partial x} - \frac{\partial M}{\partial y}\right)
+\]
+
+\textbf{特殊情况：}
+\begin{itemize}
+  \item 若 $\frac{1}{N}\left(\frac{\partial M}{\partial y} - \frac{\partial N}{\partial x}\right) = f(x)$（只依赖 $x$），则 $\mu = e^{\int f(x)\,dx}$
+  \item 若 $\frac{1}{M}\left(\frac{\partial N}{\partial x} - \frac{\partial M}{\partial y}\right) = g(y)$（只依赖 $y$），则 $\mu = e^{\int g(y)\,dy}$
+\end{itemize}
+
+\textbf{示例：} 解 $(3x^2 + 6xy^2)\,dx + (6x^2y + 4y^2)\,dy = 0$
+
+验证：$\frac{\partial M}{\partial y} = 12xy$，$\frac{\partial N}{\partial x} = 12xy$。满足恰当条件。
+
+找 $F$：$\frac{\partial F}{\partial x} = 3x^2 + 6xy^2 \Rightarrow F = x^3 + 3x^2y^2 + \varphi(y)$
+
+$\frac{\partial F}{\partial y} = 6x^2y + \varphi'(y) = 6x^2y + 4y^2 \Rightarrow \varphi(y) = \frac{4}{3}y^3$
+
+解：$x^3 + 3x^2y^2 + \frac{4}{3}y^3 = C$
+
+\subsubsection{一阶线性方程的完整示例}
+
+\textbf{例题：} 解 $y' + \frac{2}{x}y = x^2$，$x > 0$
+
+\textbf{方法一（积分因子）：}
+
+$\mu = e^{\int 2/x\,dx} = e^{2\ln x} = x^2$
+
+两边乘以 $x^2$：$x^2 y' + 2xy = x^4$，即 $(x^2 y)' = x^4$
+
+积分：$x^2 y = \frac{x^5}{5} + C$
+
+\[
+\boxed{y = \frac{x^3}{5} + \frac{C}{x^2}}
+\]
+
+\textbf{方法二（常数变易法）：}
+
+齐次解：$y_h = \frac{C}{x^2}$
+
+设 $y = \frac{C(x)}{x^2}$，代入：$\frac{C'(x)}{x^2} = x^2$，$C(x) = \frac{x^5}{5} + C_0$
+
+结果相同。
+
+\subsection{可降阶的高阶方程}
+
+\begin{center}
+\begin{tabular}{L{3cm}L{4cm}L{5cm}}
+\toprule
+\textbf{类型} & \textbf{形式} & \textbf{降阶方法} \\
+\midrule
+缺 $y$ & $F(x, y', y'', \ldots) = 0$ & 令 $p = y'$，降一阶 \\
+缺 $x$ & $F(y, y', y'', \ldots) = 0$ & 令 $p = y'$，$y'' = p\frac{dp}{dy}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{示例（缺 $x$）：} 解 $yy'' + (y')^2 = 0$
+
+令 $p = y'$，$y'' = p\frac{dp}{dy}$：
+\[
+yp\frac{dp}{dy} + p^2 = 0 \implies p\left(y\frac{dp}{dy} + p\right) = 0
+\]
+
+$p = 0$ 给出 $y = C$（平凡解）。
+
+$y\frac{dp}{dy} + p = 0$：$\frac{dp}{p} = -\frac{dy}{y}$，$\ln|p| = -\ln|y| + C$，$p = \frac{C_1}{y}$
+
+即 $y' = \frac{C_1}{y}$，$y\,dy = C_1\,dx$，$\frac{y^2}{2} = C_1 x + C_2$
+
+\[
+\boxed{y^2 = 2C_1 x + C_2}
+\]
+
+\textbf{对称性解读：} 方程缺 $x$ → 平移对称性 $x \to x + c$ → 可以降阶。
+
+\subsection{二阶线性常系数方程}
+
+\[
+y'' + py' + qy = 0
+\]
+
+\textbf{特征方程：} $r^2 + pr + q = 0$
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{3cm}L{5cm}}
+\toprule
+\textbf{判别式} & \textbf{根} & \textbf{通解} \\
+\midrule
+$\Delta > 0$ & 不等实根 $r_1, r_2$ & $y = C_1 e^{r_1 x} + C_2 e^{r_2 x}$ \\
+$\Delta = 0$ & 重根 $r$ & $y = (C_1 + C_2 x)e^{rx}$ \\
+$\Delta < 0$ & 复根 $\alpha \pm i\beta$ & $y = e^{\alpha x}(C_1\cos\beta x + C_2\sin\beta x)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{为什么重根时出现 $xe^{rx}$？}
+
+\textbf{解释一（极限）：} 设 $r_1 = r + \epsilon$，$r_2 = r - \epsilon$，则：
+\[
+\frac{e^{(r+\epsilon)x} - e^{(r-\epsilon)x}}{2\epsilon} = e^{rx}\frac{e^{\epsilon x} - e^{-\epsilon x}}{2\epsilon} \xrightarrow{\epsilon \to 0} xe^{rx}
+\]
+
+\textbf{解释二（算子/若尔当）：} 方程等价于 $(D - r)^2 y = 0$，其中 $D = d/dx$。$(D-r)^2$ 的零空间由 $e^{rx}$ 和 $xe^{rx}$ 张成——这是若尔当块的体现。
+
+\textbf{示例：} 解 $y'' - 4y' + 4y = 0$
+
+特征方程：$r^2 - 4r + 4 = (r-2)^2 = 0$，$r = 2$（重根）
+
+\[
+\boxed{y = (C_1 + C_2 x)e^{2x}}
+\]
+
+\subsection{Euler 方程（等维方程）}
+
+\[
+x^2 y'' + axy' + by = 0
+\]
+
+\textbf{特征：} 系数是 $x$ 的幂次，具有尺度不变性（$x \to \lambda x$ 下方程形式不变）。
+
+\textbf{解法一：} 令 $y = x^r$，代入得指标方程：
+\[
+r(r-1) + ar + b = 0
+\]
+
+\textbf{解法二：} 令 $x = e^t$（$t = \ln x$），则 $x\frac{d}{dx} = \frac{d}{dt}$，$x^2\frac{d^2}{dx^2} = \frac{d^2}{dt^2} - \frac{d}{dt}$，化为常系数方程。
+
+\textbf{示例：} 解 $x^2 y'' - 2xy' + 2y = 0$
+
+令 $y = x^r$：$r(r-1) - 2r + 2 = 0$，$r^2 - 3r + 2 = 0$，$r = 1, 2$
+
+\[
+\boxed{y = C_1 x + C_2 x^2}
+\]
+
+\subsection{非齐次方程：待定系数法与常数变易法}
+
+\subsubsection{待定系数法（常系数）}
+
+对 $y'' + py' + qy = f(x)$，根据 $f(x)$ 的形式猜测特解形式：
+
+\begin{center}
+\begin{tabular}{L{4cm}L{5cm}}
+\toprule
+\textbf{$f(x)$ 的形式} & \textbf{特解猜测} \\
+\midrule
+$P_n(x)$（$n$ 次多项式） & $Q_n(x)$（$n$ 次多项式） \\
+$e^{\alpha x}$ & $Ae^{\alpha x}$（若 $\alpha$ 非特征根） \\
+$e^{\alpha x}P_n(x)$ & $e^{\alpha x}Q_n(x)$ \\
+$e^{\alpha x}\cos\beta x$ 或 $e^{\alpha x}\sin\beta x$ & $e^{\alpha x}(A\cos\beta x + B\sin\beta x)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{共振情况：} 若 $\alpha$（或 $\alpha \pm i\beta$）是特征方程的 $k$ 重根，则特解需乘以 $x^k$。
+
+\textbf{示例：} 解 $y'' + y = x\cos x$
+
+齐次解：$y_h = C_1\cos x + C_2\sin x$
+
+$f(x) = x\cos x$，$\alpha + i\beta = i$ 是特征根（$r^2 + 1 = 0$），$k = 1$。
+
+猜测：$y^* = x[(Ax + B)\cos x + (Cx + D)\sin x]$
+
+（代入比较系数，过程略）
+
+\subsubsection{常数变易法（通用）}
+
+设 $y = u_1(x)y_1 + u_2(x)y_2$，约束：
+\[
+u_1' y_1 + u_2' y_2 = 0
+\]
+\[
+u_1' y_1' + u_2' y_2' = f(x)
+\]
+
+解出：
+\[
+u_1' = -\frac{y_2 f}{W}, \quad u_2' = \frac{y_1 f}{W}
+\]
+
+其中 $W = y_1 y_2' - y_1' y_2$ 是 Wronskian。
+
+%==============================================================
+\section{第二层：常微分方程的系统理论}
+%==============================================================
+
+\subsection{存在唯一性定理}
+
+\textbf{Picard--Lindelöf 定理：} 考虑
+\[
+\frac{dy}{dx} = f(x, y), \quad y(x_0) = y_0
+\]
+
+若 $f$ 连续且关于 $y$ 满足 Lipschitz 条件 $|f(x,y_1) - f(x,y_2)| \leq L|y_1 - y_2|$，则初值问题在 $x_0$ 的某邻域内存在唯一解。
+
+\textbf{证明思想（Picard 迭代）：}
+\[
+y_0(x) = y_0, \quad y_{n+1}(x) = y_0 + \int_{x_0}^x f(t, y_n(t))\,dt
+\]
+
+在适当条件下 $y_n \to y$（压缩映射原理）。
+
+\subsection{线性系统}
+
+\[
+\mathbf{x}' = A\mathbf{x}
+\]
+
+\textbf{通解：} $\mathbf{x}(t) = e^{At}\mathbf{c}$
+
+\textbf{矩阵指数：}
+\[
+e^{At} = \sum_{k=0}^{\infty} \frac{(At)^k}{k!}
+\]
+
+\textbf{计算方法：}
+\begin{itemize}
+  \item 若 $A$ 可对角化：$A = P\Lambda P^{-1}$，则 $e^{At} = Pe^{\Lambda t}P^{-1}$
+  \item 若有若尔当块：$e^{Jt}$ 包含 $t^k e^{\lambda t}$ 项
+  \item Cayley--Hamilton：$e^{At}$ 可表示为 $A$ 的 $n-1$ 次多项式
+\end{itemize}
+
+\textbf{示例：} 解 $\mathbf{x}' = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}\mathbf{x}$
+
+$A$ 有若尔当块（特征值 $\lambda = 1$，代数重数 2，几何重数 1）：
+\[
+e^{At} = e^t \begin{pmatrix} 1 & t \\ 0 & 1 \end{pmatrix}
+\]
+
+通解：
+\[
+\mathbf{x}(t) = e^t \begin{pmatrix} C_1 + C_2 t \\ C_2 \end{pmatrix}
+\]
+
+\subsection{稳定性理论}
+
+\textbf{平衡点分类（二维线性系统 $\mathbf{x}' = A\mathbf{x}$）：}
+
+\begin{center}
+\begin{tabular}{L{3.5cm}L{3cm}L{3cm}}
+\toprule
+\textbf{特征值} & \textbf{类型} & \textbf{稳定性} \\
+\midrule
+两个负实根 & 稳定结点 & 渐近稳定 \\
+两个正实根 & 不稳定结点 & 不稳定 \\
+一正一负 & 鞍点 & 不稳定 \\
+纯虚根 $\pm i\beta$ & 中心 & 稳定（非渐近） \\
+复根 $\alpha \pm i\beta$，$\alpha < 0$ & 稳定焦点 & 渐近稳定 \\
+复根 $\alpha \pm i\beta$，$\alpha > 0$ & 不稳定焦点 & 不稳定 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Lyapunov 方法：} 找正定函数 $V(\mathbf{x})$（“能量”），若 $\dot{V} \leq 0$，则平衡点稳定。
+
+\subsection{Sturm--Liouville 问题}
+
+\[
+-(p(x)y')' + q(x)y = \lambda w(x)y
+\]
+
+加上边界条件（如 $y(a) = y(b) = 0$）。
+
+\textbf{性质：}
+\begin{itemize}
+  \item 特征值 $\lambda_1 < \lambda_2 < \cdots \to \infty$（离散、实数）
+  \item 特征函数关于权重 $w$ 正交：$\int_a^b y_m y_n w\,dx = 0$（$m \neq n$）
+  \item 特征函数构成 $L^2_w[a,b]$ 的完备正交基
+\end{itemize}
+
+\textbf{经典例子：}
+
+\begin{center}
+\begin{tabular}{L{4cm}L{3cm}L{4cm}}
+\toprule
+\textbf{方程} & \textbf{特征函数} & \textbf{对应} \\
+\midrule
+$-y'' = \lambda y$，$[0,\pi]$ & $\sin(nx)$ & Fourier 正弦级数 \\
+$-y'' = \lambda y$，周期 & $e^{inx}$ & Fourier 级数 \\
+Bessel & $J_\nu(\sqrt{\lambda}x)$ & Bessel 函数 \\
+Legendre & $P_n(x)$ & Legendre 多项式 \\
+$-y'' + x^2 y = \lambda y$ & $H_n(x)e^{-x^2/2}$ & Hermite 函数 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================
+\section{第三层：特殊函数与级数方法}
+%==============================================================
+
+\subsection{幂级数解法}
+
+\subsubsection{常点展开}
+
+若 $P(x)$，$Q(x)$ 在 $x_0$ 解析，设 $y = \sum_{n=0}^{\infty} a_n (x-x_0)^n$，代入方程比较系数。
+
+\textbf{示例：} 解 $y'' + y = 0$（在 $x_0 = 0$ 展开）
+
+设 $y = \sum a_n x^n$，$y'' = \sum_{n=2}^{\infty} n(n-1)a_n x^{n-2} = \sum_{n=0}^{\infty}(n+2)(n+1)a_{n+2} x^n$
+
+代入：$(n+2)(n+1)a_{n+2} + a_n = 0$，即 $a_{n+2} = -\frac{a_n}{(n+2)(n+1)}$
+
+偶数项：$a_0, a_2 = -\frac{a_0}{2!}, a_4 = \frac{a_0}{4!}, \ldots$ → $a_0\cos x$
+
+奇数项：$a_1, a_3 = -\frac{a_1}{3!}, a_5 = \frac{a_1}{5!}, \ldots$ → $a_1\sin x$
+
+\[
+y = a_0\cos x + a_1\sin x
+\]
+
+\subsubsection{Frobenius 方法（正则奇点）}
+
+若 $x_0$ 是正则奇点，设：
+\[
+y = (x-x_0)^r \sum_{n=0}^{\infty} a_n (x-x_0)^n, \quad a_0 \neq 0
+\]
+
+代入得\textbf{指标方程}（确定 $r$）和递推关系。
+
+\textbf{指标方程两根 $r_1, r_2$ 的关系：}
+\begin{itemize}
+  \item $r_1 - r_2 \notin \mathbb{Z}$：两个线性无关解都是 Frobenius 形式
+  \item $r_1 - r_2 \in \mathbb{Z}$：第二个解可能含 $\ln(x-x_0)$ 项
+  \item $r_1 = r_2$：第二个解一定含 $\ln$ 项
+\end{itemize}
+
+\textbf{示例：} 解 $xy'' + y' + xy = 0$（$x_0 = 0$ 是正则奇点）
+
+设 $y = x^r \sum a_n x^n$。代入，最低次幂项给出指标方程：
+\[
+r^2 = 0 \implies r = 0 \text{（重根）}
+\]
+
+第一个解：$y_1 = J_0(x) = \sum_{k=0}^{\infty} \frac{(-1)^k}{(k!)^2}\left(\frac{x}{2}\right)^{2k}$（Bessel 函数 $J_0$）
+
+第二个解含 $\ln x$：$y_2 = J_0(x)\ln x + \cdots$
+
+\subsection{Bessel 方程}
+
+\[
+x^2 y'' + xy' + (x^2 - \nu^2)y = 0
+\]
+
+\textbf{来源：} 柱坐标下 Laplace 方程的径向部分。
+
+\textbf{解：}
+\[
+J_\nu(x) = \sum_{k=0}^{\infty} \frac{(-1)^k}{k!\,\Gamma(k+\nu+1)}\left(\frac{x}{2}\right)^{2k+\nu}
+\]
+
+\textbf{正交性：}
+\[
+\int_0^1 x\, J_\nu(\alpha_m x)\, J_\nu(\alpha_n x)\,dx = 0 \quad (m \neq n)
+\]
+其中 $\alpha_n$ 是 $J_\nu$ 的第 $n$ 个正零点。
+
+\subsection{Legendre 方程}
+
+\[
+(1-x^2)y'' - 2xy' + l(l+1)y = 0
+\]
+
+\textbf{来源：} 球坐标下 Laplace 方程的角度部分。
+
+\textbf{Rodrigues 公式：}
+\[
+P_l(x) = \frac{1}{2^l l!}\frac{d^l}{dx^l}(x^2-1)^l
+\]
+
+\textbf{正交性：}
+\[
+\int_{-1}^1 P_m(x) P_n(x)\,dx = \frac{2}{2n+1}\delta_{mn}
+\]
+
+\subsection{特殊函数的统一视角}
+
+所有经典特殊函数都是二阶线性 ODE 的解，且都满足：
+\begin{enumerate}
+  \item 可写成 Sturm--Liouville 形式
+  \item 关于权重函数正交
+  \item 构成对应 $L^2_w$ 空间的完备正交基
+  \item 满足递推关系
+  \item 存在生成函数
+  \item 可用超几何函数 $_2F_1$ 表示
+\end{enumerate}
+
+\subsection{Green 函数方法（ODE 版本）}
+
+\textbf{问题：} $Ly = f(x)$，$L$ 是线性微分算子，加边界条件。
+
+\textbf{Green 函数 $G(x,\xi)$：} 满足 $LG = \delta(x-\xi)$（加齐次边界条件）。
+
+\textbf{解：} $y(x) = \int_a^b G(x,\xi)\,f(\xi)\,d\xi$
+
+\textbf{示例：} $-y'' = f(x)$，$y(0) = y(1) = 0$
+
+\[
+G(x,\xi) = \begin{cases} x(1-\xi) & x < \xi \\ \xi(1-x) & x > \xi \end{cases}
+\]
+
+验证：$G$ 在 $x = \xi$ 连续，$G'$ 跳跃 $-1$，$G(0,\xi) = G(1,\xi) = 0$。

@@ -1,0 +1,77 @@
+\section{K. Feynman 路径积分}
+\label{sec:path-integral}
+
+\subsection{K1. 推导（时间切片法）}
+
+\textbf{传播子：}
+\[
+K(x_f, t_f;\, x_i, t_i) = \langle x_f | e^{-i\hat{H}(t_f-t_i)/\hbar} | x_i \rangle
+\]
+
+将时间区间分为 $N$ 段，$\epsilon = (t_f - t_i)/N$，在每个时间片插入完备性关系 $\int |x\rangle\langle x|\,dx = 1$。
+
+对于 $\hat{H} = \frac{\hat{p}^2}{2m} + V(\hat{x})$，取 $N \to \infty$：
+\[
+\boxed{K(x_f, t_f;\, x_i, t_i) = \int \mathcal{D}[x(t)]\, \exp\left[\frac{i}{\hbar}S[x(t)]\right]}
+\]
+
+其中 $S[x] = \displaystyle\int_{t_i}^{t_f} L(x, \dot{x}, t)\,dt$。
+
+\subsection{K2. 物理含义}
+
+\begin{itemize}
+  \item 每条路径贡献相位 $e^{iS/\hbar}$
+  \item 经典路径是 $\delta S = 0$ 的驻点，附近路径相干叠加
+  \item 远离经典路径的路径相位快速振荡，相互抵消
+  \item $\hbar \to 0$：只有经典路径贡献 $\to$ 经典力学
+\end{itemize}
+
+\subsection{K3. 具体计算}
+
+\subsubsection{自由粒子}
+
+\[
+K_{\text{free}} = \sqrt{\frac{m}{2\pi i\hbar(t_f-t_i)}} \exp\left[\frac{im(x_f-x_i)^2}{2\hbar(t_f-t_i)}\right]
+\]
+
+\subsubsection{谐振子}
+
+\[
+K_{\text{HO}} = \sqrt{\frac{m\omega}{2\pi i\hbar\sin\omega T}} \exp\left[\frac{im\omega}{2\hbar\sin\omega T}\left((x_f^2+x_i^2)\cos\omega T - 2x_fx_i\right)\right]
+\]
+
+对于二次作用量（自由粒子、谐振子），路径积分可以精确计算（高斯积分）。
+
+\subsection{K4. Wick 转动与统计力学}
+
+$t \to -i\tau$：
+\[
+e^{iS/\hbar} \to e^{-S_E/\hbar}
+\]
+
+路径积分变为配分函数形式：
+\[
+Z = \int \mathcal{D}[x(\tau)]\, e^{-S_E[x]/\hbar}
+\]
+
+$d$ 维量子场论 $\leftrightarrow$ $(d+1)$ 维经典统计力学。
+
+\subsection{K5. 与路径追踪的类比}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{量子力学} & \textbf{渲染} \\
+\midrule
+路径 $x(t)$ & 光路 $(x_0, x_1, \ldots, x_k)$ \\
+作用量 $S[x]$ & 路径贡献 $f(\bar{x})$ \\
+$e^{iS/\hbar}$（相位） & 路径 throughput（实数） \\
+$\int \mathcal{D}x$ & $\int_\Omega d\mu(\bar{x})$ \\
+经典路径（$\delta S = 0$） & 镜面反射路径（Fermat 原理） \\
+微扰展开（Feynman 图） & Neumann 级数（弹射次数） \\
+$\hbar \to 0$ & $\lambda \to 0$（几何光学极限） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{关键区别：} 量子路径积分的权重是复数相位（干涉），渲染路径积分的权重是正实数（能量）。

@@ -1,0 +1,194 @@
+%==============================================================
+\section{第八层：数值方法}
+\label{sec:de-numerics}
+%==============================================================
+
+\subsection{有限差分法}
+
+\subsubsection{基本格式}
+
+\textbf{一阶导数：}
+\[
+u'(x_i) \approx \frac{u_{i+1} - u_{i-1}}{2h} \quad \text{（中心差分，$O(h^2)$）}
+\]
+
+\textbf{二阶导数：}
+\[
+u''(x_i) \approx \frac{u_{i+1} - 2u_i + u_{i-1}}{h^2} \quad \text{（$O(h^2)$）}
+\]
+
+\textbf{二维 Laplace（五点格式）：}
+\[
+\nabla^2 u_{i,j} \approx \frac{u_{i+1,j} + u_{i-1,j} + u_{i,j+1} + u_{i,j-1} - 4u_{i,j}}{h^2}
+\]
+
+\subsubsection{稳定性}
+
+\textbf{热方程显式格式：} $u_j^{n+1} = u_j^n + r(u_{j+1}^n - 2u_j^n + u_{j-1}^n)$，$r = k\Delta t/h^2$
+
+\textbf{稳定性条件：} $r \leq 1/2$
+
+\textbf{波动方程：} $\frac{c\Delta t}{h} \leq 1$（CFL 条件）
+
+\subsection{有限元法}
+
+\textbf{核心步骤：}
+\begin{enumerate}
+  \item 将域 $\Omega$ 剖分为单元
+  \item 在每个单元上用多项式基函数近似
+  \item 代入弱形式，组装全局刚度矩阵
+  \item 施加边界条件
+  \item 求解线性系统 $K\mathbf{u} = \mathbf{f}$
+\end{enumerate}
+
+\textbf{刚度矩阵元素：}
+\[
+K_{ij} = \int_\Omega \nabla\phi_i \cdot \nabla\phi_j\,d\Omega
+\]
+
+\subsection{谱方法}
+
+\textbf{思想：} 用全局正交基展开 $u(x) = \sum \hat{u}_n \phi_n(x)$
+
+\textbf{Galerkin 方法：} 将残差投影到基函数上为零。
+
+\textbf{优势：} 对光滑解指数收敛。
+
+\textbf{劣势：} 对不连续解有 Gibbs 现象。
+
+\textbf{速查版本见~\ref{subsec:pde-numerics}~节。}
+
+\subsection{半拉格朗日方法}
+
+对 $u_t + \mathbf{v}\cdot\nabla u = 0$：
+\begin{enumerate}
+  \item 从网格点 $\mathbf{x}$ 出发，沿速度场回溯：$\mathbf{x}^* = \mathbf{x} - \Delta t\,\mathbf{v}(\mathbf{x})$
+  \item 在 $\mathbf{x}^*$ 处插值：$u^{n+1}(\mathbf{x}) = u^n(\mathbf{x}^*)$
+\end{enumerate}
+
+\textbf{优势：} 无条件稳定。\textbf{劣势：} 数值耗散。
+
+%==============================================================
+\section{第九层：与物理/CG 的交叉应用}
+%==============================================================
+
+\subsection{微分方程在渲染中的出现}
+
+\begin{center}
+\begin{tabular}{L{4cm}L{5cm}}
+\toprule
+\textbf{方程} & \textbf{渲染中的角色} \\
+\midrule
+Helmholtz 方程 & 波动光学、衍射 \\
+辐射传输方程（RTE） & 参与介质中的光传输 \\
+渲染方程（积分方程） & 全局光照 \\
+扩散方程 & 次表面散射近似 \\
+Poisson 方程 & 压力投影、法线重建 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{微分方程在物理模拟中的出现}
+
+\begin{center}
+\begin{tabular}{L{4cm}L{5cm}}
+\toprule
+\textbf{方程} & \textbf{模拟对象} \\
+\midrule
+Navier--Stokes & 流体（水、烟、火） \\
+弹性方程 & 固体变形 \\
+波动方程 & 布料、绳索、声波 \\
+热方程 & 温度场、扩散 \\
+Hamilton 方程 & 刚体、粒子系统 \\
+反应--扩散方程 & 图案生成（Turing） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{微分方程在几何处理中的出现}
+
+\begin{center}
+\begin{tabular}{L{4cm}L{5cm}}
+\toprule
+\textbf{方程} & \textbf{几何处理任务} \\
+\midrule
+$\Delta u = 0$（Laplace） & 调和映射、网格平滑 \\
+$\Delta^2 u = 0$（双调和） & 薄板弯曲、曲面重建 \\
+平均曲率流 & 网格平滑、曲面演化 \\
+测地线方程 & 最短路径、形状匹配 \\
+$-\Delta u = \lambda u$ & 形状分析、谱聚类 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================
+\section{总结：微分方程的统一视角}
+%==============================================================
+
+\subsection{五条核心线索}
+
+\begin{enumerate}
+  \item \textbf{对称性 → 降阶/简化}（李群方法、分离变量、行波解、自相似解）
+  \item \textbf{线性算子的谱 → 正交基 → 展开}（Fourier、球谐、Bessel、Legendre）
+  \item \textbf{Green 函数 → 点源响应 → 叠加}（线性问题的通用解法）
+  \item \textbf{变分原理 → 弱形式 → 数值离散}（有限元的理论基础）
+  \item \textbf{特征值问题 → 振动模式 → 形状/频率分析}（贯穿所有领域）
+\end{enumerate}
+
+\subsection{知识网络}
+
+\[
+\boxed{
+\begin{aligned}
+&\text{对称性（李群）} \xrightarrow{\text{降阶/降维}} \text{简化方程} \\
+&\text{分离变量} \xrightarrow{\text{特征值问题}} \text{特殊函数（正交基）} \\
+&\text{Green 函数} \xrightarrow{\text{点源叠加}} \text{卷积/积分表示} \\
+&\text{变分原理} \xrightarrow{\text{弱形式}} \text{有限元/数值解} \\
+&\text{Taylor/幂级数} \xrightarrow{\text{无穷维矩阵}} \text{算子对角化/积分变换}
+\end{aligned}
+}
+\]
+
+\subsection{从局部到全局的三条路径}
+
+\[
+\boxed{
+\begin{aligned}
+&\text{Taylor 展开（局部）} \xrightarrow{\text{解析延拓}} \text{复平面上的全局信息} \\
+&\text{Laplace 变换（半轴）} \xrightarrow{\sigma = 0} \text{Fourier 变换（全轴）} \\
+&\text{幂级数（离散指标）} \xrightarrow{\text{生成函数}} \text{复变函数（连续变量）}
+\end{aligned}
+}
+\]
+
+\subsection{微分方程 $\leftrightarrow$ 代数 $\leftrightarrow$ 几何的三角关系}
+
+\[
+\boxed{
+\begin{aligned}
+&\text{微分方程} \xleftrightarrow{\text{特征值/谱}} \text{线性代数（矩阵）} \\
+&\text{微分方程} \xleftrightarrow{\text{对称性/不变量}} \text{几何（流形/群）} \\
+&\text{线性代数} \xleftrightarrow{\text{表示论}} \text{几何（群作用）}
+\end{aligned}
+}
+\]
+
+\subsection{最终统一}
+
+所有方法归结为一个核心问题：
+
+\[
+\boxed{Lu = f}
+\]
+
+其中 $L$ 是（微分/积分/差分）算子。求解策略：
+
+\begin{enumerate}
+  \item \textbf{找 $L$ 的特征基} → 对角化 → 逐分量求解（分离变量、谱方法）
+  \item \textbf{找 $L^{-1}$（Green 函数）} → 卷积 → 叠加（Green 函数法、边界元法）
+  \item \textbf{利用对称性} → 降维 → 简化（李群方法、行波解）
+  \item \textbf{变分/能量最小化} → 弱形式 → 离散（有限元）
+  \item \textbf{迭代/逼近} → 逐步收敛（Picard 迭代、Neumann 级数、路径追踪）
+\end{enumerate}
+
+这五条路径覆盖了从考研解题到前沿研究的所有微分方程方法。

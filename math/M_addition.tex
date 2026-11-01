@@ -1,0 +1,79 @@
+\section{M. 补充：统计力学、热辐射、信息论与离散守恒结构}
+
+\subsection{M1. 统计力学基础}
+
+\textbf{配分函数：}
+\[
+Z = \sum_i e^{-\beta E_i}, \quad \beta = \frac{1}{k_B T}
+\]
+
+\textbf{Boltzmann 分布：} $P_i = \dfrac{e^{-\beta E_i}}{Z}$
+
+\textbf{自由能：} $F = -k_B T \ln Z$
+
+\subsection{M2. 黑体辐射}
+
+\[
+B_\lambda(T) = \frac{2hc^2}{\lambda^5} \cdot \frac{1}{e^{hc/(\lambda k_B T)} - 1}
+\]
+
+\textbf{Wien 位移定律：} $\lambda_{\max} T = 2.898 \times 10^{-3}$ m$\cdot$K
+
+\subsection{M3. 信息论与熵}
+
+\textbf{Shannon 熵：} $H(X) = -\displaystyle\sum p_i \log p_i$
+
+\textbf{KL 散度：} $D_{KL}(p\|q) = \displaystyle\int p\log\frac{p}{q}\,dx \geq 0$
+
+在 CG 中：最优重要性采样、最大熵正则化。
+
+\subsection{M4. 线性互补问题（LCP）}
+
+找 $z \geq 0$ 使得：
+\[
+w = Mz + q \geq 0, \quad z^T w = 0
+\]
+
+物理意义：接触力 $z$ 和穿透深度 $w$ 不能同时为正。
+
+求解方法：Lemke 算法、投影 Gauss--Seidel (PGS)、内点法。
+
+\subsection{M5. 朗之万方程}
+
+\[
+m\ddot{x} = -\gamma\dot{x} + \sqrt{2\gamma k_B T}\,\xi(t) + F(x)
+\]
+
+涨落耗散定理：摩擦系数和噪声强度由同一参数 $\gamma$ 决定。
+
+\subsection{M6. 离散外微分（DEC）}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{连续} & \textbf{离散} \\
+\midrule
+0-形式（标量场） & 顶点上的值 \\
+1-形式 & 边上的值 \\
+2-形式 & 面上的值 \\
+外微分 $d$ & 上边界算子（关联矩阵） \\
+Hodge 星 $*$ & 对偶网格上的对角矩阵 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$d^2 = 0$ 在离散层面精确成立。
+
+\subsection{M7. 变分积分器}
+
+先离散作用量，再对离散作用量取变分：
+\[
+S_d = \sum_{k=0}^{N-1} L_d(q_k, q_{k+1}, h)
+\]
+
+\textbf{离散欧拉--拉格朗日方程：}
+\[
+D_2 L_d(q_{k-1}, q_k) + D_1 L_d(q_k, q_{k+1}) = 0
+\]
+
+性质：自动辛、自动保持动量、长期能量行为好。

@@ -1,0 +1,206 @@
+%==============================================================
+\section{李代数的分类}
+%==============================================================
+
+\subsection{单李代数与半单李代数}
+
+\textbf{单李代数：} 没有非平凡理想（$[I, \mathfrak{g}] \subset I$ 的子空间 $I$）。
+
+\textbf{半单李代数：} 单李代数的直和。
+
+\textbf{分类定理（Cartan--Killing）：} 复半单李代数完全由 Dynkin 图分类。
+
+\subsection{经典李代数系列}
+
+\begin{center}
+\begin{tabular}{L{2cm}L{3cm}L{2cm}L{5cm}}
+\toprule
+\textbf{类型} & \textbf{李代数} & \textbf{维度} & \textbf{物理} \\
+\midrule
+$A_n$ & $\mathfrak{sl}(n+1, \mathbb{C})$ & $n(n+2)$ & $SU(n+1)$：色、味对称 \\
+$B_n$ & $\mathfrak{so}(2n+1, \mathbb{C})$ & $n(2n+1)$ & $SO(2n+1)$：旋转 \\
+$C_n$ & $\mathfrak{sp}(2n, \mathbb{C})$ & $n(2n+1)$ & $Sp(n)$：辛对称 \\
+$D_n$ & $\mathfrak{so}(2n, \mathbb{C})$ & $n(2n-1)$ & $SO(2n)$：旋转 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{例外李代数}
+
+\begin{center}
+\begin{tabular}{L{2cm}L{2cm}L{6cm}}
+\toprule
+\textbf{类型} & \textbf{维度} & \textbf{出现} \\
+\midrule
+$G_2$ & 14 & 八元数的自同构群；弦论 \\
+$F_4$ & 52 & 例外 Jordan 代数；弦论 \\
+$E_6$ & 78 & 大统一理论候选 \\
+$E_7$ & 133 & 超引力；弦论 \\
+$E_8$ & 248 & 弦论（$E_8 \times E_8$ 杂化弦）；凝聚态（Ising 模型） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{根系与 Dynkin 图}
+
+\subsubsection{Cartan 子代数与根}
+
+\textbf{Cartan 子代数 $\mathfrak{h}$：} 极大交换子代数（所有元素可同时对角化）。
+
+\textbf{根：} $\alpha \in \mathfrak{h}^*$ 使得存在 $E_\alpha \neq 0$ 满足 $[H, E_\alpha] = \alpha(H)E_\alpha$，$\forall H \in \mathfrak{h}$。
+
+\textbf{分解：}
+\[
+\mathfrak{g} = \mathfrak{h} \oplus \bigoplus_{\alpha \in \Phi} \mathfrak{g}_\alpha
+\]
+
+\subsubsection{Dynkin 图}
+
+\textbf{构造规则：}
+\begin{itemize}
+  \item 每个单根画一个节点
+  \item 两节点间的边数由夹角决定：$90° \to 0$ 边，$60° \to 1$ 边，$45° \to 2$ 边，$30° \to 3$ 边
+  \item 不等长根之间加箭头（指向短根）
+\end{itemize}
+
+\textbf{经典系列的 Dynkin 图：}
+
+\begin{itemize}
+  \item $A_n$：$\circ - \circ - \circ - \cdots - \circ$（$n$ 个节点，链状）
+  \item $B_n$：$\circ - \circ - \cdots - \circ \Rightarrow \circ$（末端双键）
+  \item $C_n$：$\circ - \circ - \cdots - \circ \Leftarrow \circ$（末端双键，方向反）
+  \item $D_n$：$\circ - \circ - \cdots - \circ$ 末端分叉为两个节点
+\end{itemize}
+
+\textbf{例外系列：} $G_2$、$F_4$、$E_6$、$E_7$、$E_8$ 有特殊的 Dynkin 图。
+
+\subsection{表示论}
+
+\subsubsection{权与最高权}
+
+\textbf{权：} 表示空间中 $H \in \mathfrak{h}$ 的特征值。
+
+\textbf{最高权：} 在某个偏序下最大的权。
+
+\textbf{定理：} 不可约表示由最高权唯一确定。
+
+\subsubsection{$\mathfrak{su}(2)$ 的表示}
+
+不可约表示由非负整数/半整数 $j$ 标记，维度 $2j + 1$：
+\begin{itemize}
+  \item $j = 0$：标量（1 维）
+  \item $j = 1/2$：旋量（2 维）——电子自旋
+  \item $j = 1$：向量（3 维）——光子
+  \item $j = 3/2$：（4 维）——$\Delta$ 重子
+  \item $j = 2$：（5 维）——引力子
+\end{itemize}
+
+\subsubsection{$\mathfrak{su}(3)$ 的表示与粒子物理}
+
+\textbf{基本表示 $\mathbf{3}$：} 夸克（$u, d, s$）
+
+\textbf{共轭表示 $\bar{\mathbf{3}}$：} 反夸克
+
+\textbf{分解：}
+\[
+\mathbf{3} \otimes \bar{\mathbf{3}} = \mathbf{8} \oplus \mathbf{1}
+\]
+
+$\mathbf{8}$：8 个胶子（伴随表示）；$\mathbf{1}$：单态。
+
+\[
+\mathbf{3} \otimes \mathbf{3} \otimes \mathbf{3} = \mathbf{10} \oplus \mathbf{8} \oplus \mathbf{8} \oplus \mathbf{1}
+\]
+
+$\mathbf{10}$：重子十重态（$\Delta$、$\Sigma^*$、$\Xi^*$、$\Omega^-$）——这是盖尔曼预言 $\Omega^-$ 的基础。
+
+%==============================================================
+\section{拓扑结构}
+%==============================================================
+
+\subsection{基本群}
+
+\textbf{基本群 $\pi_1(X)$：} 闭合路径的同伦类。
+
+\begin{center}
+\begin{tabular}{L{3cm}L{3cm}L{5cm}}
+\toprule
+\textbf{空间} & \textbf{$\pi_1$} & \textbf{物理意义} \\
+\midrule
+$S^1$ & $\mathbb{Z}$ & 绕数（Aharonov--Bohm 效应） \\
+$SO(3) \cong \mathbb{RP}^3$ & $\mathbb{Z}_2$ & 自旋 $1/2$（$2\pi$ 旋转 $\neq$ 恒等） \\
+$SU(2) \cong S^3$ & $0$（单连通） & 万有覆盖 \\
+$U(1) \cong S^1$ & $\mathbb{Z}$ & 磁通量子化、涡旋 \\
+$SO(3,1)^+$（Lorentz） & $\mathbb{Z}_2$ & 旋量 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{高阶同伦群}
+
+\textbf{$\pi_n(X)$：} $S^n \to X$ 的连续映射的同伦类。
+
+\begin{center}
+\begin{tabular}{L{3cm}L{3cm}L{5cm}}
+\toprule
+\textbf{同伦群} & \textbf{值} & \textbf{物理意义} \\
+\midrule
+$\pi_2(S^2)$ & $\mathbb{Z}$ & 磁单极（'t Hooft--Polyakov） \\
+$\pi_3(S^2)$ & $\mathbb{Z}$ & Skyrmion（核子模型） \\
+$\pi_3(SU(2))$ & $\mathbb{Z}$ & 瞬子（Yang--Mills） \\
+$\pi_3(SU(3))$ & $\mathbb{Z}$ & QCD 真空结构（$\theta$ 真空） \\
+$\pi_1(U(1))$ & $\mathbb{Z}$ & 涡旋（超流、超导） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{纤维丛与拓扑}
+
+\textbf{主 $G$-丛：} $P \xrightarrow{\pi} M$，纤维是群 $G$。
+
+\textbf{分类：} 主 $G$-丛的同构类由 $[M, BG]$ 给出（$BG$ 是分类空间）。
+
+\textbf{特征类：}
+\begin{itemize}
+  \item $U(1)$ 丛：第一 Chern 类 $c_1 \in H^2(M, \mathbb{Z})$ → 磁通量子化
+  \item $SU(n)$ 丛：Chern 类 $c_k$ → 瞬子数
+  \item $SO(n)$ 丛：Pontryagin 类 $p_k$、Euler 类 $e$
+\end{itemize}
+
+\textbf{在物理中：}
+\begin{itemize}
+  \item 电磁场是 $U(1)$ 主丛上的联络
+  \item Yang--Mills 场是 $SU(n)$ 主丛上的联络
+  \item 瞬子数 = 第二 Chern 数 = $\frac{1}{8\pi^2}\int \text{tr}(F \wedge F)$
+\end{itemize}
+
+\subsection{de Rham 上同调}
+
+\textbf{de Rham 上同调：}
+\[
+H^k_{dR}(M) = \frac{\ker(d: \Omega^k \to \Omega^{k+1})}{\text{im}(d: \Omega^{k-1} \to \Omega^k)} = \frac{\text{闭形式}}{\text{恰当形式}}
+\]
+
+\textbf{物理意义：}
+\begin{itemize}
+  \item $H^2_{dR}(M) \neq 0$：存在非平凡的电磁场构型（磁单极）
+  \item $H^1_{dR}(M) \neq 0$：存在非平凡的矢势（Aharonov--Bohm）
+\end{itemize}
+
+\subsection{同调与流形}
+
+\textbf{Euler 示性数：}
+\[
+\chi(M) = \sum_{k=0}^n (-1)^k b_k
+\]
+
+其中 $b_k = \dim H^k(M)$ 是 Betti 数。
+
+\textbf{Gauss--Bonnet 定理：}
+\[
+\int_M K\,dA = 2\pi\chi(M)
+\]
+
+（$K$ 是高斯曲率，$M$ 是闭曲面）
+
+\textbf{在 CG 中：} 网格的拓扑不变量（亏格）影响参数化和网格生成。

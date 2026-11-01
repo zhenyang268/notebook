@@ -1,0 +1,158 @@
+\section{I. 流体力学}
+\label{sec:fluid}
+
+\subsection{I1. 守恒律}
+
+\textbf{质量守恒：}
+\[
+\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{u}) = 0
+\]
+
+\textbf{动量守恒：}
+\[
+\frac{\partial(\rho \mathbf{u})}{\partial t} + \nabla \cdot (\rho \mathbf{u} \otimes \mathbf{u}) = \nabla \cdot \boldsymbol{\sigma} + \rho \mathbf{g}
+\]
+
+\textbf{物质导数：}
+\[
+\frac{D}{Dt} = \frac{\partial}{\partial t} + \mathbf{u} \cdot \nabla
+\]
+
+\subsection{I2. 应力张量与粘性}
+
+\[
+\boldsymbol{\sigma} = -p\mathbf{I} + \boldsymbol{\tau}
+\]
+
+\textbf{牛顿流体本构关系：}
+\[
+\boldsymbol{\tau} = 2\mu\mathbf{D} + \lambda(\nabla\cdot\mathbf{u})\mathbf{I}
+\]
+
+其中 $\mathbf{D} = \frac{1}{2}(\nabla\mathbf{u} + (\nabla\mathbf{u})^T)$ 是应变率张量。
+
+\textbf{非牛顿流体：}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{类型} & \textbf{特征} & \textbf{例子} \\
+\midrule
+剪切稀化 & 粘度随剪切率增大而减小 & 油漆、血液 \\
+剪切增稠 & 粘度随剪切率增大而增大 & 玉米淀粉水 \\
+宾汉流体 & 有屈服应力 & 牙膏、泥浆 \\
+粘弹性 & 同时有粘性和弹性 & 聚合物、面团 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{I3. 雷诺数}
+
+\[
+Re = \frac{UL}{\nu} = \frac{\text{惯性力}}{\text{粘性力}}
+\]
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{$Re$ 范围} & \textbf{流动特征} \\
+\midrule
+$Re \ll 1$ & 蠕动流（Stokes 流），粘性主导 \\
+$Re \sim 10^2$--$10^3$ & 层流，可能出现分离 \\
+$Re > 4000$（管流） & 湍流 \\
+$Re \sim 10^6+$ & 完全湍流 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{I4. 涡量动力学}
+
+\textbf{涡量：} $\boldsymbol{\omega} = \nabla \times \mathbf{u}$
+
+\textbf{涡量方程（不可压缩）：}
+\[
+\frac{D\boldsymbol{\omega}}{Dt} = (\boldsymbol{\omega}\cdot\nabla)\mathbf{u} + \nu\nabla^2\boldsymbol{\omega}
+\]
+
+$(\boldsymbol{\omega}\cdot\nabla)\mathbf{u}$：涡量拉伸项（三维特有，湍流能量级联的关键）。
+
+\textbf{Kelvin 环量定理（无粘）：}
+\[
+\frac{D\Gamma}{Dt} = 0, \quad \Gamma = \oint_C \mathbf{u}\cdot d\mathbf{l}
+\]
+
+在 CG 中：涡量约束（Vorticity Confinement）补偿数值耗散对涡量的抹平。
+
+\subsection{I5. 湍流}
+
+\textbf{Kolmogorov 能量谱：} $E(k) \sim k^{-5/3}$（惯性子区）
+
+\textbf{Kolmogorov 尺度：}
+\[
+\eta = \left(\frac{\nu^3}{\epsilon}\right)^{1/4}
+\]
+
+完全解析湍流需要网格数 $\sim Re^{9/4}$，对 $Re = 10^6$ 需要 $\sim 10^{13}$ 个网格点——完全不可行。
+
+\textbf{RANS：} 将速度分解为均值和脉动 $\mathbf{u} = \bar{\mathbf{u}} + \mathbf{u}'$，引入雷诺应力 $-\rho\overline{u_i'u_j'}$，需要模型封闭（$k$-$\varepsilon$、$k$-$\omega$ 等）。
+
+\textbf{LES：} 直接解析大尺度，对小尺度用亚格子模型。
+
+\subsection{I6. 边界层}
+
+\textbf{边界层厚度：} $\delta \sim \dfrac{L}{\sqrt{Re}}$
+
+\textbf{无滑移条件：} $\mathbf{u}|_{\text{wall}} = 0$
+
+\subsection{I7. 可压缩流与激波}
+
+\textbf{马赫数：} $Ma = \dfrac{U}{c}$
+
+$Ma > 1$ 时出现激波。Rankine--Hugoniot 条件描述激波两侧的守恒关系。
+
+\subsection{I8. 自由表面与多相流}
+
+\begin{itemize}
+  \item \textbf{Level Set：} 用符号距离函数 $\phi$ 表示界面（$\phi = 0$ 为界面），输运方程 $\frac{\partial \phi}{\partial t} + \mathbf{u}\cdot\nabla\phi = 0$
+  \item \textbf{VOF：} 用体积分数 $f \in [0,1]$ 表示，天然守恒
+  \item \textbf{SPH：} 拉格朗日描述，天然处理自由表面
+\end{itemize}
+
+\textbf{表面张力：} $\Delta p = \sigma \kappa$
+
+\subsection{I9. 数值模拟中的守恒性}
+
+\subsubsection{有限体积法——天然守恒}
+
+相邻单元共享面的通量大小相等方向相反 $\to$ 全局守恒自动满足。
+
+\subsubsection{能量稳定格式}
+
+连续情况：
+\[
+\frac{d}{dt}\int \frac{1}{2}|\mathbf{u}|^2\,dV = -\nu\int|\nabla\mathbf{u}|^2\,dV \leq 0
+\]
+
+离散要求：对流项的离散必须满足“反对称性”或“守恒性”。
+
+\subsubsection{散度自由条件的保持}
+
+\begin{itemize}
+  \item 投影法（Chorin/Temam）
+  \item MAC/Staggered 网格：离散散度精确为零
+  \item 约束输运：对涡量或流函数求解
+\end{itemize}
+
+\subsubsection{时间步长约束}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{约束来源} & \textbf{条件} \\
+\midrule
+对流（CFL） & $\Delta t \leq C\frac{\Delta x}{|\mathbf{u}|_{\max}}$ \\
+粘性 & $\Delta t \leq C\frac{\Delta x^2}{\nu}$ \\
+表面张力 & $\Delta t \leq C\sqrt{\frac{\rho\,\Delta x^3}{\sigma}}$ \\
+弹性波 & $\Delta t \leq C\frac{\Delta x}{c_s}$ \\
+\bottomrule
+\end{tabular}
+\end{center}

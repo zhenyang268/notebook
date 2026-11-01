@@ -1,0 +1,309 @@
+%==============================================================
+\section{第四层：对称性与李群方法}
+%==============================================================
+
+\subsection{单参数李群与无穷小生成元}
+
+\textbf{一参数变换群：} $x^* = X(x,y;\varepsilon)$，$y^* = Y(x,y;\varepsilon)$
+
+\textbf{无穷小生成元：}
+\[
+\mathbf{v} = \xi(x,y)\frac{\partial}{\partial x} + \eta(x,y)\frac{\partial}{\partial y}
+\]
+
+其中 $\xi = \frac{\partial X}{\partial \varepsilon}\big|_{\varepsilon=0}$，$\eta = \frac{\partial Y}{\partial \varepsilon}\big|_{\varepsilon=0}$。
+
+\subsection{对称性条件与延拓}
+
+对 $n$ 阶 ODE $F(x, y, y', \ldots, y^{(n)}) = 0$，对称性条件为：
+\[
+\mathbf{v}^{(n)}[F]\big|_{F=0} = 0
+\]
+
+其中 $\mathbf{v}^{(n)}$ 是 $n$ 次延拓：
+\[
+\mathbf{v}^{(n)} = \mathbf{v} + \eta^{(1)}\frac{\partial}{\partial y'} + \eta^{(2)}\frac{\partial}{\partial y''} + \cdots
+\]
+
+\textbf{一次延拓系数：}
+\[
+\eta^{(1)} = D_x\eta - y'D_x\xi = \eta_x + (\eta_y - \xi_x)y' - \xi_y(y')^2
+\]
+
+\subsection{经典对称性对应的标准解法}
+
+\begin{center}
+\begin{tabular}{L{4cm}L{3.5cm}L{4cm}}
+\toprule
+\textbf{对称性} & \textbf{生成元} & \textbf{对应解法} \\
+\midrule
+$x$ 平移 & $\partial_x$ & 缺 $x$ → 令 $p = y'$ 降阶 \\
+$y$ 平移 & $\partial_y$ & 缺 $y$ → 令 $p = y'$ 降阶 \\
+尺度 $(x,y)\to(\lambda x, \lambda y)$ & $x\partial_x + y\partial_y$ & 齐次方程 → $u = y/x$ \\
+尺度 $x \to \lambda x$ & $x\partial_x$ & Euler 方程 → $t = \ln x$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{用对称性降阶的一般步骤}
+
+\begin{enumerate}
+  \item 找对称性 $\mathbf{v} = \xi\partial_x + \eta\partial_y$
+  \item 找不变量（canonical coordinates）：$r(x,y)$ 使 $\mathbf{v}r = 0$，$s(x,y)$ 使 $\mathbf{v}s = 1$
+  \item 在新坐标 $(r, s)$ 下，方程降一阶
+\end{enumerate}
+
+\textbf{示例：} 齐次方程 $y' = f(y/x)$
+
+对称性：$\mathbf{v} = x\partial_x + y\partial_y$
+
+不变量：$r = y/x$（验证：$\mathbf{v}(y/x) = x \cdot (-y/x^2) + y \cdot (1/x) = 0$ $\checkmark$）
+
+新变量：$s = \ln x$（验证：$\mathbf{v}(\ln x) = x \cdot (1/x) = 1$ $\checkmark$）
+
+在新坐标下：$\frac{dr}{ds} = f(r) - r$（可分离！）
+
+%==============================================================
+\section{第五层：偏微分方程的分类与基本理论}
+%==============================================================
+
+\subsection{二阶线性 PDE 的分类}
+
+\[
+Au_{xx} + 2Bu_{xy} + Cu_{yy} + \cdots = 0
+\]
+
+\textbf{判别式：} $\Delta = B^2 - AC$
+
+\begin{center}
+\begin{tabular}{L{2cm}L{2.5cm}L{4cm}L{3cm}}
+\toprule
+\textbf{$\Delta$} & \textbf{类型} & \textbf{典型方程} & \textbf{物理} \\
+\midrule
+$> 0$ & 双曲型 & $u_{tt} = c^2 u_{xx}$ & 波传播 \\
+$= 0$ & 抛物型 & $u_t = ku_{xx}$ & 扩散 \\
+$< 0$ & 椭圆型 & $u_{xx} + u_{yy} = 0$ & 稳态/平衡 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{三类方程的关键区别：}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{3.5cm}L{3.5cm}L{3.5cm}}
+\toprule
+\textbf{性质} & \textbf{双曲} & \textbf{抛物} & \textbf{椭圆} \\
+\midrule
+信息传播 & 有限速度 & 无限速度 & 无“传播” \\
+问题类型 & 初值（Cauchy） & 初值+边值 & 纯边值 \\
+解的光滑性 & 保持奇性 & 瞬间光滑化 & 解析 \\
+依赖区域 & 特征锥内 & 整个过去 & 整个边界 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{三大经典方程}
+
+\subsubsection{波动方程（双曲型）}
+
+\[
+\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}
+\]
+
+\textbf{d'Alembert 通解：}
+\[
+u(x,t) = f(x - ct) + g(x + ct)
+\]
+
+\textbf{特征线：} $x \pm ct = \text{const}$
+
+\textbf{示例：} 弦振动，$u(x,0) = \sin x$，$u_t(x,0) = 0$
+
+$f(x) + g(x) = \sin x$，$-cf'(x) + cg'(x) = 0$
+
+解得 $f = g = \frac{1}{2}\sin x$，所以：
+\[
+u(x,t) = \frac{1}{2}[\sin(x-ct) + \sin(x+ct)] = \sin x \cos ct
+\]
+
+\subsubsection{热方程（抛物型）}
+
+\[
+\frac{\partial u}{\partial t} = k\frac{\partial^2 u}{\partial x^2}
+\]
+
+\textbf{基本解（热核）：}
+\[
+\Phi(x,t) = \frac{1}{\sqrt{4\pi kt}} e^{-x^2/(4kt)}, \quad t > 0
+\]
+
+\textbf{性质：}
+\begin{itemize}
+  \item $\int_{-\infty}^{\infty} \Phi(x,t)\,dx = 1$（质量守恒）
+  \item $t \to 0^+$ 时 $\Phi \to \delta(x)$（初始集中）
+  \item 瞬间光滑化：即使初始数据不连续，$t > 0$ 后解解析
+\end{itemize}
+
+\subsubsection{Laplace 方程（椭圆型）}
+
+\[
+\nabla^2 u = 0
+\]
+
+\textbf{调和函数的性质：}
+\begin{itemize}
+  \item 均值性质：$u(\mathbf{x}_0) = \frac{1}{|\partial B_r|}\int_{\partial B_r} u\,dS$
+  \item 极值原理：非常数调和函数的极值只能在边界取到
+  \item 解析性：调和函数是解析的
+\end{itemize}
+
+\subsection{边界条件}
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{4cm}L{5cm}}
+\toprule
+\textbf{类型} & \textbf{形式} & \textbf{物理意义} \\
+\midrule
+Dirichlet & $u|_{\partial\Omega} = g$ & 固定值（温度、位移） \\
+Neumann & $\frac{\partial u}{\partial n}\big|_{\partial\Omega} = g$ & 固定通量（绝热、自由端） \\
+Robin & $u + \alpha\frac{\partial u}{\partial n} = g$ & 对流换热 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================
+\section{第六层：PDE 的求解方法}
+%==============================================================
+
+\subsection{分离变量法}
+
+\textbf{核心思想：} 设 $u(x,t) = X(x)T(t)$，将 PDE 分解为 ODE。
+
+\textbf{完整示例：一维热方程}
+
+$u_t = ku_{xx}$，$u(0,t) = u(L,t) = 0$，$u(x,0) = f(x)$
+
+\textbf{Step 1：} 设 $u = XT$，代入：$XT' = kX''T$，即 $\frac{T'}{kT} = \frac{X''}{X} = -\lambda$
+
+\textbf{Step 2：} 解空间部分：$X'' + \lambda X = 0$，$X(0) = X(L) = 0$
+
+特征值：$\lambda_n = \left(\frac{n\pi}{L}\right)^2$，特征函数：$X_n = \sin\frac{n\pi x}{L}$
+
+\textbf{Step 3：} 解时间部分：$T' + k\lambda_n T = 0$，$T_n = e^{-k(n\pi/L)^2 t}$
+
+\textbf{Step 4：} 叠加：
+\[
+u(x,t) = \sum_{n=1}^{\infty} b_n \sin\frac{n\pi x}{L}\, e^{-k(n\pi/L)^2 t}
+\]
+
+\textbf{Step 5：} 由初始条件确定系数：
+\[
+b_n = \frac{2}{L}\int_0^L f(x)\sin\frac{n\pi x}{L}\,dx
+\]
+
+\textbf{本质：} 分离变量 = 在微分算子的特征函数基上展开。
+
+\subsection{特征线法（双曲型）}
+
+\textbf{一阶 PDE：} $a(x,y)u_x + b(x,y)u_y = c(x,y,u)$
+
+\textbf{特征方程：}
+\[
+\frac{dx}{ds} = a, \quad \frac{dy}{ds} = b, \quad \frac{du}{ds} = c
+\]
+
+\textbf{示例：} 输运方程 $u_t + cu_x = 0$，$u(x,0) = f(x)$
+
+特征线：$\frac{dx}{dt} = c$，即 $x - ct = \text{const}$
+
+沿特征线 $u$ 不变，所以 $u(x,t) = f(x - ct)$。
+
+\subsection{积分变换法}
+
+\subsubsection{Fourier 变换}
+
+\textbf{适用：} 无界域上的线性 PDE。
+
+\textbf{示例：} $\mathbb{R}$ 上的热方程 $u_t = ku_{xx}$，$u(x,0) = f(x)$
+
+对 $x$ 做 Fourier 变换：$\hat{u}_t = -k\xi^2 \hat{u}$
+
+解：$\hat{u}(\xi, t) = \hat{f}(\xi)\, e^{-k\xi^2 t}$
+
+反变换（卷积定理）：
+\[
+u(x,t) = \frac{1}{\sqrt{4\pi kt}}\int_{-\infty}^{\infty} f(y)\, e^{-(x-y)^2/(4kt)}\,dy
+\]
+
+\subsubsection{Laplace 变换}
+
+\textbf{适用：} 半无界域、初值问题。
+
+\textbf{核心性质：}
+\[
+\mathcal{L}\{f'\} = s\hat{f}(s) - f(0)
+\]
+\[
+\mathcal{L}\{f''\} = s^2\hat{f}(s) - sf(0) - f'(0)
+\]
+
+将 ODE/PDE 化为代数方程。
+
+\textbf{示例：} 解 $y'' + 4y = \sin 2t$，$y(0) = 0$，$y'(0) = 0$
+
+Laplace 变换：$s^2\hat{y} + 4\hat{y} = \frac{2}{s^2+4}$
+
+\[
+\hat{y} = \frac{2}{(s^2+4)^2}
+\]
+
+反变换（查表或留数）：
+\[
+\boxed{y(t) = \frac{1}{4}(\sin 2t - 2t\cos 2t)}
+\]
+
+（注意 $t\cos 2t$ 项——这是\textbf{共振}的体现）
+
+\subsection{Green 函数方法（PDE 版本）}
+
+\textbf{Laplace 方程的 Green 函数：}
+
+三维自由空间：
+\[
+G(\mathbf{x}, \mathbf{x}') = \frac{1}{4\pi|\mathbf{x} - \mathbf{x}'|}
+\]
+
+二维自由空间：
+\[
+G(\mathbf{x}, \mathbf{x}') = -\frac{1}{2\pi}\ln|\mathbf{x} - \mathbf{x}'|
+\]
+
+\textbf{解的表示：}
+\[
+u(\mathbf{x}) = \int_\Omega G(\mathbf{x},\mathbf{x}')\,f(\mathbf{x}')\,d\mathbf{x}' + \oint_{\partial\Omega}\left[G\frac{\partial u}{\partial n} - u\frac{\partial G}{\partial n}\right]dS
+\]
+
+\subsection{变分法与弱解}
+
+\textbf{许多 PDE 是某个泛函的 Euler--Lagrange 方程：}
+
+\begin{center}
+\begin{tabular}{L{5cm}L{5cm}}
+\toprule
+\textbf{泛函} & \textbf{Euler--Lagrange 方程} \\
+\midrule
+$\int |\nabla u|^2\,d\Omega$（Dirichlet 能量） & $\nabla^2 u = 0$ \\
+$\int \frac{1}{2}|\nabla u|^2 - fu\,d\Omega$ & $-\nabla^2 u = f$ \\
+$\int \frac{1}{2}u_t^2 - \frac{c^2}{2}|\nabla u|^2$ & $u_{tt} = c^2\nabla^2 u$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{弱形式（$-\nabla^2 u = f$，$u|_{\partial\Omega} = 0$）：}
+
+找 $u \in H_0^1(\Omega)$ 使得对所有 $v \in H_0^1(\Omega)$：
+\[
+\int_\Omega \nabla u \cdot \nabla v\,d\Omega = \int_\Omega fv\,d\Omega
+\]
+
+\textbf{Lax--Milgram 定理} 保证弱解存在唯一（若双线性形式有界且强制）。

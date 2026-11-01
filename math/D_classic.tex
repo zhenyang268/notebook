@@ -1,0 +1,73 @@
+\section{D. 经典力学的数学结构}
+
+\subsection{D1. 拉格朗日力学}
+
+\textbf{作用量：} $S[q] = \displaystyle\int_{t_1}^{t_2} L(q, \dot{q}, t)\,dt$
+
+\textbf{拉格朗日量：} $L = T - V$（动能减势能）
+
+\textbf{欧拉--拉格朗日方程：}
+\[
+\frac{d}{dt}\frac{\partial L}{\partial \dot{q}_i} - \frac{\partial L}{\partial q_i} = 0
+\]
+
+\textbf{推导（变分法）：} 令 $q(t) \to q(t) + \epsilon \eta(t)$，$\eta(t_1) = \eta(t_2) = 0$，要求 $\delta S = 0$：
+\[
+\delta S = \int_{t_1}^{t_2} \left(\frac{\partial L}{\partial q}\eta + \frac{\partial L}{\partial \dot{q}}\dot{\eta}\right)dt = \int_{t_1}^{t_2}\left(\frac{\partial L}{\partial q} - \frac{d}{dt}\frac{\partial L}{\partial \dot{q}}\right)\eta\,dt = 0
+\]
+由 $\eta$ 的任意性得欧拉--拉格朗日方程。
+
+\subsection{D2. Noether 定理}
+
+每一个连续对称性对应一个守恒量：
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{对称性} & \textbf{守恒量} \\
+\midrule
+时间平移不变性 & 能量守恒 \\
+空间平移不变性 & 动量守恒 \\
+空间旋转不变性 & 角动量守恒 \\
+规范不变性 $U(1)$ & 电荷守恒 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{数学表述：} 如果拉格朗日量在变换 $q \to q + \epsilon\,\delta q$ 下不变（至多差一个全导数），则：
+\[
+\frac{d}{dt}\left(\frac{\partial L}{\partial \dot{q}} \cdot \delta q\right) = 0
+\]
+
+\subsection{D3. 哈密顿力学}
+
+\textbf{广义动量：} $p_i = \dfrac{\partial L}{\partial \dot{q}_i}$
+
+\textbf{哈密顿量：} $H(q, p) = \displaystyle\sum_i p_i \dot{q}_i - L$
+
+\textbf{哈密顿方程：}
+\[
+\dot{q}_i = \frac{\partial H}{\partial p_i}, \quad \dot{p}_i = -\frac{\partial H}{\partial q_i}
+\]
+
+\textbf{泊松括号：}
+\[
+\{f, g\} = \sum_i \left(\frac{\partial f}{\partial q_i}\frac{\partial g}{\partial p_i} - \frac{\partial f}{\partial p_i}\frac{\partial g}{\partial q_i}\right)
+\]
+
+运动方程：$\dot{f} = \{f, H\}$
+
+\textbf{辛结构：} 相空间上有辛形式 $\omega = \sum dp_i \wedge dq_i$，哈密顿流保持辛形式（刘维尔定理：相空间体积守恒）。
+
+\subsection{D4. 哈密顿--雅可比理论与正则变换}
+
+\textbf{哈密顿--雅可比方程：}
+\[
+\frac{\partial S}{\partial t} + H\left(q, \frac{\partial S}{\partial q}, t\right) = 0
+\]
+
+这是经典力学与量子力学的桥梁：将 $S$ 替换为 $\frac{\hbar}{i}\ln\psi$，取 $\hbar \to 0$ 极限，就得到薛定谔方程的经典极限。
+
+\textbf{正则变换：} 保持辛结构的坐标变换 $(q,p) \to (Q,P)$。
+
+\textbf{生成函数：} 四种类型 $F_1(q,Q)$，$F_2(q,P)$，$F_3(p,Q)$，$F_4(p,P)$。

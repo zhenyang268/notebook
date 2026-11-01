@@ -1,0 +1,554 @@
+\section{P. 计算必修：从平方和到欧拉积分}
+\label{sec:computation}
+
+\textbf{定位：} 前面的 A--O 讲的是「概念地图」，本章补的是「一副会算的手」。概念要配得上一副算得动的手，
+否则遇到 $\int_0^\infty e^{-x^2}dx$ 只能干看。本章服务所有层：A 分析（放缩、级数）、A2 泛函（$L^p$ 估计）、
+I 流体（能量法）、H 图形（旋转、复数、线代）。
+
+\textbf{标记：} 【必】= 必须肌肉记忆（闭卷 30 秒内写出或推完）；【熟】= 熟练（查表能立刻上手）；
+【知】= 知道出处即可。
+
+\textbf{代号说明：} 本章九组原记作 G1--G9。因 \textbf{G. 数值方法} 已占用 G1--G5，
+在此统一改记为 \textbf{P1--P9}，与黑板里的旧编号一一对应（P$n$ 即旧 G$n$）。
+
+\begin{center}
+\begin{tabular}{L{0.9cm}L{3.7cm}L{5.9cm}L{3.5cm}}
+\toprule
+\textbf{组} & \textbf{主题} & \textbf{代表内容} & \textbf{主要服务} \\
+\midrule
+P1 & 求和与数列 & $\sum k$、$\sum k^2$、$\sum k^3$、裂项、错位、递推 & 分析、级数 \\
+P2 & 恒等式与变形 & 乘法公式、配方、部分分式、韦达 & 积分、Laplace \\
+P3 & 不等式与放缩 & AM--GM、Cauchy--Schwarz、Young、Hölder、Gronwall & \textbf{一切证明} \\
+P4 & 数列与极限 & 特征根法、单调有界、等价无穷小、Taylor、洛必达 & 分析入门 \\
+P5 & 三角与复数 & 和角、积化和差、Euler 公式、单位根 & Fourier、CG 旋转 \\
+P6 & 线性代数手算 & 行列式、消元、特征值、二次型、Gram--Schmidt & A2、CG \\
+P7 & 微积分计算 & 换元、分部、Jacobian、Maclaurin 表 & 全场 \\
+P8 & 欧拉积分与特殊函数 & 高斯积分、$\Gamma$、Beta、Stirling & 概率、PDE、量子 \\
+P9 & 估计与渐近 & 移导数、能量法流水线、大 $O$ & I 流体、NS \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{读法：} 先吃透标【必】的条目（硬核心），【熟】留到用时回查。
+
+%--------------------------------------------------------------
+\subsection{P1. 求和与数列}
+
+\subsubsection{核心思想：差分法（telescoping）}
+
+想求 $\sum_k f(k)$，就找一个 $F$ 使 $f(k) = F(k+1) - F(k)$，整列求和只剩首尾相消。
+\textbf{这是全部求和公式的统一来源}——不是背公式，而是找那个 $F$。
+
+\subsubsection{必备公式}
+
+\begin{center}
+\begin{tabular}{L{3.2cm}L{6.2cm}L{5.2cm}}
+\toprule
+\textbf{公式} & \textbf{差分/证明} & \textbf{直觉} \\
+\midrule
+$\displaystyle\sum_{k=1}^n k=\frac{n(n+1)}{2}$ & 高斯配对：$(1+n)+(2+n-1)+\cdots$ & 阶梯面积 $=$ 半个矩形 \\
+$\displaystyle\sum_{k=1}^n k^2=\frac{n(n+1)(2n+1)}{6}$ &
+差分为 $F(k+1)-F(k)$，$F(k)=\frac{k(k-1)(2k-1)}{6}$，望远镜即得 &
+抛物线下的面积 $\approx n^3/3$ 加修正项 \\
+$\displaystyle\sum_{k=1}^n k^3=\Big[\frac{n(n+1)}{2}\Big]^2$ &
+$F(k)=\frac{k^2(k-1)^2}{4}$ & 巧合之美：立方和 $=$ 和的平方 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{推导示范（$\sum k^2$，必须会复述）}
+
+对恒等式
+\[
+(k+1)^3-k^3 = 3k^2+3k+1
+\]
+从 $k=1$ 加到 $n$：左边望远镜 $=(n+1)^3-1$，右边 $=3\sum_k k^2+3\sum_k k+n$，解出
+\[
+\sum_{k=1}^n k^2=\frac{(n+1)^3-1-3\cdot\frac{n(n+1)}{2}-n}{3}=\frac{n(n+1)(2n+1)}{6}.
+\]
+\textbf{套路：升一阶的差，凑出想求的幂。}（求 $\sum k^3$ 就用 $(k+1)^4-k^4$。）
+
+\subsubsection{常用技巧}
+
+\begin{itemize}
+  \item \textbf{裂项相消}（【必】）：$\dfrac{1}{k(k+1)}=\dfrac1k-\dfrac1{k+1}\Rightarrow\sum=\dfrac{n}{n+1}$；
+        更复杂的用待定系数拆成同类差。
+  \item \textbf{等比求和}（【必】）：$\sum_{k=0}^{n-1}q^k=\dfrac{1-q^n}{1-q}$；$|q|<1$ 时无穷版 $=\dfrac{1}{1-q}$。
+  \item \textbf{错位相减}（【熟】）：等差 $\times$ 等比（如 $\sum k q^k$）——写 $S$，乘 $q$ 错位相减，化归等比。
+  \item \textbf{二项式定理}（【必】）：$(1+x)^n=\sum_k\binom{n}{k}x^k$（$n$ 个小括号各挑 $x$ 或 $1$ 的计数）；
+        推论 $\sum_k\binom{n}{k}=2^n$。
+  \item \textbf{组合和技巧}（【熟】）：$k\binom{n}{k}=n\binom{n-1}{k-1}$（先挑一个当队长）。
+  \item \textbf{$\sum \leftrightarrow \int$}（【熟】）：$\dfrac1n\sum_k f\!\big(\tfrac kn\big)\to\int_0^1 f$；
+        反向用于估计：$f$ 递减非负时 $\int_1^{n+1}f\le\sum_{k=1}^n f(k)\le f(1)+\int_1^n f$。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{P2. 恒等式与代数变形}
+
+\subsubsection{乘法公式族（【必】）}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{公式} & \textbf{用途备注} \\
+\midrule
+$(a\pm b)^2=a^2\pm 2ab+b^2$ & 一切配方的基础 \\
+$(a+b)(a-b)=a^2-b^2$ & 有理化、差分分解 \\
+$(a\pm b)^3=a^3\pm3a^2b+3ab^2\pm b^3$ & 二项式 $n=3$ 特例 \\
+$a^3\pm b^3=(a\pm b)(a^2\mp ab+b^2)$ & 立方和差 \\
+$(a+b+c)^2=a^2+b^2+c^2+2ab+2bc+2ca$ & 向量 $\|\mathbf{a}+\mathbf{b}\|^2$ 的代数版 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{配方（【必】）}
+
+\[
+ax^2+bx+c=a\Big(x+\frac{b}{2a}\Big)^2+\frac{4ac-b^2}{4a}
+\]
+
+\textbf{直觉：} 平移原点让抛物线对称——配方就是换元 $x\to x+\frac{b}{2a}$。
+
+\textbf{用途：} 求顶点/最值；推导求根公式；二次型正定性（见 P6）；
+把 $\int\frac{dx}{x^2+bx+c}$ 化为 $\arctan$ 或 $\log$。\textbf{类比：一元情形下的「对角化」。}
+
+\subsubsection{因式分解与多项式（【熟】）}
+
+\begin{itemize}
+  \item 十字相乘、分组分解、试根法（有理根定理）；多项式长除／综合除法。
+  \item \textbf{韦达定理}（【必】）：$x_1+x_2=-\dfrac ba$，$x_1x_2=\dfrac ca$；$n$ 次推广见【熟】。
+  \item 对称式与轮换式：知道 $a^2+b^2+c^2=(a+b+c)^2-2(ab+bc+ca)$ 这类转换。
+\end{itemize}
+
+\subsubsection{部分分式分解（【必】· 积分／Laplace／传递函数全靠它）}
+
+\[
+\frac{1}{(x-a)(x-b)}=\frac{A}{x-a}+\frac{B}{x-b},\qquad A=\frac{1}{a-b}\ (\text{代 }x=a)
+\]
+
+\textbf{直觉类比：} 像把 $\frac16=\frac12-\frac13$ 拆开——把复杂分式拆成「基本块」，
+每块积分都是 $\log$ 或 $\arctan$。
+
+\textbf{四类基本块}（连原函数一起记）：
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{块} & \textbf{原函数} & \textbf{条件} \\
+\midrule
+$\dfrac{1}{x-a}$ & $\ln|x-a|$ & 单实根 \\
+$\dfrac{1}{(x-a)^k}$ & $\dfrac{(x-a)^{1-k}}{1-k}$ & $k\ge2$ \\
+$\dfrac{1}{x^2+px+q}$ & $\arctan$ 型（配方后） & 复根，判别式 $<0$ \\
+$\dfrac{2x+p}{x^2+px+q}$ & $\ln(x^2+px+q)$ & 同上（分子是分母的导数） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{目标：} 任何有理分式 $=$ 多项式 $+$ 四类基本块的组合。
+
+\subsubsection{根式、指数与对数（【必】）}
+
+\begin{itemize}
+  \item 有理化：乘共轭 $(\sqrt a+\sqrt b)(\sqrt a-\sqrt b)=a-b$；双重根式 $\sqrt{a\pm 2\sqrt b}$ 配方化简。
+  \item 指数对数：$a^xa^y=a^{x+y}$、$\ln(xy)=\ln x+\ln y$、换底 $\log_b x=\dfrac{\ln x}{\ln b}$。
+  \item 常用界：$\ln 2\approx0.693<1$、$e\approx2.718>2$。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{P3. 证明需要的核心不等式}
+
+这一组是分析与能量估计「每次证明都要掏口袋」的工具。每条给一行证明加一句直觉。
+
+\subsubsection{基础四件套（【必】）}
+
+\begin{enumerate}
+  \item \textbf{AM--GM}：$\dfrac{a+b}{2}\ge\sqrt{ab}$（$a,b\ge0$）。
+        证明：$(\sqrt a-\sqrt b)^2\ge0$ 展开即得。
+        \textbf{直觉：周长固定的矩形中正方形面积最大。}
+        $n$ 元版（【熟】）：$\dfrac{x_1+\cdots+x_n}{n}\ge(x_1\cdots x_n)^{1/n}$。
+  \item \textbf{Cauchy--Schwarz}：$\Big(\sum_i a_ib_i\Big)^2\le\Big(\sum_i a_i^2\Big)\Big(\sum_i b_i^2\Big)$。
+        证明：$\sum_i(a_i-tb_i)^2\ge0$ 对一切 $t$ 成立，作为 $t$ 的二次式其判别式 $\le0$。
+        \textbf{直觉：投影 $\le$ 全长}；取等 $\iff$ 两向量共线。
+        积分版：$\big(\int fg\big)^2\le\int f^2\int g^2$——即 $L^2$ 内积的 Cauchy 不等式（见 A2）。
+  \item \textbf{Young 不等式}：$ab\le\dfrac{a^p}{p}+\dfrac{b^q}{q}$（$a,b\ge0$，$\frac1p+\frac1q=1$）。
+        证明：$\ln$ 是凹函数，
+        $\ln(ab)=\frac1p\ln a^p+\frac1q\ln b^q\le\ln\!\Big(\frac{a^p}{p}+\frac{b^q}{q}\Big)$。
+        \textbf{直觉：Cauchy--Schwarz 的「指数家族」版}；$p=q=2$ 时退化为 $2ab\le a^2+b^2$。
+        这是 \textbf{PDE 能量估计的头号工具}。
+  \item \textbf{三角不等式}：$|a+b|\le|a|+|b|$（向量同理：$\|\mathbf{x}+\mathbf{y}\|\le\|\mathbf{x}\|+\|\mathbf{y}\|$）。
+        \textbf{直觉：直走不比绕路远。}
+\end{enumerate}
+
+\subsubsection{放缩盒子（【必】／【熟】）}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{不等式} & \textbf{出处／用法} \\
+\midrule
+$e^x\ge 1+x$（【必】） & 凸函数切线在图形下方 \\
+$\ln(1+x)\le x$（【必】） & 上一式的另一面（取对数） \\
+$\ln x\le x-1$（【必】） & 换元即得 \\
+$\dfrac{x}{1+x}\le\ln(1+x)\le x$（【熟】） & 靠近 $0$ 的二阶精确版 \\
+$|\sin x|\le|x|$ 与 $|\sin x|\le1$（【必】） & 近 $0$ 用前者，远处用后者 \\
+$\big(1+\frac1n\big)^n\uparrow e$、$n^{1/n}\to1$（【必】） & 常用极限，证明见 P4 \\
+$\sum_{k>n}2^{-k}=2^{-n}$（【必】） & 几何级数尾，$\varepsilon/2^k$ 技巧的弹药 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{进阶（【熟】· 记结论 $+$ 用法）}
+
+\begin{itemize}
+  \item \textbf{Jensen}：$\varphi$ 凸 $\implies \varphi(\mathbb E X)\le\mathbb E\,\varphi(X)$。
+        \textbf{直觉：凸函数的弦在图形上方。}
+  \item \textbf{Hölder}：$\int|fg|\le\|f\|_p\|g\|_q$（$\frac1p+\frac1q=1$）；Cauchy--Schwarz 是其 $p=q=2$ 特例。
+  \item \textbf{Gronwall}（【必】记结论）：$u'\le\beta u+f$，$u(0)=u_0$ $\implies$
+        \[
+        u(t)\le e^{\beta t}u_0+\int_0^t e^{\beta(t-s)}f(s)\,ds
+        \]
+        \textbf{证明：} 乘积分因子 $e^{-\beta t}$ 后两边积分。
+        \textbf{直觉：微分不等式 $\to$ 积分不等式的出厂设置}；NS 唯一性证明的收尾工具。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{P4. 数列与极限计算}
+
+\subsubsection{数列}
+
+\begin{itemize}
+  \item 等差／等比／混合数列估值。
+  \item \textbf{线性递推特征根法}（【熟】）：$a_n=pa_{n-1}+qa_{n-2}$——试 $a_n=r^n$ 得特征方程 $r^2=pr+q$；
+        两实单根时通解 $Ar_1^n+Br_2^n$；重根时 $(A+Bn)r^n$。
+        \textbf{直觉：递推 $=$ 矩阵幂}——$r$ 是转移矩阵的特征值，长期行为由主导特征值决定
+        （Fibonacci：$a_n\approx\varphi^n/\sqrt5$）。
+  \item \textbf{单调有界定理}（【必】）：单调 $+$ 有界 $\implies$ 收敛；再对递推式两边取极限（不动点）解出极限值。
+        \textbf{例：} $a_1=\sqrt2$，$a_{n+1}=\sqrt{2+a_n}$：单调增且 $<2$，
+        极限 $L$ 满足 $L=\sqrt{2+L}\Rightarrow L=2$。
+\end{itemize}
+
+\subsubsection{极限三件套（【必】）}
+
+\begin{enumerate}
+  \item \textbf{等价无穷小}（$x\to0$）：$\sin x\sim x$、$\tan x\sim x$、$1-\cos x\sim\frac{x^2}2$、
+        $\ln(1+x)\sim x$、$e^x-1\sim x$、$(1+x)^\alpha-1\sim\alpha x$。
+        \textbf{直觉：取 Taylor 首项}；\textbf{只适用于乘除结构，加减结构慎用}。
+  \item \textbf{Taylor 展开}：按 P7 的 Maclaurin 表展开到够用的阶，余项估计见 P9。
+  \item \textbf{洛必达}（【熟】）：$\frac00$ 或 $\frac\infty\infty$ 型。
+        \textbf{警告：先化简／用等价无穷小，洛必达是最后手段}；数列极限先化成函数再用。
+\end{enumerate}
+
+\subsubsection{常用极限（【必】）}
+
+\[
+\lim_{n\to\infty}\Big(1+\frac1n\Big)^n=e,\qquad
+\lim_{n\to\infty}n^{1/n}=1,\qquad
+\lim_{n\to\infty}\Big(1+\frac xn\Big)^n=e^x
+\]
+
+前两个的证明路线：第一个用二项式展开逐项比较证明单调有界；
+第二个取对数后用 $\ln t\le t-1$ 放缩。
+
+%--------------------------------------------------------------
+\subsection{P5. 三角与复数}
+
+\subsubsection{三角公式}
+
+\begin{center}
+\begin{tabular}{L{7.4cm}L{6.8cm}}
+\toprule
+\textbf{公式} & \textbf{直觉／来源} \\
+\midrule
+$\sin(A\pm B),\ \cos(A\pm B)$（【必】） & \textbf{旋转矩阵的乘法}（和角 $=$ 两个旋转叠加） \\
+$\sin 2x=2\sin x\cos x$，$\cos2x=1-2\sin^2x$（【必】） & 和角特例 \\
+辅助角：$a\sin\theta+b\cos\theta=R\sin(\theta+\varphi)$，$R=\sqrt{a^2+b^2}$（【必】） &
+向量 $(a,b)$ 的极坐标；两个同频振动合成 \\
+积化和差／和差化积（【熟】） & 和角两式相加减即得 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Euler 公式与复数（【必】）}
+
+\[
+e^{i\theta}=\cos\theta+i\sin\theta
+\]
+
+\begin{itemize}
+  \item \textbf{直觉：指数是旋转的引擎}——单位圆上的匀速圆周运动。
+        严格证明：把 $e^{i\theta}$ 定义为幂级数，实部／虚部分别就是 $\cos,\sin$ 的级数。
+  \item \textbf{De Moivre}：$(\cos\theta+i\sin\theta)^n=\cos n\theta+i\sin n\theta$（幂的辐角 $n$ 倍）。
+  \item \textbf{复数乘法 $=$ 旋转 $+$ 缩放}：模相乘、辐角相加。
+        \textbf{CG 的旋转矩阵／四元数全从这里长出来}（与 B1 的 $SU(2)$ 一节合看）。
+  \item \textbf{单位根}：$z^n=1$ 的解为 $e^{2\pi ik/n}$，$n$ 个均匀分布在单位圆上——DFT／Fourier 的骨架。
+\end{itemize}
+
+\subsubsection{三角正交性（【熟】· Fourier 前置）}
+
+\[
+\int_0^{2\pi}\sin(m\theta)\sin(n\theta)\,d\theta=\pi\delta_{mn},\qquad
+\int_0^{2\pi}\sin(m\theta)\cos(n\theta)\,d\theta=0
+\]
+
+用积化和差一句话即可证明。这就是 A2「正交基与 Fourier 分析」里 $\{e^{inx}\}$ 正交性的实数版。
+
+\subsubsection{常用三角积分（【必】）}
+
+\[
+\int\sin^2x\,dx=\frac x2-\frac{\sin2x}{4},\qquad
+\int\cos^2x\,dx=\frac x2+\frac{\sin2x}{4},\qquad
+\int\sin x\cos x\,dx=\frac{\sin^2x}{2}
+\]
+
+%--------------------------------------------------------------
+\subsection{P6. 线性代数手算}
+
+\subsubsection{行列式（【必】）}
+
+\begin{itemize}
+  \item $2\times2$：$\det=ad-bc$；$3\times3$：对角线法则（Sarrus）；$4\times4$ 起用展开／消元（【熟】）。
+  \item 性质：换行变号；某行乘 $\lambda$ 则行列式乘 $\lambda$；行加不变；三角阵 $=$ 对角元之积。
+  \item \textbf{Vandermonde}（【熟】）：$\det=\prod_{i<j}(x_j-x_i)$（记结论 $+$ 会 $3\times3$ 手推）。
+  \item \textbf{几何直觉：} 行列式 $=$ 面积／体积的伸缩率——
+        即 A1 里的 $\mu(T(A))=|\det T|\,\mu(A)$（此处 $\mu$ 是 Lebesgue 测度）。
+\end{itemize}
+
+\subsubsection{消元与求逆（【必】）}
+
+\begin{itemize}
+  \item 高斯消元 $\to$ 阶梯形 $\to$ 回代；LU 分解（消元过程的记录）。
+  \item $2\times2$ 求逆：
+        $\begin{pmatrix}a&b\\c&d\end{pmatrix}^{-1}=\dfrac{1}{ad-bc}\begin{pmatrix}d&-b\\-c&a\end{pmatrix}$。
+  \item $3\times3$：增广 $[A\mid I]$ 消到 $[I\mid A^{-1}]$（【熟】）。
+  \item 可逆 $\iff\det\ne0\iff$ 满秩 $\iff$ 列向量线性无关。
+\end{itemize}
+
+\subsubsection{特征值与二次型（【必】／【熟】）}
+
+\begin{itemize}
+  \item 特征值：解 $\det(A-\lambda I)=0$ 得 $\lambda$，再解 $(A-\lambda I)v=0$（$2\times2$／$3\times3$ 手算必须熟）。
+  \item 二次型配方：$\mathbf{x}^TA\mathbf{x}$ 配成平方和（与 P2 配方同源）。
+  \item \textbf{正定性三等价}（【必】记结论）：特征值全正 $\iff$ 顺序主子式全正（Sylvester）
+        $\iff$ 存在 Cholesky 分解 $A=LL^T$。
+  \item \textbf{直觉：正定 $=$ 「碗」}；特征值 $=$ 各主方向的伸缩率——
+        与 A2 谱定理、H1 的 Laplace 谱是同一件事的三个层次。
+\end{itemize}
+
+\subsubsection{正交化（【熟】）}
+
+\begin{itemize}
+  \item Gram--Schmidt：$v-\dfrac{\langle v,u\rangle}{\langle u,u\rangle}u$，逐次正交。
+  \item QR：$A=QR$；小 $2\times2$ 手算一次即可。这就是 A2「正交分解定理」的算法版。
+  \item SVD 迷你体验：$2\times2$ 对称阵手算 $\sigma_i=\sqrt{\lambda_i(A^TA)}$。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{P7. 微积分计算技巧}
+
+\subsubsection{必背 Maclaurin 表（【必】）}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{函数} & \textbf{展开} & \textbf{收敛半径} \\
+\midrule
+$e^x$ & $1+x+\frac{x^2}{2!}+\frac{x^3}{3!}+\cdots$ & $\infty$ \\
+$\sin x$ & $x-\frac{x^3}{3!}+\frac{x^5}{5!}-\cdots$ & $\infty$ \\
+$\cos x$ & $1-\frac{x^2}{2!}+\frac{x^4}{4!}-\cdots$ & $\infty$ \\
+$\ln(1+x)$ & $x-\frac{x^2}{2}+\frac{x^3}{3}-\cdots$ & $1$ \\
+$\frac{1}{1-x}$ & $1+x+x^2+\cdots$ & $1$ \\
+$(1+x)^\alpha$ & $1+\alpha x+\frac{\alpha(\alpha-1)}{2!}x^2+\cdots$ & $1$（$\alpha\notin\mathbb N$） \\
+$\arctan x$ & $x-\frac{x^3}{3}+\frac{x^5}{5}-\cdots$ & $1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{积分技术（【必】）}
+
+\begin{itemize}
+  \item \textbf{换元}：凑微分 $f'(x)g(f(x))$；三角替换 $\sqrt{a^2-x^2}\to a\sin t$、
+        $\sqrt{x^2+a^2}\to a\tan t$、$\sqrt{x^2-a^2}\to a\sec t$（【熟】）。
+  \item \textbf{分部积分}：$\int u\,dv=uv-\int v\,du$；表格法（多项式 $\times$ 三角／指数）；
+        循环积分（$\int e^x\sin x$ 型）。
+        \textbf{直觉：乘积法则的积分版；「移导数」像搬家}——把导数从难搞的因子搬到好搞的因子
+        （P9 能量法的同一手法）。
+  \item \textbf{部分分式积分}：拆成 P2 的四类基本块后逐块积。
+  \item \textbf{对称性}：奇函数在对称区间积分为 $0$；偶函数 $=2\times$ 半区间；周期函数平移对齐。
+  \item 万能替换 $t=\tan\frac x2$（【熟】· 三角有理式的保险手段）。
+\end{itemize}
+
+\subsubsection{常用原函数小表（【必】）}
+
+\[
+\int\frac{dx}{1+x^2}=\arctan x,\qquad
+\int\frac{x\,dx}{1+x^2}=\frac12\ln(1+x^2),\qquad
+\int\tan x\,dx=-\ln|\cos x|
+\]
+\[
+\int\ln x\,dx=x\ln x-x,\qquad
+\int xe^{-x}dx=-(x+1)e^{-x},\qquad
+\int\frac{dx}{x^2-1}=\frac12\ln\Big|\frac{x-1}{x+1}\Big|
+\]
+
+\subsubsection{多重积分（【熟】）}
+
+\begin{itemize}
+  \item 换元公式：$\displaystyle\iint f\,dx\,dy=\iint f\,|J|\,du\,dv$，
+        $J=\dfrac{\partial(x,y)}{\partial(u,v)}$（Jacobian 行列式）——与 P6 的行列式是同一条。
+  \item 极坐标 $J=r$；球坐标 $J=r^2\sin\theta$（【必】记，用一次推一次）。
+  \item 交换积分次序的直觉 $\to$ Fubini--Tonelli（A1 收敛定理表的成员）。
+\end{itemize}
+
+\subsubsection{微分（【必】）}
+
+链式／乘积／商法则熟练；隐函数求导与对数求导法（【熟】）；
+多变量：梯度 $\nabla f$、方向导数、全微分；Hessian 与凸性判定（【熟】）。
+
+%--------------------------------------------------------------
+\subsection{P8. 欧拉积分与特殊函数}
+
+\subsubsection{高斯积分（【必】· 全分析最有名的技巧）}
+
+\[
+\int_{-\infty}^{\infty}e^{-x^2}\,dx=\sqrt{\pi}
+\]
+
+\textbf{完整证明（会复述）：}
+\[
+I^2=\iint_{\mathbb R^2}e^{-(x^2+y^2)}\,dx\,dy
+\ \xrightarrow{\ \text{极坐标}\ }\
+\int_0^{2\pi}\!\!d\theta\int_0^\infty e^{-r^2}r\,dr=2\pi\cdot\frac12=\pi
+\]
+\textbf{直觉：「平方换维度」}——一维算不动，就升到二维，让 $r^2$ 恰好配出 $r\,dr$ 的换元。
+（这个积分在 C2 的正态分布密度归一化里会再出现一次。）
+
+\subsubsection{$\Gamma$ 函数（Euler 第二积分）（【必】）}
+
+\[
+\Gamma(s)=\int_0^\infty t^{s-1}e^{-t}\,dt\qquad(\operatorname{Re}s>0)
+\]
+
+\begin{itemize}
+  \item \textbf{递推}（分部积分一行）：$\Gamma(s+1)=s\,\Gamma(s)$ $\implies$ $\Gamma(n+1)=n!$。
+        即 \textbf{$\Gamma$ 是阶乘的连续插值}。
+  \item \textbf{$\Gamma(1/2)=\sqrt\pi$}（【必】会推）：换元 $t=x^2$，
+        \[
+        \Gamma\Big(\frac12\Big)=\int_0^\infty t^{-1/2}e^{-t}dt=2\int_0^\infty e^{-x^2}dx=\sqrt\pi.
+        \]
+  \item 常用：$\int_0^\infty x^n e^{-x}dx=n!$；$\Gamma(3/2)=\frac{\sqrt\pi}{2}$。
+  \item \textbf{直觉：} $e^{-t}$ 是无穷长的衰减，$t^{s-1}$ 是幂权重；$\Gamma$ 把离散的阶乘「抹平」到连续参数。
+\end{itemize}
+
+\subsubsection{Beta 函数（Euler 第一积分）（【熟】）}
+
+\[
+B(x,y)=\int_0^1 t^{x-1}(1-t)^{y-1}\,dt
+\]
+
+\begin{itemize}
+  \item 对称：$B(x,y)=B(y,x)$；与 $\Gamma$ 的关系（【必】记）：
+        $B(x,y)=\dfrac{\Gamma(x)\Gamma(y)}{\Gamma(x+y)}$。
+  \item 用途：$\displaystyle\int_0^{\pi/2}\sin^m\theta\cos^n\theta\,d\theta
+        =\frac12 B\Big(\frac{m+1}{2},\frac{n+1}{2}\Big)$（【熟】）。
+  \item \textbf{直觉：} 单位区间上的「双参数权重」；与 $\Gamma$ 的关系来自把 $e^{-(u+v)}$ 的乘积换元拆解。
+\end{itemize}
+
+\subsubsection{Stirling 公式（【熟】）}
+
+\[
+n!\ \sim\ \sqrt{2\pi n}\,\Big(\frac ne\Big)^n\qquad(n\to\infty)
+\]
+
+\textbf{直觉：} $\ln n!\approx\int_1^n\ln x\,dx=n\ln n-n$，再补 $\sqrt{2\pi n}$ 修正。
+\textbf{用途：} 组合估计（$\binom{2n}{n}\approx 4^n/\sqrt{\pi n}$）、大数极限、C5 的概率渐近。
+
+%--------------------------------------------------------------
+\subsection{P9. 估计与渐近}
+
+\subsubsection{分部积分移导数（【必】· 能量法的发动机）}
+
+\[
+\int_\Omega u'v=-\int_\Omega uv'+\big[uv\big]_{\partial\Omega}
+\]
+
+\textbf{手法：} 想把导数从 $u$ 搬到 $v$，就分部一次；零边界条件时边界项消失。
+
+\subsubsection{能量法流水线（【必】· 必须会走全流程）}
+
+以热方程 $u_t=u_{xx}$（零边界）为例：
+
+\begin{enumerate}
+  \item 两边乘 $u$ 并积分：$\frac12\frac{d}{dt}\int u^2=\int u\,u_{xx}$；
+  \item 分部积分（移导数，边界项消失）：$=-\int u_x^2$；
+  \item 得衰减 $\frac{d}{dt}\|u\|^2=-2\|u_x\|^2\le0$；
+  \item 若出现非线性项，用\textbf{吸收不等式} $ab\le\varepsilon a^2+C_\varepsilon b^2$ 把它「吸收」进左边
+        （选 $\varepsilon$ 让系数合拢）；
+  \item 最后用 \textbf{Gronwall} 收尾得显式界。
+\end{enumerate}
+
+\textbf{NS 的 Leray--Hopf 能量不等式就是这条流水线的产物}——
+第 1 步「两边乘 $u$ 再积分」与第 2 步「移导数」的掉能量现象，对应 A1 里 Fatou 引理那个单边不等式。
+
+\subsubsection{渐近记号（【必】）}
+
+\begin{itemize}
+  \item 大 $O$：$f=O(g)\iff|f|\le C|g|$（最终成立）；小 $o$：$f/g\to0$；$\sim$：比值 $\to1$。
+  \item Taylor 余项估计：$|R_n|\le C|x|^{n+1}$（带界形式，够用）。
+  \item 常用：$e^x=1+x+O(x^2)$、$\ln(1+x)=x+O(x^2)$、$\sin x=x+O(x^3)$。
+\end{itemize}
+
+\subsubsection{决策树：证明里该掏哪个不等式？（【熟】）}
+
+\begin{center}
+\begin{tabular}{L{6.4cm}L{8.2cm}}
+\toprule
+\textbf{情形} & \textbf{武器} \\
+\midrule
+乘积 $\to$ 求和分离 & Young（$ab\le\frac{a^p}{p}+\frac{b^q}{q}$）或 $2ab\le a^2+b^2$ \\
+和／积的绝对值分离 & Cauchy--Schwarz（$L^2$）／Hölder（$L^p$） \\
+微分不等式 $\to$ 显式界 & Gronwall \\
+非线性项要「吃掉」 & 吸收不等式（带 $\varepsilon$ 的 Young） \\
+凸性／平均值 & Jensen \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%--------------------------------------------------------------
+\subsection{P10. 必修优先级总表}
+
+目标：每个【必】条目练到\textbf{闭卷 30 秒内写出或推完}；【熟】条目查表能立刻上手。
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{9.8cm}L{2.0cm}}
+\toprule
+\textbf{组} & \textbf{条目} & \textbf{级别} \\
+\midrule
+P1 & $\sum k,\sum k^2,\sum k^3$ 闭卷推导 & 【必】 \\
+P1 & 裂项、等比、错位相减、二项式定理 & 【必】 \\
+P1 & $\sum\leftrightarrow\int$ 估计 & 【熟】 \\
+P2 & 乘法公式、配方、韦达 & 【必】 \\
+P2 & 部分分式（四类基本块 $+$ 待定系数） & 【必】 \\
+P2 & 有理化与常用界 & 【必】 \\
+P3 & AM--GM、Cauchy--Schwarz、Young、三角不等式 & 【必】 \\
+P3 & 放缩盒子（$e^x$、$\ln$、$|\sin x|$、级数尾） & 【必】 \\
+P3 & Jensen、Hölder & 【熟】 \\
+P3 & Gronwall（结论 $+$ 用法） & 【必】 \\
+P4 & 递推特征根法、单调有界 $+$ 不动点 & 【必】 \\
+P4 & 等价无穷小、Taylor、洛必达 & 【必】 \\
+P4 & $(1+1/n)^n$、$n^{1/n}$ & 【必】 \\
+P5 & 和角、倍角、辅助角、常用三角积分 & 【必】 \\
+P5 & Euler 公式、De Moivre、单位根 & 【必】 \\
+P6 & $2\times2$／$3\times3$ 行列式与求逆、Vandermonde & 【必】 \\
+P6 & 手算特征值、二次型配方、正定性三等价 & 【必】 \\
+P6 & Gram--Schmidt、QR／SVD 小例 & 【熟】 \\
+P7 & 换元、分部（表格法）、部分分式、对称性 & 【必】 \\
+P7 & Maclaurin 表七条闭卷默写 & 【必】 \\
+P7 & Jacobian、极坐标／球坐标 & 【熟】 \\
+P8 & 高斯积分完整证明会复述 & 【必】 \\
+P8 & $\Gamma$ 递推、$\Gamma(1/2)=\sqrt\pi$ 会推 & 【必】 \\
+P8 & Beta 与 Stirling（结论 $+$ 用法） & 【熟】 \\
+P9 & 移导数、能量法五步、吸收不等式 & 【必】 \\
+P9 & 大 $O$、Taylor 余项、不等式决策树 & 【熟】 \\
+\bottomrule
+\end{tabular}
+\end{center}

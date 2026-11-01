@@ -1,0 +1,97 @@
+\section{L. Feynman 图与量子场论微扰论}
+
+\subsection{L1. 二次量子化}
+
+\textbf{Fock 空间：}
+\[
+\mathcal{F} = \mathbb{C} \oplus \mathcal{H} \oplus (\mathcal{H}\otimes_s\mathcal{H}) \oplus \cdots
+\]
+
+\textbf{产生/湮灭算子：}
+\begin{itemize}
+  \item 玻色子：$[a(\mathbf{p}), a^\dagger(\mathbf{p}')] = \delta(\mathbf{p}-\mathbf{p}')$
+  \item 费米子：$\{a(\mathbf{p}), a^\dagger(\mathbf{p}')\} = \delta(\mathbf{p}-\mathbf{p}')$
+\end{itemize}
+
+\subsection{L2. Dyson 级数}
+
+\[
+U = 1 + \left(-\frac{i}{\hbar}\right)\int dt_1\, H_{\text{int}}(t_1) + \left(-\frac{i}{\hbar}\right)^2\int dt_1 dt_2\, T[H_{\text{int}}(t_1)H_{\text{int}}(t_2)] + \cdots
+\]
+
+每一项对应一个 Feynman 图的阶数。
+
+\subsection{L3. Feynman 规则}
+
+\begin{enumerate}
+  \item \textbf{外线：} 入射/出射粒子的波函数
+  \item \textbf{内线（传播子）：} $\dfrac{i}{p^2 - m^2 + i\epsilon}$（标量场）
+  \item \textbf{顶点：} $-ig$（耦合常数）
+  \item \textbf{动量守恒：} 每个顶点处
+  \item \textbf{环路积分：} $\displaystyle\int \frac{d^4k}{(2\pi)^4}$
+  \item \textbf{对称因子：} 除以图的对称群阶数
+\end{enumerate}
+
+\subsection{L4. QED}
+
+\textbf{拉格朗日量：}
+\[
+\mathcal{L} = \bar{\psi}(i\gamma^\mu D_\mu - m)\psi - \frac{1}{4}F_{\mu\nu}F^{\mu\nu}
+\]
+
+精细结构常数：$\alpha = e^2/4\pi \approx 1/137$
+
+\subsection{L5. Wick 定理}
+
+时间序乘积可以展开为所有可能“收缩”之和：
+\[
+T[\phi(x_1)\phi(x_2)\phi(x_3)\phi(x_4)] = :\phi_1\phi_2\phi_3\phi_4: + \text{所有收缩}
+\]
+
+每个完全收缩对应一个 Feynman 图。
+
+\subsection{L6. S 矩阵}
+
+\[
+S = T\exp\left(-i\int d^4x\, \mathcal{H}_{\text{int}}(x)\right)
+\]
+
+\textbf{散射振幅：} $\langle f|S|i\rangle = \delta_{fi} + i(2\pi)^4\delta^4(p_f - p_i)\mathcal{M}_{fi}$
+
+\subsection{L7. 重整化}
+
+环路积分通常发散。重整化步骤：
+\begin{enumerate}
+  \item \textbf{正则化：} 引入截断（维度正则化 $d = 4-\epsilon$）
+  \item \textbf{重定义参数：} 将发散吸收到物理参数（质量、电荷）的重定义中
+  \item \textbf{取极限：} $\epsilon \to 0$，得到有限物理预言
+\end{enumerate}
+
+\subsection{L8. 规范固定与鬼场}
+
+规范对称性导致路径积分中对等价构型的无穷重复计数。
+
+\textbf{Faddeev--Popov 方法：}
+\[
+Z = \int \mathcal{D}A\,\Delta_{FP}[A]\,\delta(G[A])\,e^{iS[A]}
+\]
+
+鬼场：反对易的标量场，只出现在内部线。
+
+\subsection{L9. 与渲染的类比}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Feynman 图} & \textbf{渲染} \\
+\midrule
+树图（无环） & 直接光照（一次弹射） \\
+单圈图 & 二次弹射 \\
+多圈图 & 多次弹射 \\
+耦合常数 $e$ & 反射率 $\rho$ \\
+传播子 & 几何衰减 $1/r^2$ \\
+顶点 & 散射事件 \\
+环路积分 & 对所有中间路径积分 \\
+\bottomrule
+\end{tabular}
+\end{center}

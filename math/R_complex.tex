@@ -1,0 +1,302 @@
+\section{R. 复分析：解析函数、留数与共形映射}
+\label{sec:complex}
+
+\textbf{为什么单列一章：} 复分析是三条线的交汇处，而这三条线在本笔记里都已经出现却缺了总枢纽：
+\begin{itemize}
+  \item \textbf{PDE 线：} 调和函数与位势理论是 Laplace 方程的核心（A4 的弱解理论之外的另一半）；
+  \item \textbf{变换线：} de3 里的 Laplace 变换讲了「极点 $\leftrightarrow$ $e^{s_0t}$」，但没讲\textbf{怎么反演}——
+        那个公式就是留数定理；
+  \item \textbf{CG 线：} 共形参数化、调和映射的数学基础全在这里。
+\end{itemize}
+另外 K4 的 Wick 转动 $t\to-i\tau$ 本质上是解析延拓，L7 重整化的收敛性也依赖复平面上的解析性。
+
+\textbf{前置：} 复数与 Euler 公式见 P5（本章直接用）。
+
+%--------------------------------------------------------------
+\subsection{R1. 复可微比实可微强得多}
+
+\textbf{定义（全纯／解析）：} $f:\Omega\to\mathbb C$ 在 $z_0$ 全纯，若
+\[
+f'(z_0)=\lim_{h\to0}\frac{f(z_0+h)-f(z_0)}{h}
+\]
+存在，其中 $h$ \textbf{沿复平面的任意方向}趋于 $0$。
+
+\textbf{为什么这比实可微强：} 实可微只要求「从左右两个方向趋近得到同一斜率」（一维），
+复可微要求「从无穷多个方向（一整圈）趋近都得到同一个复数」。这个约束强到\textbf{会产生奇迹}（R2）。
+
+写成 $f=u+iv$（$u,v$ 实值）后，沿实轴与虚轴趋近相等，得
+\[
+\boxed{\ \frac{\partial u}{\partial x}=\frac{\partial v}{\partial y},\qquad
+\frac{\partial u}{\partial y}=-\frac{\partial v}{\partial x}\ }
+\qquad(\text{Cauchy--Riemann 方程})
+\]
+
+\textbf{两个立刻可用的推论：}
+\begin{itemize}
+  \item 分别对两式求导相加，得 $\Delta u=0$、$\Delta v=0$——即 \textbf{$u,v$ 都是调和函数}。
+        全纯函数的实部与虚部自动是 Laplace 方程的解，这解释了 R7 里二维 PDE 为什么特殊。
+  \item \textbf{反例：} $f(z)=\bar z$（即 $u=x,v=-y$）在\textbf{任何}点都不满足 C-R；
+        $f(z)=|z|^2$（$u=x^2+y^2,v=0$）只在原点满足。
+        可见「看起来光滑」根本不够——C-R 是很严的条件。
+\end{itemize}
+
+\textbf{调和共轭：} 给定调和 $u$，总能（在单连通域上）找到 $v$ 使 $u+iv$ 全纯，$v$ 称 $u$ 的调和共轭。
+\textbf{这就是 A4 里「$H^1=0$ 时闭形式恰当」的复分析面孔}（对照 Q10 的表）。
+
+%--------------------------------------------------------------
+\subsection{R2. Cauchy 积分定理与公式}
+
+\subsubsection{围道积分}
+
+$\oint_\gamma f(z)\,dz$ 按参数化 $z(t)$ 定义为 $\int_a^b f(z(t))z'(t)\,dt$，与实数积分同构。
+
+\subsubsection{Cauchy 积分定理}
+
+\textbf{定理：} $f$ 在\textbf{单连通}域 $\Omega$ 上全纯，$\gamma\subset\Omega$ 是闭合可求长曲线，则
+\[
+\oint_\gamma f(z)\,dz=0
+\]
+
+\textbf{这是全章的地基，也是它与拓扑的接点。} 用 A3／Q10 的语言：
+$f(z)dz$ 是闭 $1$-形式（C-R 方程正是「闭」的条件），
+而「单连通」保证 $H^1(\Omega)=0$，于是闭形式自动恰当，积分必然为零。
+\textbf{反例记住这一个：} $f(z)=1/z$ 在 $\mathbb C\setminus\{0\}$ 上全纯（该域\textbf{不}单连通），而
+\[
+\oint_{|z|=1}\frac{dz}{z}=2\pi i\ne0
+\]
+这个 $2\pi i$ 就是「洞」的度量——它将在 R4 变成留数的定义常数。
+
+\subsubsection{Cauchy 积分公式}
+
+\[
+f(a)=\frac{1}{2\pi i}\oint_\gamma\frac{f(z)}{z-a}\,dz
+\qquad(a\ \text{在}\ \gamma\ \text{内部})
+\]
+\textbf{读法：全纯函数在区域内部的值，完全由它在边界上的值决定。}
+这与实数情形完全不同——实函数的内部值不受边界约束，而全纯函数是「刚性的」。
+
+反复求导（对 $a$ 微分即可，因为被积函数对 $a$ 光滑）得
+\[
+f^{(n)}(a)=\frac{n!}{2\pi i}\oint_\gamma\frac{f(z)}{(z-a)^{n+1}}\,dz
+\]
+
+\textbf{最重要的推论：} 全纯 $\Longrightarrow$ 无穷次复可微 $\Longrightarrow$ 局部可展开为幂级数（解析）。
+\textbf{「可微一次」等于「可微无穷次、且等于自己的 Taylor 级数」}——
+这是实分析里绝对没有的性质，也是全章所有「奇迹」的共同来源。
+
+\subsubsection{三个经典推论}
+
+\begin{center}
+\begin{tabular}{L{3.0cm}L{5.4cm}L{5.6cm}}
+\toprule
+\textbf{定理} & \textbf{内容} & \textbf{用法} \\
+\midrule
+Liouville & 有界整函数（全平面全纯）必为常数 &
+由 $|f'|\le M/R\to0$ 得 $f'\equiv0$ \\
+代数基本定理 & 任意 $n\ge1$ 次复系数多项式必有根 &
+若 $p$ 无处为根，则 $1/p$ 有界整函数，矛盾 \\
+最大模原理 & $|f|$ 在区域内部取不到极大（除非 $f$ 为常数） &
+与调和函数的平均值性质同源（R7） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%--------------------------------------------------------------
+\subsection{R3. 幂级数、Laurent 级数与奇点}
+
+\textbf{Taylor 级数：} $f(z)=\sum_{n\ge0}a_n(z-a)^n$，收敛半径 $R=$ \textbf{圆心到最近奇点的距离}
+（这条「到奇点的距离决定收敛半径」是判收敛最快的手段）。
+
+\textbf{Laurent 级数：} 在圆环 $r<|z-a|<R$ 上
+\[
+f(z)=\sum_{n=-\infty}^{\infty}c_n(z-a)^n
+\qquad(\text{允许负幂项})
+\]
+于是可以按负幂项对孤立奇点分类：
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{5.2cm}L{6.2cm}}
+\toprule
+\textbf{类型} & \textbf{负幂项} & \textbf{判据／例子} \\
+\midrule
+可去奇点 & 全无（$c_n=0,\ n<0$） & $\lim_{z\to a}f(z)$ 存在且有限；$\frac{\sin z}{z}$ 在 $0$ \\
+$m$ 阶极点 & 有限，最低次为 $-m$ & $\lim_{z\to a}(z-a)^mf(z)$ 是非零有限数；$\frac{1}{z^2}$ 在 $0$ 是二阶 \\
+本质奇点 & 无穷多项 & $\lim$ 不存在（值域在任意邻域内稠密）；$e^{1/z}$ 在 $0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%--------------------------------------------------------------
+\subsection{R4. 留数定理}
+
+\subsubsection{定义与定理}
+
+\textbf{留数：} $f$ 在孤立奇点 $a$ 处的 Laurent 展开中 $c_{-1}$ 那一项，记 $\operatorname{Res}(f,a)$——\textbf{只有这一项在积分后存活}（因为 $\oint(z-a)^n dz=0$ 当 $n\ne-1$，当 $n=-1$ 时等于 $2\pi i$）。
+
+\textbf{留数定理：} $f$ 在 $\gamma$ 内部除有限个孤立奇点 $a_1,\dots,a_m$ 外全纯，则
+\[
+\boxed{\ \oint_\gamma f(z)\,dz=2\pi i\sum_{k=1}^m\operatorname{Res}(f,a_k)\ }
+\]
+
+\subsubsection{怎么算留数}
+
+\begin{center}
+\begin{tabular}{L{3.4cm}L{9.4cm}}
+\toprule
+\textbf{情形} & \textbf{公式} \\
+\midrule
+单极点 & $\operatorname{Res}(f,a)=\lim_{z\to a}(z-a)f(z)$ \\
+$f=p/q$，$q$ 在 $a$ 有单零点 & $\operatorname{Res}(f,a)=\dfrac{p(a)}{q'(a)}$（最常用，免求极限） \\
+$m$ 阶极点 & $\operatorname{Res}(f,a)=\dfrac{1}{(m-1)!}\lim_{z\to a}\dfrac{d^{m-1}}{dz^{m-1}}\big[(z-a)^mf(z)\big]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{三类实积分的标准套路}
+
+\begin{center}
+\begin{tabular}{L{4.6cm}L{4.6cm}L{4.8cm}}
+\toprule
+\textbf{积分类型} & \textbf{替换／围道} & \textbf{要点} \\
+\midrule
+$\displaystyle\int_0^{2\pi}R(\cos\theta,\sin\theta)\,d\theta$ &
+$z=e^{i\theta}$，$d\theta=\dfrac{dz}{iz}$，$\cos\theta=\dfrac{z+z^{-1}}{2}$ &
+化为单位圆上的留数计算 \\
+\addlinespace
+$\displaystyle\int_{-\infty}^{\infty}R(x)\,dx$ &
+上半平面闭合，加半圆 & 需 $\deg q\ge\deg p+2$，半圆上积分 $\to0$ \\
+\addlinespace
+$\displaystyle\int_{-\infty}^{\infty}R(x)e^{iax}\,dx$ &
+上半平面闭合 & $a>0$ 时由 \textbf{Jordan 引理} 保证半圆贡献 $\to0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{另外两个计数工具：}
+\begin{itemize}
+  \item \textbf{辐角原理：} $\dfrac{1}{2\pi i}\oint_\gamma\dfrac{f'}{f}\,dz=$ $\gamma$ 内部零点数 $-$ 极点数（计重数）；
+  \item \textbf{Rouché 定理：} $|g|<|f|$ 于 $\partial D$ 上 $\Longrightarrow$ $f$ 与 $f+g$ 在 $D$ 内零点数相同。
+\end{itemize}
+
+\textbf{与 de3 的接口（补上「反演」这一环）：} Laplace 反演公式
+\[
+f(t)=\frac{1}{2\pi i}\int_{c-i\infty}^{c+i\infty}e^{st}F(s)\,ds
+\]
+是一个沿竖直直线的「积分」，把它向右闭合（取 $t>0$）后用留数定理，即得
+\[
+f(t)=\sum_k \operatorname{Res}\big(e^{st}F(s),\ s_k\big)
+\]
+\textbf{而每个极点 $s_k$ 贡献一个 $e^{s_k t}$——这正是 de3 里那张「极点 $\leftrightarrow$ 指数解」对照表的来源。}
+重极点贡献 $t^ke^{s_kt}$（共振），也是同一公式的自动推论。
+
+%--------------------------------------------------------------
+\subsection{R5. 共形映射}
+
+\textbf{保角性：} $f'(z_0)\ne0$ 时，$f$ 在 $z_0$ 处\textbf{保角}——
+把过 $z_0$ 的两条曲线的夹角按大小与方向原样保持。
+（理由：局部 $f(z)\approx f(z_0)+f'(z_0)(z-z_0)$，是「旋转 $+$ 缩放」，而这两者都保角。）
+
+\textbf{与 Laplace 方程的相容性：} 若 $u$ 调和、$f$ 全纯，则 $u\circ f$ 也调和
+（因为调和性 $\Delta u=0$ 在保角变换下不变）。
+\textbf{一句话：共形映射是 Laplace 方程的对称群}——这就是二维 PDE 与流体力学用复分析的根据。
+
+\textbf{Riemann 映射定理：} 任意单连通真子域 $\Omega\subsetneq\mathbb C$ 共形等价于单位圆盘
+（即存在共形双射 $f:\Omega\to\mathbb D$）。这是二维特有的奇迹；\textbf{三维及以上没有对应结论}。
+
+\textbf{Möbius 变换：} $z\mapsto\dfrac{az+b}{cz+d}$（$ad-bc\ne0$）把广义圆映成广义圆；
+单位圆盘的自同构为 $z\mapsto e^{i\theta}\dfrac{z-a}{1-\bar a z}$（$|a|<1$）。
+
+\textbf{在 CG 中的落地——共形参数化：}
+\begin{itemize}
+  \item 共形参数化把曲面摊平到平面域时\textbf{消灭角度畸变}（因为保角），代价是面积畸变无法同时消除
+        （由 R5 的「保角 $+$ 保面积 $\Rightarrow$ 等距」可知：两者不可兼得）；
+  \item 常用算法（圆模式圆填充、离散 Ricci 流）本质是在离散层面解一个 Ricci 流方程——
+        与 H1 的余切 Laplace 算子共用同一套离散结构；
+  \item 与 B2 的黎曼度量、H1 的离散 Laplace 算子接上：\textbf{「共形」在离散层面就是「保持余切权重比」}。
+\end{itemize}
+
+%--------------------------------------------------------------
+\subsection{R6. 解析延拓与多值函数}
+
+\textbf{唯一性定理：} 两个在连通域上全纯的函数，若在一个有聚点的集合上相等，则处处相等。
+（这是全纯函数「刚性」的又一次体现：局部信息决定整体。）
+
+\textbf{解析延拓：} 沿路径把局部幂级数一块块接下去。若路径绕奇点一圈后回来得到\textbf{不同}的值，
+函数就是\textbf{多值}的——$z=0$ 称为\textbf{支点}。
+
+\begin{itemize}
+  \item $\log z$、$\sqrt z$、$z^\alpha$（$\alpha\notin\mathbb Z$）都多值；
+  \item 处理办法：\textbf{割线}（单值分支）或 \textbf{Riemann 面}（把多值函数变成单值函数的新空间）；
+  \item 留数定理对多值函数照样能用，只是要小心割线两侧的跳跃。
+\end{itemize}
+
+\textbf{$\Gamma$ 函数的解析延拓（接 P8）：} P8 里 $\Gamma(s)$ 只在 $\operatorname{Re}s>0$ 有定义。
+用递推关系反解
+\[
+\Gamma(s)=\frac{\Gamma(s+1)}{s}
+\]
+可把定义域逐段向左推进，得到除 $s=0,-1,-2,\dots$ 外处处全纯的函数，
+这些点是\textbf{单极点}，且 $\operatorname{Res}\big(\Gamma,-n\big)=\dfrac{(-1)^n}{n!}$
+（又是一个留数计算）。\textbf{所以「$\Gamma$ 是阶乘的连续插值」这句话，严格含义是「它的解析延拓」。}
+
+\textbf{与 K4 的接口：} Wick 转动 $t\to-i\tau$ 就是把实时间上的传播子解析延拓到虚时间轴——
+之所以合法，是因为传播子作为函数在适当区域上全纯（物理上称「解析性」，
+它的谱表示就是 R2 积分公式的物理版）。
+
+%--------------------------------------------------------------
+\subsection{R7. 与 PDE 的接口：二维为什么特殊}
+
+\textbf{调和函数的基本性质（与 R2 同源）：}
+
+\begin{center}
+\begin{tabular}{L{4.0cm}L{10.6cm}}
+\toprule
+\textbf{性质} & \textbf{内容} \\
+\midrule
+平均值性质 & $u(a)=\dfrac{1}{2\pi}\displaystyle\int_0^{2\pi}u(a+re^{i\theta})\,d\theta$（圆心值 $=$ 圆周平均） \\
+最大（小）值原理 & 非常数调和函数在区域内部取不到极值 \\
+基本解 & $n=2$：$\dfrac{1}{2\pi}\log|z|$；$n=3$：$-\dfrac{1}{4\pi|\mathbf x|}$（A2.5 的 $\delta$ 的解） \\
+Liouville（调和版） & 全平面上有上界的调和函数是常数 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{二维不可压无粘流 $=$ 全纯函数。} 记\textbf{复势}
+\[
+w(z)=\varphi(x,y)+i\psi(x,y)
+\]
+其中 $\varphi$ 是速度势、$\psi$ 是流函数。由 C-R 方程，
+\[
+u-iv=w'(z)\qquad(u,v\ \text{为速度分量})
+\]
+且流线就是 $\operatorname{Im}w=\text{const}$。
+\textbf{于是「解 2D 无粘流」变成「找一个全纯函数」}——而 R5 的共形映射允许先把复杂形状
+共形搬到简单形状（圆）上求解，再搬回来。经典的 Joukowski 变换求机翼绕流就是这么做的。
+
+\textbf{但这就是复分析方法的边界，必须说清：} 上述结论依赖\textbf{无粘、无旋}。
+一旦要有粘性、要有涡量动力学与湍流，复势方法失效，必须回到 I 章的 Navier--Stokes
+（那里二维的涡量方程 $\frac{D\omega}{Dt}=\nu\Delta\omega$ 是标量输运方程，
+比三维干净，但已经不是全纯函数问题）。
+
+%--------------------------------------------------------------
+\subsection{R8. 小结：复分析概念在两线上的落点}
+
+\begin{center}
+\begin{tabular}{L{3.4cm}L{5.4cm}L{5.6cm}}
+\toprule
+\textbf{概念} & \textbf{PDE／分析线} & \textbf{CG／几何线} \\
+\midrule
+C-R 方程与调和性（R1） & Laplace 方程的解、调和共轭 & 调和映射、网格上的调和坐标 \\
+Cauchy 定理（R2） & 单连通 $\Rightarrow$ 闭形式恰当（Q10） & 环路积分的路径无关性 \\
+Cauchy 公式与刚性（R2） & 边界值决定内部（最大模原理） & —— \\
+留数定理（R4） & Laplace／Fourier 反演（de3）、$\Gamma$ 的极点 & 传递函数的极点分析 \\
+Laplace 级数与奇点（R3） & 极点阶数 $=$ 解的增长型（$t^ke^{s_0t}$） & 滤波器极点、共振 \\
+共形映射（R5） & 调和性在保角下不变 & \textbf{共形参数化}、纹理畸变控制 \\
+解析延拓（R6） & Wick 转动（K4）、重整化（L7） & —— \\
+复势（R7） & 2D 无粘流 $=$ 全纯函数 & 平面流场、矢量场设计 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{与既有章节的接口：} 复数与 Euler 公式见 P5；Laplace 变换的极点表见 de3；
+Wick 转动见 K4；离散 Laplace 与余切权重见 H1；调和映射与网格参数化见 H1 与 lie3。
