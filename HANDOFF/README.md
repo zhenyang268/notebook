@@ -93,3 +93,29 @@ ls HANDOFF/prompts/
 4. **不编造**：年份、题号、会议名、数据，没有把握一律不写。
 
 具体脚本见 `TASKS.md` 末尾。
+## 八、交接包清单（主 agent 先读这个）
+
+```
+HANDOFF/
+├── 00-CONTEXT.md              这是什么、用户怎么用、硬约束、验收
+├── README.md                  目标结构、任务表、五步流程映射
+├── SCHEDULING.md              12 个真实调度故障 + 派发规范
+├── TASKS.md                   工作列表、迁移动作、验收脚本
+├── EXECUTION.md               4 个阶段、多 agent 分工
+├── tools/
+│   ├── pool.sh                可执行的派发器（幂等/限流/重试）
+│   ├── verify.py              统一验收（文件/字数/结构/覆盖率）
+│   └── RULES-legacy.md        早期规范（内容并入 SCHEDULING.md）
+└── prompts/
+    ├── 00-migrate.md          结构迁移（先做）
+    ├── K0-syllabus.md         考纲强化（档位 + 真题落点）
+    ├── K-quick.md             9 份速通（三合一，408 分四科）
+    ├── E-exam.md              分章详细讲解
+    ├── N-note.md              考点 × 真题复合版（按考法去重）
+    ├── W-words.md             单词书 5500+
+    ├── P-projects.md          项目两件套
+    ├── B1-bilingual.md        项目大纲双语化
+    └── T-fetch-zhenti.md      续抓 408 真题
+```
+
+**最短路径**：读 `00-CONTEXT.md` → 跑 `00-migrate` → 按 `EXECUTION.md` 分阶段派 prompt。
