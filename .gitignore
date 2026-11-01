@@ -22,3 +22,5 @@ __pycache__/
 .idea/
 .workbuddy/
 .codebuddy/
+# 施工中间态（生成任务与状态，不进仓）
+.gen/

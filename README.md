@@ -13,7 +13,7 @@ notebook/
 │   └── bridges/        专题三：跨篇串讲（含 README 索引与 graphics 对照表）
 ├── kaoyan/        ← 11408 考研体系（Markdown）
 │   ├── syllabus/       L1 考纲 + KP 主键（唯一坐标系）
-│   ├── quick/          L2 一小时速通（一个子科一份，共 9 份）
+│   ├── quick/          L2 一小时过完一门学科（4 份：408/数一/英一/政治）
 │   ├── exam/           L3 考试线正文（一个 KP = 一个文件）
 │   ├── projects/       考纲相关项目（5 个，各含 OUTLINE/QUICK/NOTES）
 │   ├── reviews/        复习状态表

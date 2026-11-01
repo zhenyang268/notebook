@@ -64,6 +64,9 @@ def check_exam(kps):
         text = p.read_text(encoding="utf-8")
         if p.name == "ROADMAP.md":
             continue
+        # 真题专项按「题点」组织、不按 KP，豁免文件名与 KP 头检查
+        if "真题专项" in p.parts:
+            continue
         # 文件名：<章2>-<节2>-<名>.md 或 <序2>-<名>.md
         if not re.match(r"^\d{2}-\d{2}-.+\.md$", p.name) and not re.match(r"^\d{2}-.+\.md$", p.name):
             err(f"[exam] 文件名不合规（应为 NN-NN-名.md）：{rel}")
@@ -109,17 +112,23 @@ def check_projects():
 
 
 def check_quick():
-    """quick/ 一层：一个子科一份，九份齐全（2026-11-01 起）。"""
-    want = ["408-ds.md", "408-co.md", "408-os.md", "408-net.md",
-            "m1-hs.md", "m1-la.md", "m1-ps.md", "e1.md", "p1.md"]
+    """quick/ 一层：一门学科一份，四份齐全（2026-11-01 修订：按科目而非子科）。"""
+    want = ["408.md", "math1.md", "english1.md", "politics.md"]
     d = ROOT / "quick"
     if not d.exists():
         err("[quick] 缺 quick/ 目录")
         return 0
+    n = 0
     for w in want:
-        if not (d / w).exists():
+        p = d / w
+        if not p.exists():
             err(f"[quick] 缺 {w}")
-    return len(want)
+        else:
+            n += 1
+            text = p.read_text(encoding="utf-8")
+            if len(text) < 2500:
+                err(f"[quick] {w} 过短（{len(text)} 字），一小时通讲不应少于 2500 字")
+    return n
 
 
 def check_reviews(kps):
