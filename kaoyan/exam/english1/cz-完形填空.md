@@ -1,0 +1,106 @@
+# EN-CZ 完形填空
+
+## 一、本章考点与档位
+
+| KP | 名称 | 档位 | 真题落点 |
+|---|---|---|---|
+| `E1-CZ-01` | 完形填空（英语一） | 应用 | 真题库仅收录 408，英语一部分按「常见考法」呈现，见第三段 |
+
+本章只围绕 `E1-CZ-01` 这一个考点展开，但它是「应用」档，意味着不能停在「认识单词、读懂文章」，而要能在一篇 240–280 词、首句不设空、共 20 空、每题 0.5 分（满分 $20\times0.5=10$ 分）的语篇里，对每一空给出**可复核的判定路径**。下面按「语法定位 → 语义复现 → 逻辑关系 → 搭配与指代 → 决策流程」五层推进，每层给一个最小例子。
+
+## 二、正文
+
+### 2.1 完形到底在考什么：两类约束的联合求解
+
+**定义**：完形填空是在一个语义连贯的语篇中挖去 20 个词，要求从每空 4 个选项中选回原文词或其等价替换。它的本质不是「词汇题」，而是**局部约束与全局约束的联合求解**：空所在的句子给出语法与搭配约束（局部），全文主线与复现网络给出语义约束（全局）。
+
+**为什么需要这个概念**：如果不区分两类约束，最常见的失败模式是「每个词都认识，每空都靠语感」。量化一下：20 空、每空 4 选项，纯随机期望得分 $20\times0.25\times0.5=2.5$ 分；只靠「选项代入读着顺」通常落在 4–5 分；要把分数稳定推到 7 分以上，必须让每一空有**排他性理由**——即能说清楚「另外三个为什么不行」。这就是本章要建立的能力。
+
+### 2.2 第一层：语法定位（硬约束，先筛）
+
+拿到一空，第一件事不是看选项词义，而是**由空的前后环境反推词性**。这一步是硬约束，因为词性不符的选项可以直接划掉，不需要读懂全文。
+
+产生式规则（$\_$ 表示空，Det 为限定词，N 为名词，V 为动词，Adj/Adv 为形容词/副词，P 为介词）：
+
+$$\text{Det}+\_+\text{N}\;\Rightarrow\;\_\in\{\text{Adj}\}$$
+$$\text{主语}+\_+\text{宾语}\;\Rightarrow\;\_\in\{\text{V}\}$$
+$$\text{P}+\_\;\Rightarrow\;\_\in\{\text{N},\text{ Gerund}\}$$
+$$\text{完整分句}+\_+\text{完整分句}\;\Rightarrow\;\_\in\{\text{连词},\text{ 连接副词}\}$$
+
+**最小例子**：`The firm reported a ___ rise in output.` 空位于限定词 `a` 与名词 `rise` 之间，只能是形容词。若选项为 sharp / sharply / sharpen / sharpness，语法一步就把候选从 4 个降到 1 个。
+
+这一步的收益是「确定性的」：它不依赖你对文章主旨的判断，因此永远不会因为读错主旨而连坐。**先把词性定死，再谈词义。**
+
+### 2.3 第二层：语义复现（软约束，排序）
+
+**定义**：复现指同一语义在文内以不同形式重复出现，包括原词复现、同义复现、反义复现、上下义复现。完形的正确答案绝大多数能在**空的前后一两句内**找到语义支点。
+
+**为什么需要它**：完形的干扰项设计原则是「脱离上下文时也像对的」，所以选项本身常常四个都搭配得通。唯一能打破平局的是文内证据。由此得到一条优先级：**文内复现 > 选项自带的常见搭配 > 语感**。
+
+**最小例子**：首句 `Climate change is altering the timing of seasons.` 后文 `These ___ in timing have disrupted farming calendars.` 空处名词必须回指首句的 `altering`，因此选 `shifts` 而非 `reasons`、`debates`——后两者在文中没有任何支点。
+
+### 2.4 第三层：逻辑关系（结构约束，定向）
+
+**定义**：逻辑关系词是语篇的骨架，分四类：并列/递进、转折/让步、因果、条件/时间。它们决定空处语义与上文是**同向**还是**反向**。
+
+**推导**：设空连接前后两个语义单元 $S_1,S_2$，定义方向
+
+$$\operatorname{dir}(S_1,S_2)=\begin{cases}+1, & S_2 \text{ 与 } S_1 \text{ 同向}\\ -1, & S_2 \text{ 与 } S_1 \text{ 反向}\\ 0, & \text{无逻辑关联}\end{cases}$$
+
+判定顺序是：先看空的位置是否连接两个完整分句（是→候选为连词/连接副词）；再看 $\operatorname{dir}$；最后由 $\operatorname{dir}$ 映射到词表。$\operatorname{dir}=+1$ 取 and / moreover / therefore / similarly；$\operatorname{dir}=-1$ 取 but / however / although / whereas / nevertheless。
+
+**最小例子**：`The policy was widely popular; ___, it was ruinously expensive.` 前后两个分句都完整，`popular` 与 `ruinously expensive` 语义反向，$\operatorname{dir}=-1$，且空后有逗号、空处在分号之后——取连接副词 `however`，而非 `therefore`（$\operatorname{dir}=+1$）。
+
+这里有个高频陷阱：**`however` 与 `although` 都能表反向，但语法位置不同**。`although` 引导从句，其后必须紧跟完整分句且不能再用逗号断开主谓；`however` 作连接副词，前后都要有逗号或分号。语法位置再一次先于词义做筛选。
+
+### 2.5 第四层：搭配与指代（细节约束，定音）
+
+搭配考的是动词+介词、形容词+介词、名词+介词三类。这一层没有推理空间，只能靠积累，但可以用「介词的核心义」减少记忆量：`on` 表接触/依附 → `depend on`、`focus on`、`comment on`；`to` 表方向/对象 → `attention to`、`access to`、`exposure to`；`of` 表属性/来源 → `capable of`、`indicative of`。
+
+指代题的判定是**性数一致 + 就近回指 + 语义可容纳**三条同时满足。**最小例子**：`Researchers tracked the birds for a decade. They found that ___ had shifted their migration routes.` 空处回指 `the birds`（复数、非人），取 `they` 或 `these`，不能取 `it`；同时 `They found that` 已占用主句主语，空处若是 `they` 需另起从句主语，语法上成立，故选 `they`。
+
+### 2.6 第五层：决策流程（把四层串成一步）
+
+把上面四层写成一个可执行的择优规则。设候选集为 $C$（$|C|\le 4$），
+
+$$w^\*=\arg\max_{w\in C_{\text{语法合格}}}\big[\lambda_1 R(w)+\lambda_2 L(w)\big],\qquad \lambda_1,\lambda_2>0$$
+
+其中 $R(w)$ 为文内复现支持度，$L(w)$ 为逻辑方向一致度。注意 $\arg\max$ 的下标是 $C_{\text{语法合格}}$——**语法不合格的选项根本不进排序**，这是「硬筛在前、软排在后」。
+
+**完整例题（讲解用自编语料，非真题）**：
+
+> Workplace rituals — the small, repeated behaviours a team performs around meetings and deadlines — are easy to dismiss as decoration. Yet research suggests they are (1) ___. Rituals coordinate expectations: when everyone knows what happens next, (2) ___ falls and people concentrate on the task itself. The effect is not (3) ___, however. Rituals that exclude newcomers, or that harden into bureaucracy, (4) ___ the very flexibility they were meant to protect. Managers therefore face a (5) ___: preserve the form, or preserve the function.
+
+**第 (1) 空**：位于 `are` 之后、句号之前，系动词后作表语 → 形容词。候选 decorative / functional / arbitrary / costly，语法筛后 4 个全留。逻辑：`Yet` 表明与首句 `easy to dismiss as decoration` 反向，首句说「被当成装饰」，则本句须说「其实有用」→ $R$ 支持 functional，$L=-1$ 指向与 decoration 相反的语义场。取 **functional**。候选集 $4\to1$。
+
+**第 (2) 空**：`___ falls` 前无冠词、作主语 → 名词。冒号后是对前句的解释，`coordinate expectations`（协调预期）→ 大家都知道下一步做什么 → 下降的应是「不确定性」。候选 uncertainty / cost / morale / attendance，取 **uncertainty**。这一步考的是因果链，不是词义。
+
+**第 (3) 空**：`is not ___` 系动词后 → 形容词。`however` 提示后文要给出反例（排斥新人的仪式反而破坏灵活性），说明该效果有边界、不是放之四海皆准。候选 universal / permanent / deliberate / marginal，取 **universal**。
+
+**第 (4) 空**：主语 `Rituals that...` 之后、宾语 `the very flexibility` 之前 → 谓语动词，且需及物。`the very` 是强信号，表示「恰恰是那个本该被保护的东西」，语义方向为负。候选 restore / undermine / measure / reward，取 **undermine**。
+
+**第 (5) 空**：`a ___` 后冒号引出两个并列选择 `preserve the form, or preserve the function` → 名词，且语义为「二选一的取舍」。候选 trade-off / consensus / loophole / routine，取 **trade-off**。
+
+五空合计 $5\times0.5=2.5$ 分，全部由「语法硬筛 → 复现排序 → 逻辑定向」三步锁定，没有一步依赖通读全文后的模糊印象。
+
+## 三、真题落点
+
+本年段无对应题目。
+
+真题库仅收录 408 统考题目，英语一完形填空没有可引用的年份与题号，因此本段不列具体题目，改为按**常见考法**说明每类考法落在上述流程的哪一步：
+
+- **常见考法一：实词辨析（动词/名词/形容词/副词）**——考的是第 2.3 步语义复现。四个选项往往同词性、同 register，脱离上下文都成立，唯一判据是文内同义/反义/上下义支点。落点在「找出支点句」，不在「辨析词义差别」。
+- **常见考法二：逻辑关系词**——考的是第 2.4 步方向判定。落点在「先判 $\operatorname{dir}$ 再看语法位置」，两步都过才选。
+- **常见考法三：固定搭配与介词**——考的是第 2.5 步。落点在「介词核心义 + 名词/动词的固定组合」，属于记忆型，无推理冗余。
+- **常见考法四：代词指代与名词回指**——考的是第 2.5 步的三条件同时满足（性数一致、就近、语义可容纳）。落点在「先定指代对象的数，再定格」。
+- **常见考法五：首段/段首的主旨锁定**——考的是第 2.3 步的全局版。首句不设空，是命题人白送的主线锚点，后续所有复现都向它收敛。
+
+## 四、易错清单
+
+1. **先读选项再读空** → 正确做法：先只看空的前后 3 个词定词性，把词性不符的选项划掉，再回头看选项词义。顺序颠倒会让你被「读着顺」的干扰项带走。
+2. **把「选项搭配成立」当成「答案成立」** → 正确做法：四个选项若都能与空前后搭配，一律作废搭配证据，改为回文内找复现支点；找不到支点就说明支点在更远处，继续往前找，不要凭语感定。
+3. **`however` / `therefore` / `although` / `because` 混用** → 正确做法：先看空后是否紧跟完整分句且无逗号断开（是→从句连词，取 although/because），再看空前后是否都有逗号或分号（是→连接副词，取 however/therefore）。语法位置先定，方向后定。
+4. **逻辑方向判反** → 正确做法：把空前后两个语义单元各压缩成一个词（如 `popular` / `expensive`），只比较这两个词的感情色彩是否一致，不要通读整句后再凭整体印象判方向。
+5. **代词题只看单复数** → 正确做法：性数一致只是第一关，还要检查「就近回指的那个名词能否在语义上容纳该代词所做的动作」，两条都过才选。
+6. **一词多义时选最常见的义项** → 正确做法：完形考的是**在该语境下成立**的义项，不是词典第一义。判定方法是把这个词的每个义项代回原句，看哪一个能让本句与上下句的复现链保持连贯。
+7. **在某一空上超时纠缠** → 正确做法：一空超过约 40 秒仍无法排他，立即标记跳过，用后文复现反向定夺——完形的复现网络是双向的，后文常常直接给出前空的支点。

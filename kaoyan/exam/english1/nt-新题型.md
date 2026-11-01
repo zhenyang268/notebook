@@ -1,0 +1,170 @@
+# EN-NT 新题型
+
+## 一、本章考点与档位
+
+| KP | 名称 | 档位 | 真题落点 |
+|---|---|---|---|
+| `E1-NT-01` | 新题型（七选五 / 排序 / 小标题）：语篇衔接与段落逻辑 | 应用 | 真题库仅收录 408，英语一本年段无对应题目；按常见考法写作，落点为「段中举例空的双向衔接」「段首代词回指的连边」「末句主题句的概括层级」 |
+
+一个考点，三种外壳。七选五、排序、小标题看上去是三种题，考的动作只有一个：**判断两个相邻语言单位之间的逻辑关系**。七选五是「句—句」衔接，排序是「段—段」衔接，小标题是「标题—段」衔接。所以下面所有推导都围绕同一件事展开，只是接口不同，不要把它们当成三个独立题型去背三套技巧。
+
+## 二、正文
+
+### 1. 概念：新题型到底在测什么
+
+**定义。** 新题型是在一篇被挖空或打乱的语篇上，要求考生恢复其**衔接结构**的题型。它不给句子让你翻译，而是给位置让你判断「这里应该出现一个什么样的句子/段落/标题」。
+
+**为什么需要它。** 命题动机来自研究生阶段的真实阅读：读文献时，你需要的不是逐句翻译，而是判断「这一段是在提出假设还是在给证据」「这个 however 转折的是谁」。因此题目被设计成——**答案必须由上下文中的可指认证据唯一确定**，而不是由「读起来顺不顺」决定。
+
+这条设计约束推出一条极重要的解题原则：
+
+$$\text{某选项正确} \iff \exists\ \text{可指认的衔接证据}\ E,\ E \text{ 能被定位到具体的词或结构}$$
+
+「我觉得它放这儿通顺」不是证据。凡是你说不出「因为空前出现了 X，所以空后必须是带 Y 的句子」的，都是猜。
+
+### 2. 推导：衔接证据只有三类
+
+既然答案要靠证据，那证据从哪里来？语言把两个句子黏在一起，只有三条通道。
+
+**（一）词汇衔接。** 原词复现、同义/近义替换、上下义词、反义对照。
+
+$$E_{\text{lex}}: \quad \text{word}(L)\approx_{\text{syn}}\text{word}(O)\ \ \text{或}\ \ \text{word}(O)\in \text{hyponym}(\text{word}(L))$$
+
+注意「同义替换」比重最大：原文说 `the completeness of the record`，选项说 `the product`，这是同一概念的两种说法，命题人最爱在这里设卡。
+
+**（二）语法衔接（指代与限定）。** 代词、定冠词、such、the former/latter 都要求前文存在先行词。判定式：
+
+$$\text{Num}(O_{\text{首代词}})=\text{Num}(\text{先行词}),\qquad \text{Person}(O_{\text{首代词}})=\text{Person}(\text{先行词})$$
+
+同理，选项若以 `The + 名词` 开头，该名词必须是**已知信息**，即前文已经出现过或可由前文唯一推出；首次引入的概念只能用 `a/an + 名词`。这一条能秒杀大量干扰项。
+
+**（三）逻辑衔接。** 连接副词与结构标记：`however / therefore / for example / in addition / first…finally / similarly`。它们各自对前文有**语义要求**：
+
+- `however` 要求前文存在一个与后文相反或相对的主张；
+- `for example / such as` 要求**后文**（或本句后半）出现具体列举；
+- `therefore` 要求前文是原因或前提；
+- `in addition / moreover` 要求前文已有同类项。
+
+**由此得到全章的核心判据（双向验证）：** 设空位左边相邻单位 $L$、右边相邻单位 $R$、候选选项 $O$。记 $O$ 与 $L$ 的衔接证据集为 $E_L(O)$，与 $R$ 的为 $E_R(O)$：
+
+$$O\ \text{入选} \iff E_L(O)\neq\varnothing\ \wedge\ E_R(O)\neq\varnothing$$
+
+若只能单向命中，则另一向**不得冲突**（不能出现话题跳脱、指代断链、逻辑标记无人可指）。这条式子就是后面三种题型的统一武器。
+
+### 3. 七选五：最小例与完整推演
+
+**第一步，给空位定性。** 段首空考「主题句或承上启下」，段中空考「展开/举例/转折」，段末空考「小结/过渡」。
+
+**第二步，给选项取「指纹」。** 看首词：是代词（要找先行词）、是连接词（要问前文要什么）、还是普通名词短语（要问是否已知）。再看关键词与单复数。
+
+**第三步，双向代入，逐个排除。**
+
+> **自编示例（非真题）**
+> Most students treat note-taking as transcription. ___(1)___ Research on memory suggests that the act of selecting and rephrasing is what makes notes useful, not the completeness of the record.
+>
+> [A] In other words, the value lies in the processing, not in the product.
+> [B] For example, a lecture on statistics may contain dozens of formulas.
+> [C] However, handwriting is considerably slower than typing.
+
+推演：
+
+- 空在**段中**，前句给出一个命题（记笔记＝转录），后句给出研究结论。
+- **[A] 指纹：** `In other words` 要求前文存在一个可以被「换句话说」的命题——前句正是。词汇层：`processing` ↔ 后句 `selecting and rephrasing`；`the product` ↔ 后句 `the completeness of the record`；`not...not` 结构同构。$E_L\neq\varnothing$ 且 $E_R\neq\varnothing$，**双向命中，入选**。
+- **[B] 指纹：** `For example` 要求其后有具体列举。但空后是研究结论，不是例子。且 B 的主题是「统计课有很多公式」，与空后 `memory / rephrasing` 无一词可衔接，$E_R=\varnothing$。**排除**——错在把「例子标记」放到了没有例子的位置。
+- **[C] 指纹：** `However` 要求前文有与「手写比打字慢」相对立的主张。前句讲的是学生把笔记当转录，二者不构成对立，$E_L=\varnothing$；且 C 引入 `handwriting / typing` 这一全新话题对，空后不接，$E_R=\varnothing$。**排除**——错在让转折词指向了一个不存在的前主张。
+
+三选一，只剩 A。**注意：这里没有用到「通顺感」，每一步都指到了具体的词。**
+
+再补一条排除技巧：七选五有两个多余项，通常「主题相关但衔接信号错」——它们和全文话题一致，所以读起来不突兀，正是靠 $E_L$ 或 $E_R$ 为空来杀。
+
+### 4. 排序题：把段落连成一条链
+
+排序题的判据与七选五同源，只是操作对象变成段与段。**关键结构：正确的语篇是一条链**
+
+$$v_1\to v_2\to\cdots\to v_n,\qquad \deg^-(v_i)=1,\ \deg^+(v_i)=1\ (1<i<n)$$
+
+即中间每段**有且只有一个**前驱、一个后继。这条约束把「靠感觉挪来挪去」变成「找唯一的边」。
+
+**第一步，定首段。** 首段必须满足：无代词回指、无 `however / therefore / this / these / such` 等回指性或转折性开头、内容是引入话题或给定义。凡首句含 `The + 名词`、`These + 复数名词`、`Another`、`Moreover` 的，一律不能作首段。这一条往往能直接锁死 $v_1$。
+
+**第二步，建「末—首」配对表。** 逐段取末句关键词，逐段取首句的指代/逻辑标记，能对上就画一条有向边。
+
+**第三步，用出入度唯一化。** 某段首句代词在全文只可能回指一个前段时，这条边是强制的。
+
+> **自编示例（非真题）** 将下列四段排成正确顺序：
+>
+> (A) This storage of heat has a direct cost: buildings need more cooling, and streets stay hot well into the night.
+> (B) Urban heat islands are a well-documented phenomenon — cities are measurably warmer than the countryside around them.
+> (C) Not every city suffers equally, however; the gap depends on how much vegetation survives and how much heat the surrounding buildings trap.
+> (D) The main cause is the replacement of vegetation with asphalt and concrete, materials that absorb solar radiation by day and release it slowly at night.
+
+推演：
+
+- **首段判定：** (A) 首词 `This storage of heat` 有回指 → 不可能首段；(D) 首词 `The main cause`，`the` 表已知，前文必有「现象」→ 不可能首段；(C) 首词 `however` → 不可能首段。只剩 **(B)**，且 B 正是「引入现象 + 给定义」，符合首段条件。$v_1=B$。
+- **从 B 出发找边：** B 末给出「城市更热」这一现象，D 首句 `The main cause` 正好需要一个「现象」作先行语。$B\to D$。
+- **从 D 出发：** D 末句末尾语义落点是 `absorb... release it slowly at night`，即**蓄热**。A 首句 `This storage of heat` 与之构成同义复现式的指代闭环（`storage` ↔ `release it slowly`）。$D\to A$。
+- **从 A 出发：** A 讲代价，是「普遍性」陈述。C 首句 `Not every city suffers equally, however` 需要一个可被转折的普遍主张。$A\to C$，且 C 是收尾性的限定与补充。
+- **校验出入度：** $B\to D\to A\to C$，四个点各一入一出（端点除外），唯一。答案 B-D-A-C。
+
+注意第 3 步的杀伤力：`This storage of heat` 里的 `this` 是单数，只能回指一个单数的、语义为「蓄热」的先行成分；全文只有 D 末句符合。**这就是「数字算到底」在英语里的等价物——把匹配条件一条条卡死，直到只剩一个候选。**
+
+### 5. 小标题：考的是概括层级，不是找原词
+
+小标题题的错误几乎全部来自一个动作：**拿段落里出现过的高频词去对标题里的词**。但标题不是复现，是**概括**。
+
+**判据：** 设段落主题词集合为 $K(P)$，标题关键词集合为 $K(T)$。合格标题必须满足
+
+$$K(T)\supseteq K(P)_{\text{核心}},\qquad \text{且}\ K(T)\ \text{不得只覆盖某一句}$$
+
+即标题的词要处在**比段落内容更高的层级**（上位词），并且覆盖面是整段。
+
+**操作顺序：** ①找主题句——多数在首句；若首句是具体细节，往后看，主题句常在第二句或末句（带 `Thus / In short / What this means is` 的位置）；②抽出主题句的核心名词与判断；③把候选标题按「上位/同位/下位」分层；④选上位且不越界的那个。
+
+> **自编示例（非真题）** 为下面段落选标题：
+>
+> The first thing a new language learner notices is that listening is not a single skill. Understanding a lecture requires following an argument; understanding a film requires catching references and humour; understanding a fast conversation requires predicting what comes next. Each demands different practice, and progress in one does not transfer automatically to the others.
+>
+> [i] Listening Is Not One Skill
+> [ii] How to Watch Films in a Foreign Language
+> [iii] Why Lectures Are Difficult
+
+推演：首句即主题句，核心判断是 `listening is not a single skill`；后面三句是**并列举例**（lecture / film / conversation），末句补一句「不可迁移」。因此 $K(P)_{\text{核心}}=\{\text{listening},\ \text{not one skill / multiple}\}$。
+
+- [i] 与核心判断同构，且能覆盖三个例子 → **入选**。
+- [ii] 只对应第二个例子，是**下位细节**，覆盖面不足 → 排除。错在把「段中出现过的词」当成主题。
+- [iii] 同样只对应第一个例子 → 排除。
+
+一个反向校验：如果某个标题与 [i] 意思接近但更窄（例如 `Listening Requires Different Practice`），要比较的是**覆盖范围**——后者只覆盖末句的「练习方式不同」，没有覆盖「听不是单一技能」这一总判断，仍应让位给更上位者。
+
+### 6. 三种外壳的接口差异（一张对照）
+
+| | 衔接单位 | 最强信号 | 主要陷阱 |
+|---|---|---|---|
+| 七选五 | 句—句 | 连接副词 + 同义替换 | 主题相关但 $E_L$ 或 $E_R$ 为空 |
+| 排序 | 段—段 | 段首指代 + 段末关键词 | 用内容相关性代替「末—首」配对 |
+| 小标题 | 标题—段 | 主题句 + 概括层级 | 用段内原词冒充主题 |
+
+## 三、真题落点
+
+本年段无对应题目（真题库仅收录 408，英语一未收录原题，故不列出年份与题号）。
+
+按**常见考法**说明各类设问考的是哪一步，供对位使用：
+
+- **七选五·段中举例空**：空后紧跟具体列举，选项以 `For example / Such as / Take ... as an example` 起首。考的是第 3 节第三步的 $E_R(O)$ 判定——你必须确认「例子标记」的后面确实有例子，且例子的主题词与空后列举项同域。
+- **七选五·段首承接空**：选项以 `This / These / Such / The + 名词` 起首，要求与上一段末句构成指代闭环。考的是第 2 节（二）的指代与限定词判据，数、人称、语义三者必须同时匹配。
+- **排序·首段判定**：给若干段要求排序，其中一段无任何回指性开头。考的是第 4 节第一步，用「能否作首段」直接锁死 $v_1$，再顺链推出其余。
+- **排序·段际连边**：某段首句含 `Another / Moreover / however`，需要前段提供同类项或对立主张。考的是出入度唯一化，即 $\deg^-=1$ 的强制边。
+- **小标题·末句主题句**：段落以细节开头、以 `Thus / In short` 收束。考的是第 5 节「主题句位置判断 + 概括层级」，此时若只读首句就会选到下位标题。
+
+以上均为考法归纳，不是原题原文，也不对应具体年份题号。
+
+## 四、易错清单
+
+1. **错在只用「读着顺」定答案** → 每个选项必须写出至少一条可指认证据（第几个词与第几个词构成复现/指代/逻辑呼应）。写不出证据的选项一律先划掉，哪怕它读起来最顺。
+2. **错在只做单向验证** → 必须同时检查 $E_L$ 与 $E_R$：既看它能不能接住上一句，也看下一句能不能接住它。只对上一边就填，是七选五最主要的失分点。
+3. **错在放过 `The + 名词` 开头** → 见到选项以定冠词或 `this/these/such` 起首，立刻回到空前去**指认先行词**；指认不出就排除，不要用「大概前面提过」放行。
+4. **错在把 `however` 当万能开头** → `however` 要求前文有被转折的主张。先问「它转的是什么」，说不出被转对象就是错项，而不是「有个转折词所以更像答案」。
+5. **错在排序题先排内容再找连接** → 正确顺序是先建「末句关键词—首句指代标记」配对表画边，再用出入度唯一化。先按内容大意排，会在两段都「讲原因」时卡死。
+6. **错在允许某段有两个前驱** → 排序中间段必须 $\deg^-=\deg^+=1$。若你的方案里某段能被两段接上，说明有一条边是内容相关而非结构衔接，必须舍弃它。
+7. **错在小标题选「段内高频词」** → 先定位主题句，再判断候选标题是上位、同位还是下位。凡只对应段中某一个例子的标题，一律判为下位，直接排除。
+8. **错在忽略单复数与人称** → 空的上一句是复数名词、选项首词是单数 `this`，即便语义相近也不能接。代入后逐项核对数、人称、以及可数/不可数，这一步只要 5 秒，却能挡掉大量干扰项。

@@ -1,0 +1,236 @@
+# EN-WR2 大作文
+
+## 一、本章考点与档位
+
+| KP | 名称 | 档位 | 真题落点 |
+|---|---|---|---|
+| `E1-WR-02` | 大作文（图画作文）：描述—释义—论证—结论的四段式写作 | 应用 | 真题库未收录英语一（库内只有 408），按「常见考法」备考，不编年份题号 |
+
+本章不新增考点。下文出现的“描述段、释义段、论证段、结论段”都只是 `E1-WR-02` 内部的功能位置，并不是独立考点；把它们拆开，只是为了让你知道每一段在阅卷时承担什么任务。
+
+`E1-WR-02` 的功能位置拆分如下，同一考点内部的分层如下：
+
+| 功能位置 | 交付物 | 判分关注点 |
+|---|---|---|
+| 描述 | 把画面转成 1–3 句可读文字 | 要点齐不齐、有没有总体印象句 |
+| 释义 | 一句话把画面抽象成命题 | 有没有把“画”和“理”接上 |
+| 论证 | 2–3 个理由或例证 | 因果链是否成立、有没有具体支撑 |
+| 结论 | 重申 + 可执行建议 | 是否落到人身上，还是只喊口号 |
+
+## 二、正文
+
+### 1. 图画作文的本质：三重转译
+
+**定义。** 图画作文给你一幅（或一组）图像，要求你在 $160\text{–}200$ 个英文词内完成三次转译：
+
+1. **图像 → 文字**（description）：把画面要素写成句子；
+2. **文字 → 命题**（interpretation）：把画面要素抽象成一句话的寓意；
+3. **命题 → 论证**（argumentation）：为这句寓意配理由、例证、后果与对策。
+
+**为什么需要这个概念。** 因为大作文的阅卷是“先归档、再定分”，不是逐词扣分。归档看三件事：内容要点是否齐全（描述、释义、评论一个不缺）、结构是否一眼可辨、语言错误密度是否低到不干扰阅读。“三重转译”就是内容要点的另一种说法：你少做一次转译，就少一个要点，直接掉档。
+
+可以粗略写成一个乘法关系：
+
+$$S \approx S_{\text{档}} \times \lambda_{\text{语言}}$$
+
+$S_{\text{档}}$ 由你的结构决定，落在哪一档；$\lambda_{\text{语言}}$ 由错误密度决定，在同一档内上下浮动。语言再漂亮，也补不回落掉的那一档。
+
+**最小例子。** 图：一个人低头刷手机，背后一家人围坐却互不交谈。三个转译分别是：
+
+- 图像：*A young man sits at a dinner table, eyes fixed on his phone, while the rest of the family eat in silence.*
+- 命题：*The cartoon points to the quiet erosion of face-to-face communication in a hyper-connected age.*
+- 论证：手机把注意力切成碎片 → 一桌人虽在场却不交流 → 亲情与共情能力被稀释。
+
+三句话都到位，才算完成一次完整转译。
+
+### 2. 描述段：先给“总体印象句”，再给细节
+
+**结构。** 描述段由两部分组成：一句总体印象句（overview）和一到两句细节铺陈（details）。总体印象句告诉阅卷人“这是一幅什么图”，细节句证明你真的看了图。
+
+**为什么必须有总体印象句。** 因为它是“要点齐全”的信号。直接扎进细节，阅卷人读完不知道图讲什么，只能判你“描述不完整”。
+
+**时态。** 描述画面用一般现在时。画面里发生的是“永恒的此刻”，用过去时会读成“图里那个人昨天做了什么”。
+
+**动词库。** depict / portray / sketch / illustrate / show，开头别总是 *As we can see*。
+
+**三要素法**：主体是谁、在做什么、和谁或什么形成对照或环境。写出这三样，句子自动变具体。
+
+**最小例子（空泛版 → 具体版）。**
+
+- 空泛（32 词）：*The picture shows two people. There are many things in the picture. One person is doing something and the other person is doing another thing. It is very meaningful.*
+- 具体（48 词）：*As is vividly portrayed, two men are digging in the same gold mine. The one on the left has opened several shallow pits and is walking away, spade on shoulder, while the one on the right keeps deepening a single hole, his spade already close to the ore.*
+
+差别不在词难，而在“主体、动作、对照”三样齐了。第二版没有生词，但每一句都能在图上指认出来。
+
+### 3. 释义段：把“画”接到“理”上
+
+**定义。** 释义句是一句抽象命题，它必须包含图画里所有关键要素的抽象对应物。
+
+**为什么需要。** 描述与论证之间有一道空隙，释义句就是桥。没有桥，你的文章会变成“前面讲挖坑，后面讲坚持”的两篇短文。
+
+**做法。** 把图中的具体名词替换成抽象名词：
+
+| 画面要素 | 抽象对应 |
+|---|---|
+| 浅坑、深坑 | 浅尝辄止 vs 持续投入 |
+| 走开的人 | 遇挫即弃 |
+| 靠近矿脉的铲子 | 临界点（threshold） |
+| 金矿 | 值得追求的目标 |
+
+**最小例子（接上节的图）。**
+
+- 桥接句：*Simple as the drawing is, its message is anything but shallow: success seldom favours those who give up at the first sign of difficulty; it rewards those who keep digging.*
+
+注意这句里“digging”同时属于画面和喻义，这种双关是免费得来的自然度，能用就用。
+
+### 4. 论证段：四种论证方式，先建因果链
+
+**定义。** 论证是把释义命题支撑起来的过程。四项基本手段：因果链、对比、举例、让步。
+
+**因果链怎么建。** 三步：现象 → 机制 → 后果。每一步用从句或分词接住，不要用分号硬拼。
+
+$$\text{现象} \rightarrow \text{机制} \rightarrow \text{后果}$$
+
+以“手机依赖”为例：
+
+- 现象：注意力被持续打断；
+- 机制：大脑习惯高频刺激后，难以维持长时间专注；
+- 后果：深度阅读与创造性思考的能力被削弱。
+
+成句：*Constant notifications fragment attention, which in turn makes sustained concentration feel unbearable, so that the capacity for deep reading and original thinking quietly decays.*
+
+**对比**：用于双图作文。*By contrast* / *whereas* / *the former... the latter...* 但对比的两端必须和描述段的两个主体一一对应，不能换人。
+
+**举例**：具体但不虚构数据。*Take a language learner as an example: one who quits after a month of stumbling never tastes fluency, whereas one who returns to the same grammar point for the tenth time eventually finds it transparent.* 注意这里“example”是类型化的，不涉及任何统计。
+
+**让步**：给文章加一层“想过了”的厚度。*Admittedly, not every effort pays off, and blind persistence can be mere stubbornness. Yet...*
+
+**最小例子（让步句）**：*Admittedly, not every effort pays off, and blind persistence can be mere stubbornness. Yet before we decide to abandon a hole, we should ask whether we have dug deep enough.* 让步先退一步，*Yet* 一句立刻扳回，立场不软。
+
+### 5. 结论段：重申、分工、落地
+
+**结构。** 三句：重申立场（一句）、主体分工（一句，个人、学校、社会、政府选其二，不要全列）、有条件展望（一句）。
+
+**为什么不要写“Only in this way can we build a harmonious society”。** 因为它和你的图画没有对应关系，任何题目都能套，阅卷人一眼看出是背的，它不增加内容要点，只增加字数。
+
+**可执行建议的写法**：把动词落到具体动作上。*Persistence* → “在放弃前先估算自己已投入的比例”，而不是“我们要坚持不懈”。
+
+**最小例子。**
+
+- 空喊：*Therefore, we must persist and never give up.*
+- 落地：*Therefore, before abandoning a plan, we would do well to estimate how much of the seam is already exposed, and to ask a mentor whether the remaining distance is worth another week.*
+
+### 6. 语言层：把及格句升格成得分句
+
+四种升格手段，每种给一对句子。
+
+**（1）名词化**：把从句压成名词短语，句子立刻变“书面”。
+
+- 原句：*Because people ignore the problem, it becomes worse.*
+- 升格：*The widespread neglect of the problem has only made it worse.*
+
+**（2）非谓语开头**：*Faced with such a choice, many people...*，注意主语必须是人。若写成 *Faced with the picture, it reminds us...* 就是悬垂分词，错误放在动词上。
+
+**（3）定语从句与同位语**：*Persistence, a quality that cannot be borrowed from others, decides...*
+
+**（4）倒装与强调**：一段最多一处，多了显得刻意。*Only when the hole is deep enough does the ore appear.*
+
+**最小例子（悬垂分词修错）。**
+
+- 错：*Faced with the cartoon, it tells us that persistence matters.*
+- 对：*Faced with the cartoon, we are told that persistence matters.* 或者 *The cartoon tells us that persistence matters.*
+
+### 7. 长度与连贯：把字数算到底
+
+**分配公式**：全文 $N = N_1 + N_2 + N_3$，其中描述 $N_1 \approx 50$，论证 $N_2 \approx 95$，结论 $N_3 \approx 45$，合计 $N \approx 190$，落在 $160\text{–}200$ 的安全区。描述段约占 $\frac{1}{4}$；超过三分之一就会变成“看图说话”，论证被挤压。
+
+**字数不足的两种补救**：加一个让步句（约 25 词）；给例证补一个对比（约 20 词）。**超字的两种删法**：删掉纯形容词堆叠；把两个并列简单句并成一个从句（省 5–8 词）。
+
+**衔接词分级**，不要通篇用 *firstly, secondly, finally*：
+
+- 段间：*To begin with* / *Worse still* / *Accordingly*
+- 句间：*which in turn* / *by contrast* / *in other words*
+- 段内收束：*It is precisely this ... that ...*
+
+**最小例子（合并省词）。**
+
+- 前：*The man dug several holes. He was tired. He left.*（10 词）
+- 后：*Having dug several shallow holes, the man left in frustration.*（9 词）
+
+词数只差一个，但信息密度翻倍。
+
+### 8. 例题：从看图到成稿，数字算到底
+
+**说明**：下面这幅图为自拟练习图，不是真题，只用来演示流程。
+
+**图像**：两人在同一金矿挖矿。左侧男子挖了几个浅坑，扛着铲子走开；右侧男子只挖一个坑，坑已很深，铲子接近矿脉。“Persistence”字样。
+
+**步骤 1：读图取要素。**
+
+| 要素 | 内容 | 对应抽象 |
+|---|---|---|
+| 主体 A | 左侧男子 | 浅尝辄止 |
+| 主体 B | 右侧男子 | 持续投入 |
+| 动作对比 | 走开 vs 继续深挖 | 放弃 vs 越过临界点 |
+| 环境 | 同一矿脉 | 起点相同，结果不同 |
+
+**步骤 2：写描述段，控制 50–56 词。**
+
+*As is vividly portrayed in the cartoon, two men are digging for gold in the same mine. The one on the left has dug several shallow holes and is walking away with a spade over his shoulder, while the one on the right keeps deepening a single hole, his spade already close to the glittering ore.*
+
+计数：56 词。独立分句 3 个，*while* 引导对照 1 处，独立主格 *his spade already close to...* 1 处。三要素齐（主体、动作、对照）。
+
+**步骤 3：释义 + 论证，控制 90–98 词。**
+
+因果链先画出来，再成句：
+
+$$\text{浅尝辄止} \rightarrow \text{经验无法累积} \rightarrow \text{始终停在门槛外} \rightarrow \text{误判“努力无用”}$$
+
+成文：*Simple as the drawing is, its message is anything but shallow: success seldom favours those who give up at the first sign of difficulty; it rewards those who keep digging. This is because most worthwhile goals are buried beneath layers of frustration. A language learner who quits after a month of stumbling can never taste fluency, whereas one who returns to the same grammar point for the tenth time eventually finds it transparent. Persistence, in other words, is not a matter of talent but of how long a person is willing to stay with a problem.*
+
+计数：96 词。内部结构是释义 32 词、机制 14 词、例证 35 词、收束 15 词。这里“the tenth time”是修辞性次数，不是统计数据，安全。
+
+**步骤 4：结论段，控制 42–48 词。**
+
+*Admittedly, not every effort pays off, and blind persistence can be mere stubbornness. Yet before we decide to abandon a hole, we should ask whether we have dug deep enough. Those who do so are far more likely to strike the ore.*
+
+计数：42 词。让步（14 词）、转折与建议（18 词）、展望（10 词），三句各司其职。
+
+**步骤 5：合稿与总字数核算。**
+
+$$N = 56 + 96 + 42 = 194$$
+
+194 词在 $160\text{–}200$ 内，描述段占 $\frac{56}{194} \approx 29\%$，略低于三分之一，符合“描述不压论证”的比例。
+
+**成稿（194 词，三段）**
+
+> As is vividly portrayed in the cartoon, two men are digging for gold in the same mine. The one on the left has dug several shallow holes and is walking away with a spade over his shoulder, while the one on the right keeps deepening a single hole, his spade already close to the glittering ore.
+>
+> Simple as the drawing is, its message is anything but shallow: success seldom favours those who give up at the first sign of difficulty; it rewards those who keep digging. This is because most worthwhile goals are buried beneath layers of frustration. A language learner who quits after a month of stumbling can never taste fluency, whereas one who returns to the same grammar point for the tenth time eventually finds it transparent. Persistence, in other words, is not a matter of talent but of how long a person is willing to stay with a problem.
+>
+> Admittedly, not every effort pays off, and blind persistence can be mere stubbornness. Yet before we decide to abandon a hole, we should ask whether we have dug deep enough. Those who do so are far more likely to strike the ore.
+
+**逐句功能标注**：第 1 句总体印象；第 2 句细节对照；第 3 句释义并收束；第 4 句机制；第 5 句例证；第 6 句把命题推到“时间投入”这一可操作变量上；第 7 句让步；第 8 句建议；第 9 句展望。九个句子，九个功能，没有一句是纯凑数。
+
+## 三、真题落点
+
+本年段无对应题目。
+
+真题库只收 408，英语一没有按年份收录，因此这里不出现任何年份与题号，也不冒充原题原文。按「常见考法」列出四种命题形态，并写清各自考的是哪一步：
+
+- **常见考法 A：单幅讽刺漫画（如“挖坑”“刷手机”“过度包装”）**——考的是描述段到释义段的衔接，即你能不能把画面要素抽象成一句命题，而不是停在“翻译画面”上。失分点几乎都在释义句缺席或跑题。
+- **常见考法 B：两幅对比图（过去、现在，甲、乙）**——考的是对比的一致性：描述段立起的两个主体，在论证段必须仍是一一对应的，不能中途换人，也不能只论证一边。
+- **常见考法 C：柱状图、折线图（数量变化）**——考的是数据描述与趋势归纳：描述段要给出“起点—终点—总体走向”，论证段要解释趋势背后的成因，而不是复述数字。
+- **常见考法 D：正面价值类（合作、坚持、文化传承）**——考的是结论段的落地：建议要落到具体主体与具体动作上，而不是用“Only in this way can we...”收尾。
+
+四种考法共用一个判分链条：描述要点是否齐全 → 释义是否接上 → 论证是否有支撑 → 结论是否落地。任何一环断掉，档位就掉一级。
+
+## 四、易错清单
+
+1. **描述段没有总体印象句，第一句直接扎进细节** → 先写一句“这是一幅什么图”（*As is vividly portrayed, ...*），再展开细节，让阅卷人第一眼就知道图的主题。
+2. **描述与释义脱节：描述段立起来的关键细节，释义段全部消失** → 写完描述后，把每个细节列出来，逐一在释义段找到抽象对应物；找不到对应物的细节，从描述段删掉。
+3. **时态在同一句里混用** → 描述画面统一用一般现在时；举例叙事用一般过去时或现在完成时；一句话内不改时态。
+4. **悬垂分词：*Faced with the picture, it reminds us...*** → 分词短语的逻辑主语必须与主句主语一致，改成 *Faced with the picture, we are reminded that...*，或直接写成 *The picture reminds us that...*
+5. **编造统计：*According to a survey, 90% of students...*** → 举例只做类型化，用 *Take ... as an example* 或 *A case in point is ...*，不编机构名、不编百分比。
+6. **结论只喊口号，与图画无对应** → 建议必须能被图画的喻体接住：图讲“挖坑”，建议就写“放弃前先估算已投入比例”，而不是“构建和谐社会”。
+7. **字数不足靠堆形容词（*very, extremely, greatly*）** →
