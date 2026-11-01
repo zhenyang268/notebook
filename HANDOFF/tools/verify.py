@@ -43,7 +43,8 @@ def check_common(p, min_chars):
     txt = p.read_text(encoding='utf-8')
     if re.match(r'^\s*好的[，,]', txt):
         fail(f'有前言：{p.relative_to(ROOT)}')
-    if re.search(r'\\\(|\\\[', txt):
+    # 只抓真正的定界符；LaTeX 行距 \\[2mm] 这类双反斜杠要排除
+    if re.search(r'(?<!\\)\\\(|(?<!\\)\\\[', txt):
         fail(f'公式写法不合规（用了 \\( 或 \\[）：{p.relative_to(ROOT)}')
     return True
 
@@ -73,11 +74,12 @@ def verify_note(d):
     if not files:
         fail('note 下没有任何 md 文件')
         return
+    YEARS = {2021, 2022, 2023, 2024}      # exam/真题/ 里实际存在的年份，白名单
     tot_si, tot_keng = 0, 0
     for p in files:
         txt = p.read_text(encoding='utf-8')
-        n_si = len(re.findall(r'\*\*思路\*\*', txt))
-        n_keng = len(re.findall(r'\*\*坑\*\*', txt))
+        n_si = len(re.findall(r'\*\*思路[^*\n]*\*\*', txt))
+        n_keng = len(re.findall(r'\*\*坑[^*\n]*\*\*', txt))
         tot_si += n_si
         tot_keng += n_keng
         if n_si == 0:
@@ -90,6 +92,9 @@ def verify_note(d):
             fail(f'{p.relative_to(ROOT)} 没有按「考法」分段')
         if re.search(r'答案[：:]\s*[A-D]\b', txt):
             fail(f'{p.relative_to(ROOT)} 出现了答案（本层不写答案）')
+        bad = sorted({int(y) for y in re.findall(r'(20\d{2})\s*(?:年|#)', txt)} - YEARS)
+        if bad:
+            fail(f'{p.relative_to(ROOT)} 引用了真题库里不存在的年份 {bad}（只允许 2021–2024）')
     info(f'note：{len(files)} 个考点文件，思路 {tot_si} 条，坑 {tot_keng} 条')
 
 # ---------- exam 真题 ----------
@@ -124,11 +129,21 @@ def verify_exam(d):
     if not files:
         fail(f'{d.name} 下没有章节文件')
         return
+    # 段名两种写法都接受（TASKS.md 与早期模板措辞不同）
+    SEGS = (('## 一、本章考点', '## 一、本章考点与档位'),
+            ('## 二、正文',),
+            ('## 三、真题落点',),
+            ('## 四、易错', '## 四、易错清单'))
     for p in files:
         txt = p.read_text(encoding='utf-8')
-        for seg in ('## 一、本章考点', '## 二、正文', '## 三、真题落点', '## 四、易错'):
-            if seg not in txt:
-                fail(f'{p.relative_to(ROOT)} 缺「{seg}」段')
+        if 'ROADMAP' in p.name:
+            continue
+        for alts in SEGS:
+            if not any(s in txt for s in alts):
+                fail(f'{p.relative_to(ROOT)} 缺「{alts[0]}」段')
+        n = words(p)
+        if n < 1800:
+            fail(f'过短：{p.relative_to(ROOT)} 只有 {n} 字符（章下限 1800）')
     info(f'{d.name}：{len(files)} 章')
 
 # ---------- 覆盖率 ----------
@@ -179,7 +194,8 @@ def dispatch(path):
         verify_coverage(p, 'note')
     elif name == '真题':
         verify_zhenti(p)
-    elif p.is_dir() and (p / 'ds').exists() or name in ('ds', 'co', 'os', 'net', 'hs', 'la', 'ps'):
+    elif p.is_dir() and (name in ('ds', 'co', 'os', 'net', 'hs', 'la', 'ps', '408', 'math1', 'english1', 'politics')
+                         or (p / 'ds').exists()):
         verify_exam(p)
     elif p.suffix == '.md':
         check_common(p, 500)
@@ -187,9 +203,16 @@ def dispatch(path):
         verify_exam(p)
 
 def main():
-    args = sys.argv[1:] or ['kaoyan/quick', 'kaoyan/note']
+    argv = [a for a in sys.argv[1:] if a != '--json']
+    as_json = '--json' in sys.argv[1:]
+    args = argv or ['kaoyan/quick', 'kaoyan/note']
     for a in args:
         dispatch(a)
+    if as_json:
+        import json
+        print(json.dumps({'pass': not FAIL, 'fail': FAIL, 'info': INFO},
+                         ensure_ascii=False, indent=1))
+        return 1 if FAIL else 0
     print('=' * 56)
     for i in INFO:
         print('  ·', i)

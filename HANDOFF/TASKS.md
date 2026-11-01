@@ -6,10 +6,10 @@
 
 | 动作 | 对象 | 原因 |
 |---|---|---|
-| 删 | `kaoyan/quick/408.md`、`kaoyan/quick/math1.md` | 是"按考点详解"的合并版，与新口径冲突 |
+| 删 | `kaoyan/quick/{408,math1,english1,politics}.md` | 是"按考点详解"的合并版，与新口径冲突 |
 | 删 | `kaoyan/talk/`（整个目录） | 口语版并入 `quick/`，不再单列一层 |
 | 删 | 全部 `QUICK.md`（10 个项目） | 用户判定"完全没有任何意义" |
-| 改 | `kaoyan/note/` 清空 | 该层改为**配题**，不是"考场速查" |
+| 留 | `kaoyan/note/` **重建为考点×真题复合版** | 口径以 `prompts/N-note.md` 为准（见下「N1–N3」），不是配题册 |
 | 改 | `kaoyan/exam/` 由"一 KP 一文件"改为"**一章一文件**" | 用户要求"分章节的详细版本" |
 | 留 | `kaoyan/syllabus/` | 唯一坐标系，只增强不重写 |
 
@@ -95,23 +95,18 @@
 
 ---
 
-### N1–N3 · note · 分章配题（以真题为主）
+### N1–N3 · note · 考点 × 真题复合版（多考点合并，去重）
 
-**这是用户说的"配题"层**，与 exam 一一对应。
+> **口径以 `prompts/N-note.md` 为准**（该文件自述「口径修正三次」）。本层不是"分章配题册"：
+> 它是**一个考点一个文件**，把已收真题按「考法」聚类去重，只写思路不写答案。
 
-每章三个部分：
+- 文件：`note/408/<子科>/<KP>-<名>.md`（112 个）、`note/math1/<子科>/<KP>-<名>.md`（72 个）。
+- 单文件结构：`## 考法 1 …` 下每道题 **思路** + **坑**；`思路` 与 `坑` 数量必须相等；**不写答案**。
+- 真题来源：只用 `exam/真题/` 里实际存在的 2021–2024 及其题号，校验有年份白名单。
+- 数学一：真题库只收 408，单文件头标注「近四年真题未收录，按常见考法组织」，篇幅 800–1200 字，不注水。
+- 生成方式：**每块 8–10 个考点**（输出约 2000–2500 字），拼装时按 `syllabus` 顺序切成单文件。
 
-```
-## 一、真题落点（据 XX 年真题考点整理）
-   年份 | 考点 | 考法 | 关键一步
-   注：手头无原题，只还原考点与解法路径，不编题干。
-## 二、变式练习
-   8–15 题，覆盖本章全部考点，由易到难
-## 三、答案与判据
-   每题：答案 + 一句话为什么 + 常见错法
-```
-
-**硬性**：**绝不编造真题原文**。没有原题就写"考点还原 + 自拟变式"。
+**硬性**：**绝不编造真题原文或年份题号**。
 
 ---
 
@@ -164,25 +159,14 @@
 ## 三、验收脚本（每个任务完成后必须跑）
 
 ```bash
-# 1. 覆盖率：考纲考点是否都有落点
-cd notebook/kaoyan
-python3 - <<'PY'
-import re
-from pathlib import Path
-for sub, f, pre in [('408','408.md','408-'), ('math1','math1.md','M1-')]:
-    syl = Path(f'syllabus/{f}').read_text(encoding='utf-8')
-    want = list(dict.fromkeys(re.findall(r'`(' + pre + r'[A-Z]{2,3}-\d{4})`', syl)))
-    got = set(re.findall(r'`(' + pre + r'[A-Z]{2,3}-\d{4})`',
-                         Path(f'quick/{f}').read_text(encoding='utf-8')))
-    miss = [k for k in want if k not in got]
-    print(f'{sub}: 应有 {len(want)} 实有 {len(got)} 缺 {len(miss)}', miss[:10])
-PY
+# 1. 覆盖率 + 结构 + 篇幅（统一闸门，退出码 0 才算过）
+cd notebook
+python3 HANDOFF/tools/verify.py kaoyan/quick kaoyan/note kaoyan/exam/408 kaoyan/exam/math1
 
-# 2. 结构：三件套是否齐全（本次改为两件套）
-python3 tools/lint.py
+# 2. 结构：原三件套已改两件套、quick 已改九份
+python3 kaoyan/tools/lint.py
 
-# 3. 篇幅：每份不低于下限
-wc -m quick/*.md
+# 3. 缺哪几条要逐条列名，不许只报数字（verify.py 已内置）
 ```
 
 **判据**：覆盖率 100% 才算过；缺的条目要**逐条列出来**，不许只报数字。

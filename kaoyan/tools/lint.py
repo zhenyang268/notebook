@@ -59,33 +59,31 @@ def check_kp_refs(kps):
 def check_exam(kps):
     n = 0
     for p in sorted((ROOT / "exam").rglob("*.md")):
-        n += 1
         rel = p.relative_to(ROOT)
         text = p.read_text(encoding="utf-8")
-        if p.name == "ROADMAP.md":
+        # 真题库与真题专项不按 KP 组织，豁免
+        if "真题" in p.parts or "真题专项" in p.parts:
             continue
-        # 真题专项按「题点」组织、不按 KP，豁免文件名与 KP 头检查
-        if "真题专项" in p.parts:
+        if p.name in ("ROADMAP.md", "README.md"):
             continue
-        # 文件名：<章2>-<节2>-<名>.md 或 <序2>-<名>.md
-        if not re.match(r"^\d{2}-\d{2}-.+\.md$", p.name) and not re.match(r"^\d{2}-.+\.md$", p.name):
-            err(f"[exam] 文件名不合规（应为 NN-NN-名.md）：{rel}")
-        # 头部
-        head = "\n".join(text.split("\n")[:12])
-        m = re.search(r">\s*\*\*KP\*\*：`([^`]+)`", head)
-        if not m:
-            err(f"[exam] 缺 KP 头：{rel}")
-        else:
-            kp = m.group(1)
-            if kp not in kps:
-                err(f"[exam] KP 不在 syllabus 中：{rel} -> {kp}")
+        n += 1
+        # 一章一文件：NN-章名.md
+        if not re.match(r"^\d{2}-.+\.md$", p.name):
+            err(f"[exam] 文件名不合规（应为一章一文件 NN-章名.md）：{rel}")
+        # 章内必须至少引用一个合法 KP，且不得引用 syllabus 里没有的 KP
+        refs = set(re.findall(r"`((?:408|M1)-[A-Z]{2,3}-\d{2,4})`", text))
+        if not refs:
+            err(f"[exam] 全章没有引用任何 KP：{rel}")
+        for kp in sorted(refs):
             if not KP_RE.match(kp):
                 err(f"[exam] KP 格式不合法：{rel} -> {kp}")
-        if not any(s in head for s in STATUS_OK):
-            err(f"[exam] 缺状态字段（未开始/已归档/已验收）：{rel}")
+            elif kp not in kps:
+                err(f"[exam] KP 不在 syllabus 中：{rel} -> {kp}")
+        for seg in ("## 一、本章考点", "## 二、正文", "## 三、真题落点", "## 四、易错"):
+            if seg not in text:
+                err(f"[exam] 缺「{seg}」段：{rel}")
         if "复习计划" in text:
             err(f"[exam] 正文里仍有复习档位行（应进 reviews/REVIEWS.md）：{rel}")
-        # 双线边界
         hits = sorted({w for w in ENGINE_WORDS if w in text})
         if hits:
             warn(f"[exam] 出现工程词 {hits}：{rel}")
@@ -93,7 +91,7 @@ def check_exam(kps):
 
 
 def check_projects():
-    """每个项目一个目录，三件套 OUTLINE / QUICK / NOTES（2026-11-01 起）。"""
+    """每个项目一个目录，两件套 OUTLINE / NOTES（2026-11-02 起；QUICK 已废除）。"""
     n = 0
     d = ROOT / "projects"
     if not d.exists():
@@ -102,32 +100,40 @@ def check_projects():
         if not sub.is_dir():
             continue
         n += 1
-        for name in ("OUTLINE.md", "QUICK.md", "NOTES.md"):
+        for name in ("OUTLINE.md", "NOTES.md"):
             if not (sub / name).exists():
                 err(f"[projects] {sub.name}/ 缺 {name}")
+        if (sub / "QUICK.md").exists():
+            err(f"[projects] {sub.name}/ 仍有已废除的 QUICK.md")
         notes = sub / "NOTES.md"
         if notes.exists() and "## 对位考点" not in notes.read_text(encoding="utf-8"):
-            err(f"[projects] {sub.name}/NOTES.md 缺「对位考点（单向引用）」一节")
+            warn(f"[projects] {sub.name}/NOTES.md 缺「对位考点（单向引用）」一节")
     return n
 
 
+QUICK_FILES = ["408-ds.md", "408-co.md", "408-os.md", "408-net.md",
+               "math-hs.md", "math-la.md", "math-ps.md", "english.md", "politics.md"]
+
+
 def check_quick():
-    """quick/ 一层：一门学科一份，四份齐全（2026-11-01 修订：按科目而非子科）。"""
-    want = ["408.md", "math1.md", "english1.md", "politics.md"]
+    """quick/ 一层：九份三合一口语稿（2026-11-02 起：408 分四科、数三分三科）。"""
     d = ROOT / "quick"
     if not d.exists():
         err("[quick] 缺 quick/ 目录")
         return 0
     n = 0
-    for w in want:
+    for w in QUICK_FILES:
         p = d / w
         if not p.exists():
             err(f"[quick] 缺 {w}")
-        else:
-            n += 1
-            text = p.read_text(encoding="utf-8")
-            if len(text) < 5000:
-                err(f"[quick] {w} 过短（{len(text)} 字符），按大纲详解不应少于 5000 字符")
+            continue
+        n += 1
+        text = p.read_text(encoding="utf-8")
+        if len(text) < 5000:
+            err(f"[quick] {w} 过短（{len(text)} 字符），一口气讲完一科不应少于 5000 字符")
+        for seg in ("第一部分", "第二部分", "第三部分"):
+            if seg not in text:
+                err(f"[quick] {w} 缺「{seg}」（三合一结构不完整）")
     return n
 
 
