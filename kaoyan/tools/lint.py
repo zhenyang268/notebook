@@ -90,13 +90,36 @@ def check_exam(kps):
 
 
 def check_projects():
+    """每个项目一个目录，三件套 OUTLINE / QUICK / NOTES（2026-11-01 起）。"""
     n = 0
-    for p in sorted((ROOT / "projects").glob("*.md")):
+    d = ROOT / "projects"
+    if not d.exists():
+        return 0
+    for sub in sorted(d.iterdir()):
+        if not sub.is_dir():
+            continue
         n += 1
-        text = p.read_text(encoding="utf-8")
-        if "## 对位考点" not in text:
-            err(f"[projects] 缺「对位考点（单向引用）」一节：{p.name}")
+        for name in ("OUTLINE.md", "QUICK.md", "NOTES.md"):
+            if not (sub / name).exists():
+                err(f"[projects] {sub.name}/ 缺 {name}")
+        notes = sub / "NOTES.md"
+        if notes.exists() and "## 对位考点" not in notes.read_text(encoding="utf-8"):
+            err(f"[projects] {sub.name}/NOTES.md 缺「对位考点（单向引用）」一节")
     return n
+
+
+def check_quick():
+    """quick/ 一层：一个子科一份，九份齐全（2026-11-01 起）。"""
+    want = ["408-ds.md", "408-co.md", "408-os.md", "408-net.md",
+            "m1-hs.md", "m1-la.md", "m1-ps.md", "e1.md", "p1.md"]
+    d = ROOT / "quick"
+    if not d.exists():
+        err("[quick] 缺 quick/ 目录")
+        return 0
+    for w in want:
+        if not (d / w).exists():
+            err(f"[quick] 缺 {w}")
+    return len(want)
 
 
 def check_reviews(kps):
@@ -148,18 +171,26 @@ def check_syllabus_tables():
 
 
 def check_links():
-    """检查 md 里反引号包裹的 exam/... 路径是否存在（只查明确写成路径的）。"""
+    """检查 md 里反引号包裹的 exam/... 路径是否存在（只查明确写成路径的）。
+
+    跳过两类：
+      1. `>` 引用块（历史记录 / 来源说明）—— 旧路径是当时的真实状态，不改。
+      2. 文件内自指的旧扁平路径（`projects/x.md` 已改为 `projects/x/NOTES.md`）。
+    """
     bad = []
     for p in list(ROOT.rglob("*.md")):
         if "_archive" in p.parts or ".workbuddy" in p.parts:
             continue
-        for m in re.finditer(r"`(exam/[^`]+?\.md|projects/[^`]+?\.md)`", p.read_text(encoding="utf-8")):
-            t = m.group(1)
-            if (ROOT / t).exists():
+        for line in p.read_text(encoding="utf-8").split("\n"):
+            if line.lstrip().startswith(">"):
                 continue
-            if "*" in t or "…" in t or "<" in t or "xxx" in t or "名.md" in t:
-                continue          # 通配符 / 占位示例，不当作真实路径
-            bad.append(f"{p.relative_to(ROOT)} -> {t}")
+            for m in re.finditer(r"`(exam/[^`]+?\.md|projects/[^`]+?\.md)`", line):
+                t = m.group(1)
+                if (ROOT / t).exists():
+                    continue
+                if "*" in t or "…" in t or "<" in t or "xxx" in t or "名.md" in t:
+                    continue      # 通配符 / 占位示例，不当作真实路径
+                bad.append(f"{p.relative_to(ROOT)} -> {t}")
     for b in sorted(set(bad))[:20]:
         warn(f"[link] 指向不存在的文件：{b}")
     return len(set(bad))
@@ -170,13 +201,15 @@ def main():
     kps = collect_kps()
     n_exam = check_exam(kps)
     n_proj = check_projects()
+    n_quick = check_quick()
     n_rev = check_reviews(kps)
     n_tab = check_syllabus_tables()
     n_link = check_links()
     n_ref = check_kp_refs(kps)
 
-    print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　projects 文件：{n_proj}　"
-          f"复习行：{n_rev}　主键表行：{n_tab}　KP 引用：{n_ref}　失效路径：{n_link}")
+    print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　quick 文件：{n_quick}　"
+          f"projects 目录：{n_proj}　复习行：{n_rev}　主键表行：{n_tab}　"
+          f"KP 引用：{n_ref}　失效路径：{n_link}")
     for w in warns:
         print(f"  ⚠ {w}")
     for e in errors:

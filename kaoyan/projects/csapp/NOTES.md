@@ -1865,7 +1865,7 @@ CS:APP 是 C/C++ 后端、系统、嵌入式、基础架构、游戏引擎岗的
 
 ## CSAPP datalab：位运算的五件武器（408·数据表示）
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.1（实践仓 `learning-408/csapp/datalab/bits.c`）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.1（实践仓 `learning-408/csapp/datalab/bits.c`）
 datalab 只允许 `! ~ & ^ | + << >>`（无 `-`、`*`、`if`、`?:`），常量只能 0–255，int 为 32 位补码、`>>` 是算术右移。13 道题全靠五件武器拼：
 1. **条件掩码**：`mask = !!x << 31 >> 31`（x≠0 → 全 1；x=0 → 全 0），于是 `if` 变成 `(mask & y) | (~mask & z)`
 2. **取负 / 减法**：`-x` 写 `~x + 1`；`x - y` 写 `x + ~y + 1`
@@ -1880,7 +1880,7 @@ datalab 只允许 `! ~ & ^ | + << >>`（无 `-`、`*`、`if`、`?:`），常量�
 
 ## IEEE 754 的平滑衔接：为什么非规格化的 E 取 1 - Bias
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.1.5
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.1.5
 单精度布局：`s(1) | exp(8) | frac(23)`，Bias = 127。
 - 规格化（`exp != 0`）：`E = exp - 127`，`M = 1.frac`
 - 非规格化（`exp == 0`）：`E = 1 - 127 = -126`，`M = 0.frac`
@@ -1897,7 +1897,7 @@ datalab 只允许 `! ~ & ^ | + << >>`（无 `-`、`*`、`if`、`?:`），常量�
 
 ## CSAPP cachelab：把 s/E/b 换算成具体的数（1 KB 直接映射）
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.5（实践仓 `learning-408/csapp/cachelab/`）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.5（实践仓 `learning-408/csapp/cachelab/`）
 Part B 评分 cache：`s = 5, E = 1, b = 5` →
 - 组数 `S = 2^5 = 32`；相联度 `E = 1`（**直接映射**，冲突不命中的根源）
 - 块大小 `B = 2^5 = 32` 字节 = **8 个 int**
@@ -1912,7 +1912,7 @@ Part B 评分 cache：`s = 5, E = 1, b = 5` →
 
 ## 分块（blocking）与冲突不命中：32×32 如何从 1183 降到 300 以下
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.5.3–7.5.5
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.5.3–7.5.5
 **暴力转置为什么 1183 次 miss**：A 顺序访问 → 每 8 个 int 1 次 miss（约 128）；B 按列访问、步长 128 B → 组索引只落在 8 个组上；更要命的是 A 与 B 基址相差 4096 B = cache 容量的整数倍，**`A[i][j]` 与 `B[i][j]` 映射到同一组**，互相驱逐 → B 侧几乎每次都 miss。
 
 **8×8 分块为什么有效**：① 工作集降到 16 个块，装得下；② 用 8 个局部变量一次读满 A 的一整行（8 int = 恰好一块），读入后立刻用完；③ B 的 8 次写落在 8 个不同组，不互相驱逐。残留问题只有**对角线块**（A/B 争同一组），单独处理即可。
@@ -1925,7 +1925,7 @@ Part B 评分 cache：`s = 5, E = 1, b = 5` →
 
 ## CSAPP malloclab：块布局、四情况合并与 408 的动态分区分配
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.7（实践仓 `learning-408/csapp/malloclab/mm.c`，目前仍是官方 mm-naive 骨架）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.7（实践仓 `learning-408/csapp/malloclab/mm.c`，目前仍是官方 mm-naive 骨架）
 块布局（64 位，8 字节对齐）：`header(8: size|alloc) | payload | footer(8: size|a)`；`size` 低 3 位因对齐恒为 0，最低位挪作 alloc 标志；**最小块 32 B**（header+footer+两个指针）；`mem_sbrk` 只增不减。
 
 **四情况合并**（`mm_free` 时立即做）：前空/后空组合成 4 个分支，靠前块 footer 与后块 header 的 alloc 位判断；合并后必须保证**堆里不存在两个相邻空闲块**。
@@ -1936,7 +1936,7 @@ Part B 评分 cache：`s = 5, E = 1, b = 5` →
 
 ## 分配器的三级演进与评分公式：不许走极端
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.7.4–7.7.8
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.7.4–7.7.8
 三级演进：① **隐式空闲链表**（扫所有块）≈ Perf 50–52；② **显式空闲链表**（空闲块里放 pred/succ，只扫空闲块，LIFO 插表头）≈ mid-80s；③ **分离空闲链表**（按大小类分 10–14 个桶，近似 best-fit 且定位 O(1)）→ 冲高分。
 
 评分（官方 3e）：正确性 20 + 性能 35 + 风格 10，
@@ -1951,7 +1951,7 @@ U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
 
 ## 栈帧与返回地址：缓冲区溢出为什么能劫持控制流
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.3（实践仓 `learning-408/csapp/target1/`，attacklab 靶子，cookie `0x59b997fa`）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.3（实践仓 `learning-408/csapp/target1/`，attacklab 靶子，cookie `0x59b997fa`）
 `getbuf` 的栈帧自高向低：**返回地址**（回到 test）→ 保存的 %rbp → `buf[...]`。`Gets` 无边界检查，写满 `BUFFER_SIZE` 后继续写就会覆盖返回地址；`ret` 把它弹进 `%rip` → **控制流被数据劫持**。
 
 **三级防御与被绕方式**（选择题可能问「哪种防御挡哪类攻击」）：
@@ -1965,7 +1965,7 @@ U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
 
 ## 三种机器级形态：跳转表 / 递归 / 链表（bomblab 反推）
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.2（已有产出 `learning-408/csapp/bomb/solutions`，phase1–6 + secret）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.2（已有产出 `learning-408/csapp/bomb/solutions`，phase1–6 + secret）
 408 不考逆向，但考「给一段 GCC x86-64 汇编问它在干什么」。三种形态要一眼认出：
 - **跳转表**：`jmp *0x402470(,%rax,8)` + 一段连续 8 字节地址区 → `switch`；**表要按小端读**
 - **递归**：函数体内 `call` 自身 + 栈上保存参数/局部变量
@@ -1979,7 +1979,7 @@ U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
 
 ## 一条指令 = 一组控制信号：iaddq 在 SEQ 里只改两处
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.4（实践仓 `learning-408/csapp/archlab/`，本地 PDF 是 Y86-64 + iaddq 的 3e 版本）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.4（实践仓 `learning-408/csapp/archlab/`，本地 PDF 是 Y86-64 + iaddq 的 3e 版本）
 `iaddq V, rB`：`R[rB] <- R[rB] + V` **并设置条件码**。它存在的理由：Y86-64 的 `addq` 只能加寄存器、`irmovq` 不能做加法，`rB += 8` 原本要两条指令 —— 这就是 CISC/RISC 之争的缩影（408 必考对比）。
 
 **与 `irmovq` 的差别只有两处**（其余信号全同）：
@@ -1996,7 +1996,7 @@ U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
 
 ## CSAPP shlab：异步回收的三个坑（信号不排队 / 竞争 / waitfg）
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.6（实践仓 `learning-408/csapp/shlab/tsh.c`，目前是官方 starter）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.6（实践仓 `learning-408/csapp/shlab/tsh.c`，目前是官方 starter）
 **坑 1 · 信号不排队**：SIGCHLD 不排队，5 个子进程同时死可能只递送一次 → handler 里必须 `while (waitpid(-1, &st, WNOHANG | WUNTRACED) > 0)`，只 waitpid 一次会留下僵尸。
 
 **坑 2 · fork 与 addjob 的竞争**：子进程可能在父进程 `addjob` 之前就退出并触发 handler 的 `deletejob`（删了一个还没加进去的 job）。解法：`fork` **前** `sigprocmask(SIG_BLOCK, SIGCHLD)`，`addjob` 后解除；且**子进程继承了阻塞掩码**，必须在 `execve` 前恢复。
@@ -2011,7 +2011,7 @@ U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
 
 ## HTTP 代理：请求行为什么要重写，四个头为什么必须补
 
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp.md`） §7.8（实践仓 `learning-408/csapp/proxylab/proxy.c`，目前是 14 行空壳）
+> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.8（实践仓 `learning-408/csapp/proxylab/proxy.c`，目前是 14 行空壳）
 客户端发给代理的是**绝对 URL**：`GET http://host[:port]/path HTTP/1.1`；代理转发给服务器时要改成**相对路径** + 补头：
 `GET /path HTTP/1.0` + `Host: host` + `User-Agent: …` + `Connection: close` + `Proxy-Connection: close` + 空行
 

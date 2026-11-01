@@ -140,7 +140,7 @@ flowchart TD
 **CSAPP 第 4 章（Y86-64）在这里的用处**：408 只给"五段流水线有三类冒险"这个结论，
 CSAPP 给的是**值在哪一级可用**（`e_valE` / `M_valE` / `m_valM` / `W_valE` / `W_valM`）——
 这正是"两条指令之间要不要停、停几拍"的判据。读法：只读 §4.1、§4.3、§4.4 前半，
-跳过 HCL 与实验，约 4–5 小时。实现（archlab）在 `projects/csapp.md`，**不占考试时间**。
+跳过 HCL 与实验，约 4–5 小时。实现（archlab）在 `projects/csapp/NOTES.md`，**不占考试时间**。
 
 ---
 
@@ -176,6 +176,6 @@ CSAPP 给的是**值在哪一级可用**（`e_valE` / `M_valE` / `m_valM` / `W_v
 
 ## 九、与工程线的关系
 
-`projects/csapp.md`（archlab / datalab）与 `projects/nand2tetris.md`（ch5 整机）覆盖了数据通路与位运算，
+`projects/csapp/NOTES.md`（archlab / datalab）与 `projects/nand2tetris/NOTES.md`（ch5 整机）覆盖了数据通路与位运算，
 但那是**兴趣线，不占考试时间**。需要建立直觉时，按单向引用规则去查对应 KP，
 不反过来把考试学习挂到项目上。

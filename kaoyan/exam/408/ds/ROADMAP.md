@@ -21,7 +21,7 @@
 ### 0.2 但代码只当"理解素材"，不当学习对象
 
 代码仓（`~/develop/learning/learning-408/algorithm/`）**属于工程线**，它的体检、bug 记录、
-验证方法论全部在 `projects/algorithm.md`，不在本文件。本文件只用它做两件事：
+验证方法论全部在 `projects/algorithm/NOTES.md`，不在本文件。本文件只用它做两件事：
 
 | 用途 | 说明 | 边界 |
 |---|---|---|
@@ -39,7 +39,7 @@
 
 **README 不是实现清单。** `algorithm/README.md` 里写的「图: dij / floyd / prim / kruskal」是**当时的计划**，
 不是现存代码（截至 2026-10-24，`graph/` 两个文件仍是 0 字节）。**引用代码前先去文件确认**，
-体检结论以 `projects/algorithm.md` 的版本哈希为准，哈希变了结论作废。
+体检结论以 `projects/algorithm/NOTES.md` 的版本哈希为准，哈希变了结论作废。
 
 ---
 

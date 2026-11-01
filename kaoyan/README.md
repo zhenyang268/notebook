@@ -10,8 +10,9 @@ syllabus/   ← 坐标系：考纲 + 197 个 KP 主键（408 112 / 数一 72 / �
             tiers.md = 应试分层（60 及格 / 60-80 优秀 / 80-100 满分）
             每章表后「细节与陷阱」= 253 条具体易错点（条目级标签）
             README.md 附录 = 标签口径 / 真题实证索引 2010–2025 / 来源可信度
+quick/      ← 一小时速通：一个子科一份（9 份），主线 + 必考 + 陷阱
 exam/       ← 考试线正文：一个 KP 节 = 一个 md 文件 = 一个复习单元
-projects/   ← 工程线：9 个项目，只单向引用 KP，不占考试时间
+projects/   ← 与考纲强相关的项目笔记（5 个），只单向引用 KP，不占考试时间
 reviews/    ← 复习状态表：一个 KP 一行，到期日可脚本计算
 tools/      ← lint（结构校验）/ review（到期计算）
 AGENTS.md · LEARNING.md · TOOLKIT.md · PROGRESS.md · CHANGELOG.md   ← 四件套 + 流水
@@ -22,6 +23,7 @@ _archive/   ← 旧 ipynb 与迁移脚本（回滚用，勿删勿改）
 
 | 你要做什么 | 先读 | 跑什么 |
 |---|---|---|
+| **快速过一遍 / 考前回炉** | `quick/<子科>.md`（一小时一份） | — |
 | **学新东西** | `PROGRESS.md`（下一站）→ `syllabus/tiers.md`（先拿哪档分）→ `syllabus/408.md`（定位 KP）→ `exam/**` | — |
 | **考前查漏** | `syllabus/408.md` 或 `math1.md` 各章「细节与陷阱」+ README 附录 B 真题索引 | — |
 | **今天复习什么** | `reviews/REVIEWS.md` | `python3 tools/review.py` |

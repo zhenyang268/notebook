@@ -696,7 +696,7 @@ v1.0 的 S5 暴露了「无持久化」：重启节点 `applied=343` vs 另两�
 
 ## goroutine vs std::thread：用户级线程与内核级线程的两张真实面孔（6.824 raft 双版本对照）
 
-> 2026-10-22 · 来源：6.824 项目复习（`projects/6824.md` §7.2，实践仓 `learning-408/raft`：Go 版已过测 2A–2C，C++ 版 craft 为半成品骨架）
+> 2026-10-22 · 来源：6.824 项目复习（`projects/6824/NOTES.md` §7.2，实践仓 `learning-408/raft`：Go 版已过测 2A–2C，C++ 版 craft 为半成品骨架）
 
 - **我的理解**：待补充
 - **知识点**：
@@ -713,7 +713,7 @@ v1.0 的 S5 暴露了「无持久化」：重启节点 `applied=343` vs 另两�
 
 ## 【修正】C++ craft 的真实线程模型：每 peer 一线程 + join，以及原子计数为什么必须用在这里
 
-> 2026-10-24 · 来源：6.824 项目复习 v2 重核（`projects/6824.md` §7.3；实践仓 `learning-408/raft/craft/src/raft/node.cpp` 465 行，独立 git 仓）
+> 2026-10-24 · 来源：6.824 项目复习 v2 重核（`projects/6824/NOTES.md` §7.3；实践仓 `learning-408/raft/craft/src/raft/node.cpp` 465 行，独立 git 仓）
 > **本 cell 修正上一条 cell 的事实**：C++ 版 craft 不是「半成品骨架」，而是 1729 行、可编译、`node.cpp` 465 行的完整 raft 实现。下面这条更正让线程模型的对照更锋利。
 
 - **我的理解**：待补充
@@ -724,13 +724,13 @@ v1.0 的 S5 暴露了「无持久化」：重启节点 `applied=343` vs 另两�
   - **顺带记一条会考的判据**：`atomic` 的 CAS 是「无锁也安全」的**乐观**路线，锁是「先占后干」的**悲观**路线。选哪个看临界区长短：这里只有一次自增（极短）→ 原子操作更合适；raft 的状态修改（长）→ 大锁更合适。
 
 - **易错点**：`std::thread` 忘了 `join()` 或 `detach()` → 析构时 `std::terminate` 直接崩；Go 的 goroutine 漏了回收只是泄漏。C++ 的线程生命周期必须显式管，这也是为什么这里每个函数末尾都有一圈 `join`。
-- **联动**：锁与生产者-消费者见 `os/02-03-同步与互斥.md`；完整对照表（goroutine/channel/timer/RPC/序列化 八项）见 `projects/6824.md` §7.3。
+- **联动**：锁与生产者-消费者见 `os/02-03-同步与互斥.md`；完整对照表（goroutine/channel/timer/RPC/序列化 八项）见 `projects/6824/NOTES.md` §7.3。
 
 ---
 
 ## Raft 的并发设计：一把大锁 + applyCh 生产者-消费者（互斥与生产者消费者的工程版）
 
-> 2026-10-22 · 来源：6.824 项目复习（`projects/6824.md` §3.5，实践仓 `learning-408/raft/src/raft/raft.go`，已过测 2A–2C）
+> 2026-10-22 · 来源：6.824 项目复习（`projects/6824/NOTES.md` §3.5，实践仓 `learning-408/raft/src/raft/raft.go`，已过测 2A–2C）
 
 - **我的理解**：待补充
 - **知识点**：

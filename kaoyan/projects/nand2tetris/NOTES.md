@@ -1962,7 +1962,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 冯·诺依曼 vs 哈佛：Hack 是一个活的反例
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - 冯·诺依曼的核心：**指令与数据同等地位、共存于同一存储器** → 程序可以被当作数据加载与修改（这是「操作系统引导程序」的物理前提）
 - nand2tetris 的 Hack 是**哈佛结构**：ROM32K（指令）与 RAM（数据）是**两条独立地址空间**，CPU 用 `pc` 取指、用 `A` 取数
 - 哈佛的收益：取指与取数**并行**，单周期可行（天然无取指/访存的结构冒险）
@@ -1974,7 +1974,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 补码与位掩码：nand2tetris 里的两个硬事实
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - Hack 是 **16 位补码整数**，没有浮点。补码不对称：`-32768` 取负仍是 `-32768`（溢出回自身），`Math.abs` 必须单独处理这个边界
 - 屏幕内存 `16384–24575` 共 8K 字，**1 bit = 1 像素**：512×256 像素、每行 32 字 → 由 `x/16` 定位字、`x%16` 定位位
 - **改一个像素必须「读-改-写整个 16 位字」**：`v | mask` 置黑、`v & ~mask` 置白；只写一位会擦掉同行相邻 15 个像素
@@ -1984,7 +1984,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## ALU 的 6 个控制位：一套「微指令」
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - ALU 用 `zx nx zy ny f no` 六个控制位组合出 **18 种运算**：先改造 x/y（置零/取反），再用 `f` 选「加 or 与」，最后 `no` 取反
 - 只需记住一个恒等式 $!z = -z - 1$：`x-1` = y 置 0 再取反得 $-1$ 后相加；`x-y` = `!x + y` 再取反；`x|y` = 德摩根 $!(!x \& !y)$
 - **补码让加减共用一套电路**：机器里只有加法器、没有减法器（$-y = \,!y + 1$）
@@ -1995,7 +1995,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 堆管理：空闲链表与切块策略（ch12 ↔ 动态分区分配）
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - 堆范围 `2048–16383`；块头 = `[next][length]`，`length` 计数据字数，块总长 = `length + 2`
 - `alloc`：遍历空闲链表找够大的块 → **总是切块**（Coursera 版算法），剩余部分留在链表上，因此 `freeList` 永不为空，省掉「删除链表中间节点」的双指针逻辑
 - 摘除头节点是特例（无前驱），必须单独分支或加哨兵；书版算法（可能整块拿出）与 Coursera 版（总切块）**块头定义不同，不能混用**
@@ -2007,7 +2007,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## Hack 指令格式：两种指令、两个寄存器
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - A-指令 = `0` + 15 位常量（装入 A）；C-指令 = `111a cccccc ddd jjj`（`a` 位在 A/M 之间选运算源，comp 6 位，dest 3 位 = A/D/M，jump 3 位 = <0 / =0 / >0）
 - 只有 **D（数据）** 与 **A（地址/数据）** 两个寄存器，`M` 恒指 `RAM[A]`
 - **一条 C-指令里 A 与 M 不能同时当运算源**（被 `a` 位二选一限制）：想用 `M` 参与运算必须先 `D=M`
@@ -2019,7 +2019,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 栈帧是软件契约：call / return 的五个槽
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - `call f k` 压入 5 槽：返回地址、LCL、ARG、THIS、THAT → 再令 `ARG = SP-5-k`、`LCL = SP`
 - `return` 五步：`FRAME = LCL` → `RET = *(FRAME-5)` → `*ARG = 返回值`、`SP = ARG+1` → 恢复 THAT/THIS/ARG/LCL → 跳 RET
 - ★ **无参数调用时 `ARG[0]` 就是 `FRAME-5`**：`RET` 必须在写返回值之前取走，否则返回地址被返回值覆盖（本章第一号杀手）
@@ -2031,7 +2031,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 单周期数据通路：把指令位段接到控制线上
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - CPU 接口：`inM`（= `RAM[A]`）、`instruction`、`reset` → `outM`、`writeM`、`addressM`、`pc`
 - **A 寄存器的 load = 「是 A 指令」OR「dest 含 A 位」**；只写前者会导致 C-指令的 `AMD` 组合写不进 A
 - `writeM = i[15] AND dest 的 M 位`：A-指令没有 dest 字段（那几位是常量），不屏蔽会误写内存
@@ -2044,7 +2044,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## 内存映射 I/O：把设备做成一段地址
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - Hack 地址空间：`0–16383` RAM，`16384–24575` 屏幕，`24576` 键盘，`>24576` 无效；译码只看 `address[14]/[15]/[13]` 三位
 - Screen 芯片只吃 **13 位地址**（8K = $2^{13}$），送进去的是 `address[0..12]` 而不是原地址
 - **统一编址的收益**：不需要 IN/OUT 指令，访存指令即 I/O 指令；代价是占用地址空间
@@ -2055,7 +2055,7 @@ Nand to Tetris: full-stack computer system from NAND gates (personal project)
 
 ## OS 的本质：硬件缺口的补丁（nand2tetris ch12 的两句话定义）
 
-> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris.md`）
+> 2026-10-22 · 来源：nand2tetris 项目复习（`projects/nand2tetris/NOTES.md`）
 - Jack OS 的 8 个类**逐一对应一个硬件缺口**：无乘法器 → Math 库；无 MMU/malloc 指令 → Memory.alloc 堆管理；无 GPU → Screen 位图绘制；无字库 ROM → Output 字形；无中断 → Keyboard 轮询；无引导程序 → Sys.init
 - 由此得到 OS 的两句话定义：**硬件抽象 + 资源管理**（把「硬件不会做的事」补上，把「有限的硬件」分好）
 - 但 Jack OS **不是现代内核**：单程序、单地址空间、无并发、无隔离、无系统调用陷入 —— **没有「进程」这个抽象**
