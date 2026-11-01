@@ -1,0 +1,275 @@
+%==============================================================
+\section{BR3. ODE、PDE、张量、李群：一张网}
+\label{sec:br3}
+%==============================================================
+
+本篇不追求定理完整，追求\textbf{四者之间的接线}。先给主图：
+
+\begin{center}
+\begin{tabular}{L{2.2cm}L{9.5cm}}
+\toprule
+\textbf{层} & \textbf{内容} \\
+\midrule
+对称 & 连续对称（李群 $G$） \\
+$\downarrow$ 无穷小 & 李代数 $\mathfrak{g}=T_eG$，带括号 $[\cdot,\cdot]$ \\
+$\downarrow$ 指数映射 & 流 $\Phi_t$（ODE 的解，单参数群） \\
+$\downarrow$ 几何量 & 张量场（$g$、$R$、应力） \\
+$\downarrow$ 局部分程 & PDE（Laplace--Beltrami、NS、Einstein） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR3.1 ODE：流的语言}
+
+核心方程 $\dot x=f(t,x)$，$x$ 在 $\mathbb{R}^n$ 或流形 $M$ 上。
+
+\subsubsection{存在唯一与流}
+
+\textbf{Picard--Lindelöf}：$f$ 局部 Lipschitz $\Rightarrow$ 局部唯一解。证明是不动点迭代
+\[
+x_{k+1}(t)=x_0+\int_0^t f(s,x_k(s))ds,
+\]
+几何意义就是“沿向量场走无穷小步”——它与指数映射是同一种东西的两种写法。
+
+\textbf{流} $\Phi_t:x_0\mapsto x(t)$ 满足
+\[
+\Phi_t\circ\Phi_s=\Phi_{t+s},\qquad \Phi_0=\mathrm{id}.
+\]
+\textbf{这是单参数群}。所以 ODE 天然生成群结构——李群不是外加的，是 ODE 的必然产物。
+
+\subsubsection{线性系统与矩阵指数}
+
+$\dot x=Ax$ 的解 $x(t)=e^{At}x_0$，
+\[
+e^{At}=\sum_{k\ge0}\frac{(At)^k}{k!}.
+\]
+Jordan 型 $\Rightarrow$ 稳定性看 $\mathrm{Re}\,\lambda$。\textbf{$e^{At}$ 就是 $GL(n)$ 的指数映射}——ODE 与李群的第一个硬连接。
+
+\textbf{平衡点与线性化}：$\dot x=Ax+O(|x|^2)$。双曲平衡点附近 Hartman--Grobman：非线性流与线性流拓扑共轭。稳定/不稳定方向的维数由 $\mathrm{Re}\,\lambda$ 的符号决定（稳定流形定理）。
+
+\textbf{Lyapunov}：$V>0$，$\dot V=\nabla V\cdot f\le0$ $\Rightarrow$ 稳定。$V$ 是能量，$\dot V$ 是能量沿流的变化率。
+
+\subsubsection{Hamilton 系统：辛几何的入口}
+
+\[
+\dot q=\frac{\partial H}{\partial p},\qquad
+\dot p=-\frac{\partial H}{\partial q}
+\quad\Longleftrightarrow\quad
+\dot z=J\nabla H,
+\]
+其中 $J=\begin{pmatrix}0&I\\-I&0\end{pmatrix}$，$J^2=-I$，$J^T=-J$。
+
+\textbf{这里出现了辛结构}：$J$ 是反对称、满足 $J^2=-I$ 的“复结构”。Hamilton 流保辛形式 $\omega=\sum dq_i\wedge dp_i$（Liouville 定理）。\textbf{辛几何的入口在 ODE 里，不在几何书里。}
+
+\subsubsection{边值问题给出谱}
+
+Sturm--Liouville
+\[
+-(py')'+qy=\lambda wy
+\]
+本征值离散、本征函数正交完备。\textbf{这就是 BR2.1“选基”的数学来源}：基不是天上掉的，是边值问题的本征函数。
+
+\subsection{BR3.2 PDE：把算子放到函数空间上}
+
+方程 $F(x,u,Du,D^2u)=0$。注意 $Du$ 是 Jacobian（一阶张量），$D^2u$ 是 Hessian（二阶对称张量）——\textbf{PDE 从一开始就是张量方程}。
+
+\subsubsection{二阶线性分类}
+
+$au_{xx}+2bu_{xy}+cu_{yy}+\cdots=0$，判别式 $\Delta=b^2-ac$：
+
+\begin{center}
+\begin{tabular}{L{1.6cm}L{2.2cm}L{3.2cm}L{2.6cm}L{3.4cm}}
+\toprule
+$\Delta$ & 类型 & 代表 & 定解条件 & 解的性质 \\
+\midrule
+$<0$ & 椭圆 & $\Delta u=0$ & 边值 & 光滑、极大值原理 \\
+$=0$ & 抛物 & $u_t=\Delta u$ & 初值+边值 & 瞬时抹平、半群 \\
+$>0$ & 双曲 & $u_{tt}=\Delta u$ & 初值 & 特征线、有限传播速度 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{分类的几何意义 $=$ 主符号的二次型符号} $a\xi^2+2b\xi\eta+c\eta^2$。换成张量语言，就是\textbf{二阶对称张量 $a_{ij}$ 的惯性指数}。“椭圆/抛物/双曲”不是三个孤立名字，是同一二次型在三种符号下的三种命运。
+
+\subsubsection{三大方程}
+
+\begin{enumerate}
+  \item \textbf{Laplace} $\Delta u=0$：均值性质、极大值原理、Green 函数（基本解 $-\frac{1}{2\pi}\log r$ 或 $\frac{1}{4\pi r}$）。
+  \item \textbf{热} $u_t=\Delta u$：$u(t)=e^{t\Delta}u_0$，\textbf{半群}；傅里叶解得核为高斯（BR2.8）。
+  \item \textbf{波} $u_{tt}=\Delta u$：$\hat u=e^{\pm it|\xi|}\hat u_0$；一维 d'Alembert $u=f(x-t)+g(x+t)$，\textbf{特征线}。
+\end{enumerate}
+
+\subsubsection{变分原理：把 PDE 变回几何}
+
+\begin{itemize}
+  \item Laplace $=$ Dirichlet 能量 $E(u)=\frac12\int|\nabla u|^2$ 的临界点；
+  \item 波动 $=$ 最小作用量；
+  \item \textbf{PDE 是泛函的 Euler--Lagrange 方程}。这把 PDE 从“偏微分方程组”变成“几何的驻值条件”。
+\end{itemize}
+
+\subsubsection{弱形式：内积的语言}
+
+\[
+\int_\Omega u\,\Delta v=-\int_\Omega\nabla u\cdot\nabla v+\int_{\partial\Omega}u\,\partial_n v .
+\]
+乘测试函数再分部积分，二阶导降为一阶——弱解与有限元的起点。\textbf{它和 BR2.1 的“内积展开”是同一件事}：用内积把方程投影到测试函数上。
+
+\textbf{特征线}：$\partial_tu+a\partial_xu=0$ 沿 $x-at=$ 常数不变。\textbf{一阶 PDE $=$ 一族 ODE}。非线性时特征线相交 $\Rightarrow$ 激波（有限时间形成奇性）。这是“PDE 的困难来自非线性”的第一个实例。
+
+\subsection{BR3.3 张量：坐标无关的多线性代数}
+
+\subsubsection{三种视角}
+
+\begin{enumerate}
+  \item \textbf{分量}：带上下标的数，按变换律变。逆变 $T'^i=\frac{\partial x'^i}{\partial x^k}T^k$；协变 $T'_j=\frac{\partial x^k}{\partial x'^j}T_k$。
+  \item \textbf{多重线性映射}：$T:V^*\times\cdots\times V^*\times V\times\cdots\to\mathbb{R}$，对每个槽线性。
+  \item \textbf{张量积}：$T\in V\otimes\cdots\otimes V^*\otimes\cdots$，基是 $e_i\otimes\cdots\otimes e^k$。
+\end{enumerate}
+
+\subsubsection{为什么需要它}
+
+因为物理/PDE 定律必须\textbf{坐标无关}。在球坐标写 NS，与在直角坐标写 NS，必须是同一个物理。张量是“保证换坐标后方程形式不变”的语法。\textbf{张量不是数学家的洁癖，是“换坐标系不会把答案换掉”的保险。}
+
+\subsubsection{关键操作}
+
+\begin{itemize}
+  \item \textbf{缩并}：$T^i{}_i$（一上一下配对求和）。这是张量代数里唯一自然“降秩”的操作。
+  \item \textbf{对称/反对称分解}：任意二阶张量 $=$ 对称 $+$ 反对称；3 维中反对称部分对应轴向量 $v_i=\epsilon_{ijk}A^{jk}$。
+  \item \textbf{度量}：升指标 $T^i=g^{ij}T_j$、降指标 $T_j=g_{ij}T^i$。度量定义长度、角度、体积元 $\sqrt{|g|}$。
+  \item \textbf{协变导数}：
+  \[
+  \nabla_kT^i{}_j=\partial_kT^i{}_j+\Gamma^i_{kl}T^l{}_j-\Gamma^l_{kj}T^i{}_l ,
+  \]
+  $\Gamma$ 是 Christoffel 符号，由 $g$ 唯一确定（无挠 $+$ 度量相容）。
+  \item \textbf{曲率 $=$ 协变导数的不对易性}：
+  \[
+  [\nabla_k,\nabla_l]T^i=R^i{}_{jkl}T^j .
+  \]
+\end{itemize}
+
+\subsubsection{黎曼曲率的对称性}
+
+$R_{ijkl}=g_{im}R^m{}_{jkl}$ 满足
+\[
+R_{ijkl}=-R_{jikl}=-R_{ijlk}=R_{klij},\qquad
+R_{ijkl}+R_{iklj}+R_{iljk}=0 .
+\]
+独立分量数 $\dfrac{n^2(n^2-1)}{12}$：$n=2$ 时 1 个（就是高斯曲率），$n=3$ 时 6 个，$n=4$ 时 20 个。
+
+里奇 $R_{ij}=R^k{}_{ikj}$，标量曲率 $R=g^{ij}R_{ij}$，爱因斯坦张量 $G_{ij}=R_{ij}-\frac12Rg_{ij}$（$\nabla^iG_{ij}=0$ 是 Bianchi 恒等式的缩写）。
+
+\subsubsection{高斯--博内：接回 BR1}
+
+\[
+\int_M K\,dA=2\pi\chi(M)
+\]
+（2 维闭曲面）。球面 $\chi=2$，总曲率 $4\pi$。\textbf{球面三角形内角和 $>\pi$ 与 slerp 走大圆，是同一枚硬币}：在弯曲空间做几何，角度和面积的账永远差一个曲率积分。
+
+\subsubsection{张量进 PDE}
+
+\begin{itemize}
+  \item \textbf{Laplace--Beltrami}：
+  \[
+  \Delta_gu=\frac{1}{\sqrt{|g|}}\partial_i\left(\sqrt{|g|}g^{ij}\partial_ju\right).
+  \]
+  球坐标下即 $\frac{1}{r^2}\partial_r(r^2\partial_r)+\frac{1}{r^2}\Delta_{S^2}$，$S^2$ 部分就是球谐算子。
+  \item \textbf{NS 的应力形式}：$\sigma_{ij}=-p\delta_{ij}+2\mu e_{ij}$，$e_{ij}=\frac12(\partial_iu_j+\partial_ju_i)$，平衡方程 $\nabla_j\sigma^{ij}=f^i$。\textbf{NS 的几何写法就是“应力张量的散度等于外力”。}
+  \item \textbf{Einstein 方程} $G_{ij}=8\pi T_{ij}$：10 个二阶非线性 PDE，未知量是 $g_{ij}$。与 NS 同一套路——一个张量（几何）等于另一个张量（物质）。
+\end{itemize}
+
+\textbf{微分形式 $=$ 反对称张量}。外积 $\wedge$、外微分 $d$（$d^2=0$）。Hodge 分解
+\[
+L^2(\Lambda^k)=d(\Lambda^{k-1})\oplus\delta(\Lambda^{k+1})\oplus\mathcal{H}^k ,
+\]
+3 维上即 Helmholtz 分解：\textbf{无旋 $+$ 无散 $+$ 调和}。\textbf{这就是不可压条件 $\nabla\cdot u=0$ 的几何本质}——$u$ 落在 $\delta(\Lambda^2)$ 那一块，压力是投影到无散子空间的 Lagrange 乘子。
+
+\subsection{BR3.4 李群：连续对称的语言}
+
+\subsubsection{经典李群}
+
+\begin{center}
+\begin{tabular}{L{2.8cm}L{1.6cm}L{6cm}}
+\toprule
+\textbf{群} & \textbf{维数} & \textbf{说明} \\
+\midrule
+$GL(n)$ & $n^2$ & 可逆矩阵 \\
+$SL(n)$ & $n^2-1$ & $\det=1$ \\
+$O(n)$ & $n(n-1)/2$ & 保长度 \\
+$SO(n)$ & $n(n-1)/2$ & $\det=1$，$SO(3)$ 是 3 维旋转 \\
+$SU(n)$ & $n^2-1$ & $\det=1$ 的酉群 \\
+$S^3\cong SU(2)$ & 3 & \textbf{单位四元数} \\
+$SE(3)$ & 6 & 刚体运动（旋转 $+$ 平移） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{关键拓扑}：$SO(3)\cong SU(2)/\{\pm I\}$ 是\textbf{双重覆盖}，$\pi_1(SO(3))=\mathbb{Z}_2$。$SU(2)$ 中 $\theta:0\to2\pi$ 走到 $-I$，\textbf{不是恒等}；走两圈才回 $I$。这就是 BR1.4“$q$ 与 $-q$ 是同一旋转”的拓扑根源。
+
+\subsubsection{李代数与指数映射}
+
+$\mathfrak{g}=T_eG$，带括号 $[X,Y]$；矩阵群即 $[X,Y]=XY-YX$。\textbf{李代数 $=$ 群在单位元的线性化}，它丢掉全局拓扑（$SU(2)$ 与 $SO(3)$ 的李代数都是 $\mathfrak{so}(3)$，但群不同）——这是“$SU(2)$ 能表示半整数自旋而 $SO(3)$ 不能”的准确说法。
+
+指数映射 $\exp:\mathfrak{g}\to G$ 是过 $e$、初速 $X$ 的积分曲线在 $t=1$ 的值。
+
+\begin{itemize}
+  \item $\mathfrak{su}(2)\to SU(2)$：$\exp(v)=\cos\lVert v\rVert+\frac{\sin\lVert v\rVert}{\lVert v\rVert}v$ ——\textbf{这就是 BR1 的 slerp}。
+  \item $\mathfrak{so}(3)\to SO(3)$：Rodrigues $R=I+\sin\theta\,K+(1-\cos\theta)K^2$，$K$ 是单位轴的叉积矩阵。
+\end{itemize}
+
+\textbf{测地线 $=$ 单参数子群}：双不变度量下，李群上的测地线恰是 $t\mapsto\exp(tX)$。\textbf{BR1 与 BR3 在这里握手}。
+
+\subsubsection{BCH 公式：为什么旋转不能相加}
+
+\[
+\log(e^Xe^Y)=X+Y+\frac12[X,Y]+\frac{1}{12}[X,[X,Y]]-\frac{1}{12}[Y,[X,Y]]+\cdots
+\]
+二阶项是交换子。\textbf{slerp 分两步与一步的差就是 $\frac12[X,Y]$}。非交换性不是抽象代数的事，是两次小旋转叠加时那个不该被忽略的误差。
+
+\subsubsection{伴随与表示}
+
+$\mathrm{Ad}_gX=gXg^{-1}$，$\mathrm{ad}_X=[X,\cdot]$。$SU(2)$ 不可约表示由 $j=0,\frac12,1,\dots$ 标号，维数 $2j+1$；$SO(3)$ 只有整数 $j$。
+
+\textbf{闭环到 BR2}：$SO(3)$ 作用在 $\mathbb{R}^3$ 上的张量按不可约表示分解
+\[
+\mathbb{R}^3\otimes\mathbb{R}^3=\underbrace{\mathbb{R}}_{\text{迹}}\oplus\underbrace{\Lambda^2}_{\text{反对称}}\oplus\underbrace{S_0}_{\text{对称无迹}},
+\]
+对应 $j=0,1,2$。\textbf{球谐 $Y_{lm}$ 就是这个分解在 $L^2(S^2)$ 上的展开基}。所以球坐标下解 Laplace 自动得到球谐，不是巧合，是群论——“选基”最终是群论的事。
+
+\textbf{Noether}：作用量对连续对称不变 $\Rightarrow$ 守恒流。时间平移 $\to$ 能量，空间平移 $\to$ 动量，$U(1)$ 相位 $\to$ 电荷。\textbf{这是李群进物理的唯一入口，也是“物理定律总写成张量形式”的答案}。
+
+\textbf{刚体 $=$ $SO(3)$ 上的测地线}：Euler 方程 $\dot L=L\times\omega$ 就是 $SO(3)$ 带惯性度量的测地线方程。\textbf{角动量守恒在这里是“测地线 $=$ 单参数子群”的特例}——ODE、张量、李群、几何全焊在一处。
+
+\subsection{BR3.5 交叉点}
+
+\begin{enumerate}
+  \item \textbf{ODE $+$ 李群}：$e^{At}$ 是 $GL(n)$ 的单参数子群；Hamilton 流是辛群的子群；刚体方程是 $SO(3)$ 的测地线。
+  \item \textbf{ODE $+$ 张量}：平行移动 $\nabla_{\dot\gamma}T=0$ 是一阶线性 ODE；测地线方程 $\ddot\gamma^k+\Gamma^k_{ij}\dot\gamma^i\dot\gamma^j=0$ 就是“$\nabla_{\dot\gamma}\dot\gamma=0$”的坐标展开。
+  \item \textbf{张量 $+$ PDE}：Laplace--Beltrami、应力张量散度、Einstein 方程。
+  \item \textbf{PDE $+$ 李群}：对称性约化（球对称把 3 维压成 1 维 ODE）；Noether 守恒；Burgers $u_t+uu_x=\nu u_{xx}$ 经 Cole--Hopf $u=-2\nu(\log\theta)_x$ 变成热方程——\textbf{本质是“非线性变换把方程拉直”}，与群作用下的等价变换同类。
+  \item \textbf{李群 $+$ 张量 $+$ BR2}：$SO(3)$ 不可约表示 $\to$ 球谐 $\to$ 球坐标下的正交基。
+\end{enumerate}
+
+\subsection{BR3.6 用 NS 收尾}
+
+\[
+\partial_tu+(u\cdot\nabla)u=-\nabla p+\nu\Delta u,\qquad \nabla\cdot u=0 .
+\]
+\begin{itemize}
+  \item $\nabla\cdot u=0$ 用 Hodge 分解理解：投影到无散子空间。令 $P$ 为 Leray 投影，方程变为
+  \[
+  \partial_tu+\nu Au+B(u,u)=0,\qquad A=-P\Delta,\ \ B(u,u)=P(u\cdot\nabla u).
+  \]
+  \item $A$ 在 $\mathcal{H}=\{u\in L^2:\nabla\cdot u=0,\ u\cdot n|_{\partial\Omega}=0\}$ 上\textbf{自伴正定}，故有正交基（Stokes 特征函数）。\textbf{“解 NS 用什么基”的答案就是 $\mathcal{H}$ 的谱分解}——BR2.1 的框架第四次出现。
+  \item $B$ 双线性且反对称（$\langle B(u,u),u\rangle=0$，能量守恒）。这是 2 维能证全局存在（能量估计封死）、3 维卡在涡量拉伸 $\omega\cdot\nabla u$ 的原因——3 维没有 2 维那样的守恒律。
+  \item 定常 NS 的几何形式就是 $\nabla_j\sigma^{ij}=f^i$（应力张量）。
+\end{itemize}
+
+\subsection{BR3.7 入门够用的五问}
+
+\begin{enumerate}
+  \item 为什么球面上最直的路是大圆？（$\ddot\gamma=-\gamma$）
+  \item 为什么正态特征函数还是高斯形状？（Hermite $+$ 傅里叶自对偶）
+  \item 为什么拉普拉斯能处理初值而傅里叶不能？（单边 $+$ 指数窗）
+  \item 为什么不可压 NS 要先做 Hodge 分解？（约束的 Lagrange 乘子是压力）
+  \item 为什么 $q$ 与 $-q$ 是同一旋转，插值又不能随便选？（双重覆盖 $+$ 对极是共轭点）
+\end{enumerate}

@@ -1,0 +1,416 @@
+%==============================================================
+\section{BR4. 概率论的双向地图}
+\label{sec:br4}
+%==============================================================
+
+本篇的组织方式是“层”：每层给\ \textbf{数学对象 $\to$ 概率对应 $\to$ 反馈回数学的产物}。
+先说一句结论，它决定了整篇的读法：
+
+\begin{quote}
+\textbf{概率论的原创概念只有三个：独立性、条件化、鞅。}
+测度论一个都没有。所以概率论不是“测度论的应用”，
+它是“在测度论上装了一根时间轴和一根信息轴”之后长出来的新学科。
+\end{quote}
+
+\subsection{BR4.1 五层总表}
+
+\begin{center}
+\begin{tabular}{L{1.5cm}L{4.2cm}L{4.2cm}L{4.3cm}}
+\toprule
+\textbf{层} & \textbf{数学 $\to$ 概率} & \textbf{概率 $\to$ 数学} & \textbf{最易错处} \\
+\midrule
+0 测度 & 测度 $\to P$，积分 $\to E$ & RN 导数、五种收敛、胎紧 & 独立性被降级成“乘积测度”一格 \\
+1 泛函 & $L^p$、投影、半群 & 条件期望、鞅空间、$H^1$-$BMO$ & “弱收敛”实为 weak-$*$ \\
+2 调和 & 傅里叶 $\to$ 特征函数 & 乘子、L\'evy-Khintchine & Bochner 是“正定函数”那个定理 \\
+3 几何 & $g^{-1}\to\Sigma$、$\Delta_g$ & $\Gamma_2$ 判据、$W_2$、集中 & 曲率的桥是 $\Gamma,\Gamma_2$，不是 Ric \\
+4 PDE & 椭圆算子 $\to$ 生成元 & Feynman--Kac、大偏差 & 枢纽是 Legendre 变换 \\
+5 代数 & 群/图/素数 $\to$ 随机模型 & 随机矩阵、概率方法 & 自由独立是第三种独立性 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR4.2 第 0 层：测度 $\to$ 概率空间}
+
+\subsubsection{对应与精确条件}
+
+\begin{center}
+\begin{tabular}{L{3.6cm}L{3.4cm}L{6.5cm}}
+\toprule
+\textbf{数学} & \textbf{概率} & \textbf{要小心} \\
+\midrule
+$(S,\mathcal{A})$ & $(\Omega,\mathcal{F})$ & $\mathcal{F}$ 是 $\sigma$-代数 \\
+测度 $\mu$ & $P$，$P(\Omega)=1$ & \textbf{总质量 1 是唯一新东西} \\
+可测函数 $f$ & 随机变量 $X$ & $X^{-1}(B)\in\mathcal{F}$ \\
+$\int f\,d\mu$ & $\mathbb{E}[X]$ & 同一个积分 \\
+零测集 & a.s. & \textbf{只对可数多个条件同时成立} \\
+$d\mu/d\nu$ & 密度 $p=dP/d\lambda$ & \textbf{需 $P\ll\lambda$ 且 $\sigma$-有限} \\
+$\mu\otimes\nu$ & \textbf{独立性} & 概率论唯一的原创概念 \\
+条件测度 & 条件分布 & 需正则性（Polish 空间保证） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{三个要点}
+
+\textbf{（a）“总质量 1”不是小条件。} 它让 $\mathcal{M}_1(\Omega)$ 成为\textbf{凸集}：凸组合 $\alpha P+(1-\alpha)Q$ 仍是概率测度，于是“混合分布”有几何意义，Fisher 度量、信息几何全部从这个凸结构长出来。\textbf{“1”这个数字的后果远大于“归一化”。}
+
+\textbf{（b）a.s. 的可数性。} $P(A_n)=1$ 对每个 $n$ 成立 $\Rightarrow P(\bigcap_n A_n)=1$（零测集的可数并仍零测）。\textbf{但不可数交不一定。}
+
+后果：像“对几乎所有 $\omega$、对所有 $t\ge0$，$B_t$ 连续”这句话，\textbf{不能}从“对每个 $t$，$B_t$ 连续（a.s.）”直接推出——因为 $t$ 不可数。Brownian motion 的连续性必须先选一个\textbf{可分离版本}（Kolmogorov 连续性定理的用途）。
+
+一句话：\textbf{a.s. 不是“处处”，它的例外只能在可数多个条件下被同时控制。} 这是随机过程的第一道门槛。
+
+\textbf{（c）独立性 $=$ 乘积测度。} \ $X\perp Y\iff P_{X,Y}=P_X\otimes P_Y$。
+
+测度论有乘积测度，但没有“独立”这个\textbf{语义}：独立说的不只是“联合分布是乘积”，而是\textbf{“知道 $X$ 不改变对 $Y$ 的信念”}。这个信息层面在测度论里没有对应物。独立性派生的一切，测度论里一个都没有：
+
+\begin{center}
+\begin{tabular}{L{4cm}L{8cm}}
+\toprule
+\textbf{产物} & \textbf{内容} \\
+\midrule
+$0$-$1$ 律 & 尾 $\sigma$-代数上的事件概率只能 0 或 1 \\
+Borel--Cantelli & $\sum P(A_n)<\infty\Rightarrow$ 只有有限个发生（a.s.） \\
+Kolmogorov 扩展 & 相容的有限维分布 $\Rightarrow$ 存在无穷维过程 \\
+de Finetti & 可交换序列 $=$ iid 的混合 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR4.3 第 1 层：泛函分析}
+
+\subsubsection{$\mathbb{E}$ 是线性泛函，特殊在“正 $+$ 保 1”}
+
+$\mathbb{E}:L^1(P)\to\mathbb{R}$ 是\textbf{正}的（$X\ge0\Rightarrow\mathbb{E}X\ge0$）、\textbf{保常数}（$\mathbb{E}1=1$）、\textbf{范数 1}。Riesz 表示给 $C(K)^*=\mathcal{M}(K)$，概率测度正是其中“正 $+$ 总质量 1”的那些。\textbf{“期望是线性泛函”的信息量全在“正 $+$ 保 1”，不在“线性”。}
+
+\subsubsection{条件期望 $=$ 投影（$L^2$ 专属）}
+
+$\mathbb{E}[\cdot\mid\mathcal{G}]:L^2(\mathcal{F})\to L^2(\mathcal{G})$ 是\textbf{正交投影}：
+\[
+\lVert X-\mathbb{E}[X\mid\mathcal{G}]\rVert_2=\min_{Y\in L^2(\mathcal{G})}\lVert X-Y\rVert_2 .
+\]
+证明即正交性：对任意 $Y\in L^2(\mathcal{G})$，
+\[
+\mathbb{E}\big[(X-\mathbb{E}[X\mid\mathcal{G}])Y\big]
+=\mathbb{E}[XY]-\mathbb{E}\big[\mathbb{E}[X\mid\mathcal{G}]Y\big]=0 .
+\]
+
+\textbf{价值在于搬运}：勾股定理、最小距离、正交分解全部搬进概率论。条件期望不是“一个定义”，它有一个几何图像——\textbf{在子空间上垂直投影}。
+
+\textbf{副作用（全方差公式就是勾股定理）}：
+\[
+\mathrm{Var}(X)=\mathrm{Var}\big(\mathbb{E}[X\mid\mathcal{G}]\big)+\mathbb{E}\big[\mathrm{Var}(X\mid\mathcal{G})\big].
+\]
+
+\textbf{必须打的补丁}：在 $L^1$ 上它只是\textbf{压缩}（$\lVert\mathbb{E}[X\mid\mathcal{G}]\rVert_1\le\lVert X\rVert_1$），\textbf{不是投影}——$L^1$ 不严格凸，最近点不唯一。\textbf{“投影”这个几何图像 $L^2$ 专属。}
+
+\subsubsection{马尔可夫过程 $=$ 压缩半群 $+$ 生成元}
+
+$(P_tf)(x)=\mathbb{E}[f(X_t)\mid X_0=x]$，满足 $P_{t+s}=P_tP_s$、$P_0=I$、\textbf{保常数}、\textbf{保正}。
+
+生成元 $Lf=\lim_{t\to0}\frac{P_tf-f}{t}$，形式地 $P_t=e^{tL}$。\textbf{Hille--Yosida}：压缩半群 $\iff$ 生成元（闭、稠密定义域、耗散）。
+
+\textbf{这与 BR2/BR3 的“$D$ 无界 $+$ 自伴扩张”是同一件事的概率版}：$L$ 也无界，定义域就是“这个函数能不能当初始条件”；而“选边界条件”在这里变成“选过程的边界行为（吸收/反射）”。
+
+\subsubsection{弱-$*$ 收敛与胎紧（一个必须纠正的术语）}
+
+\[
+\mu_n\Rightarrow\mu\iff\forall f\in C_b:\ \int f\,d\mu_n\to\int f\,d\mu .
+\]
+\textbf{这是 $C_b^*$ 中的 weak-$*$ 收敛，不是 $L^1$ 的弱收敛。} 泛函分析里真正的弱收敛是 $\sigma(L^1,L^\infty)$。两个都叫 weak，但一个是 $C_b$ 的对偶对，一个是 $L^\infty$ 的对偶对。\textbf{混了会在“用 $C_b$ 还是 $C_0$”上出错：概率论一律用 $C_b$。}
+
+\textbf{紧性靠 Prohorov}：$\{\mu_n\}$ 弱-$*$ 相对紧 $\iff$ \textbf{胎紧}（tight）：对任意 $\epsilon>0$ 存在紧集 $K$ 使 $\mu_n(K)\ge1-\epsilon$ 对所有 $n$ 成立。
+
+\textbf{“质量不跑掉”就是胎紧}。这是概率论对泛函分析最重要的贡献之一：把抽象紧性变成\textbf{可检验条件}。典型反例：$\delta_n$ 在 $\mathbb{R}$ 上跑向无穷，不胎紧、不收敛。
+
+\subsubsection{鞅：条件期望的动力学}
+
+\[
+M_t\ \text{是鞅}\iff\mathbb{E}[M_{t+s}\mid\mathcal{F}_t]=M_t .
+\]
+\textbf{它是“条件期望的动力学”}：上一节说条件期望是投影（静态），鞅说这个投影随时间不动。\textbf{鞅 $=$ 投影沿时间轴的轨道。}
+
+它不是“没变化”，是\textbf{“没有可预测的漂移”}——已知全部信息下，下一步的期望等于现在。这是概率论自己的“导数”概念。
+
+\begin{center}
+\begin{tabular}{L{3.4cm}L{9cm}}
+\toprule
+\textbf{产物} & \textbf{内容} \\
+\midrule
+Doob 分解 & 下鞅 $=$ 鞅 $+$ 可预测增过程（趋势 $+$ 噪声的典范分解） \\
+可选停时 & 停时处取值的期望仍等于初值（不能靠停时赢公平游戏） \\
+鞅收敛 & $L^1$ 有界鞅 a.s. 收敛 \\
+$H^1$-$BMO$ 对偶 & Fefferman 定理 \\
+鞅变换 & $\sum H_k\Delta M_k$ 仍是鞅 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR4.4 第 2 层：调和分析}
+
+\subsubsection{特征函数 $=$ 傅里叶变换}
+
+$\varphi_X(t)=\mathbb{E}[e^{itX}]=\hat{P_X}(t)$。三个推论按顺序：
+
+\textbf{Bochner 定理}（注意：是“正定函数”的 Bochner，不是“Bochner 积分”）：连续正定 $\varphi$（$\varphi(0)=1$，$\sum c_i\bar c_j\varphi(t_i-t_j)\ge0$）$\iff$ $\varphi$ 是某概率测度的特征函数。\textbf{这是“什么样的函数能当特征函数”的完整回答。}
+
+\textbf{L\'evy 连续性}：$\varphi_n\to\varphi$ 逐点（$\varphi$ 在 $0$ 连续）$\Rightarrow\mu_n\Rightarrow\mu$。这是 CLT 的收尾工具。
+
+\textbf{L\'evy--Khintchine}（无穷可分分类）：
+\[
+\log\varphi(t)=iat-\frac{\sigma^2t^2}{2}+\int_{\mathbb{R}}\left(e^{itx}-1-itx\mathbf{1}_{|x|<1}\right)\nu(dx).
+\]
+L\'evy 三元组 $(a,\sigma^2,\nu)$ 完全刻画。\textbf{这是“独立增量过程的分类定理”}：高斯（$\nu=0$）$+$ 泊松（$\sigma=0$，$\nu$ 有限）$+$ 稳定（$\nu$ 幂律）全在这一个公式里，也是 BR2.5 稳定分布的完整骨架。
+
+\subsubsection{鞅变换 $\leftrightarrow$ 奇异积分（唯一“定理级”的双向对应）}
+
+\textbf{鞅变换}：$M$ 鞅，$H$ 可预测（$H_k\in\mathcal{F}_{k-1}$），
+\[
+(H\cdot M)_n=\sum_{k\le n}H_k\,(M_k-M_{k-1}).
+\]
+它仍是鞅，因为
+\[
+\mathbb{E}[H_k\Delta M_k\mid\mathcal{F}_{k-1}]
+=H_k\,\mathbb{E}[\Delta M_k\mid\mathcal{F}_{k-1}]=0 .
+\]
+\textbf{“可预测性”是全部关键}：$H_k$ 必须在下注之前就知道，否则“鞅变换还是鞅”就崩——这是“你不能靠内幕交易赢公平游戏”的数学版。
+
+\textbf{Burkholder 不等式}（$1<p<\infty$）：
+\[
+c_p\lVert H\rVert_{L^p}\le\lVert H\cdot M\rVert_p\le C_p\lVert H\rVert_p .
+\]
+它对应 \textbf{Hilbert 变换}
+\[
+Hf(x)=\mathrm{p.v.}\int\frac{f(y)}{x-y}dy
+\]
+的 $L^p$ 有界性。具体对应：把 $\mathbb{R}$ 上的 dyadic 区间族看成鞅的滤子，Hilbert 变换的截断版本就是一个鞅变换。
+
+\textbf{所以 Burkholder 不等式 $=$ 概率版的 Calder\'on--Zygmund 奇异积分理论。} 这是“双向地图”最实在的一个实例——不是类比，是定理级的等价：$L^p$ 有界可以走概率证明，鞅的 $L^p$ 估计可以走分析插值。
+
+\textbf{顺带}：Fefferman 对偶 $(H^1)^*=BMO$。概率的“原子”（$L^2$ 有界、条件期望为零的鞅差）与分析的“原子”（支撑在区间、均值为零的函数）是同一个东西的两套坐标。John--Nirenberg 不等式（$BMO$ 的指数可积性）也是从鞅的好 $\lambda$ 不等式来的。
+
+\subsection{BR4.5 第 3 层：几何}
+
+\subsubsection{协方差 $=$ 度量}
+
+扩散 $dX_t=b\,dt+\sigma\,dW_t$ 的生成元
+\[
+L=\sum_ib_i\partial_i+\frac12\sum_{i,j}(\sigma\sigma^T)_{ij}\partial_i\partial_j .
+\]
+当 $b=0$、$\sigma\sigma^T=2g^{-1}$ 时 $L=\Delta_g$。故
+\[
+a:=\sigma\sigma^T\ \longleftrightarrow\ g^{-1}
+\qquad(\text{协方差矩阵}\leftrightarrow\text{逆度量}).
+\]
+上一轮 $\Delta_g$ 坐标式里的 $\sqrt{|g|}$ 对应\textbf{平稳测度的密度}——这解释了为什么流形上布朗运动的平稳分布\textbf{不是 Lebesgue 而是体积测度}。
+
+\subsubsection{热核 $=$ 转移密度（接回 BR1）}
+
+$p_t(x,y)$ 是 $e^{t\Delta_g}$ 的积分核，短时渐近（Varadhan）
+\[
+p_t(x,y)\sim\frac{e^{-d(x,y)^2/4t}}{(4\pi t)^{n/2}}\qquad(t\to0).
+\]
+\textbf{短时间内的转移概率由测地距离决定}。而 BR1 算的 $\arccos\langle p,q\rangle$ 就是 $S^n$ 上的 $d(p,q)$——\textbf{大圆 $=$ 热核衰减最快的路径 $=$ 最可能被扩散走的路}。几何、概率、分析在这里是同一句话。
+
+\subsubsection{曲率 $\to$ 集中：中间夹着 $\Gamma$ 与 $\Gamma_2$}
+
+这是“Ric $\to$ 集中”的真实通道。\textbf{Carr\'e du champ}：
+\[
+\Gamma(f,g)=\frac12\big(L(fg)-fLg-gLf\big),
+\]
+对 $L=\Delta_g$ 就是 $\Gamma(f,g)=\langle\nabla f,\nabla g\rangle_g$——\textbf{它就是 BR3 的度量}。二阶算子
+\[
+\Gamma_2(f,f)=\frac12\big(L\Gamma(f,f)-2\Gamma(f,Lf)\big).
+\]
+\textbf{Bakry--\'Emery 曲率条件} $\Gamma_2(f,f)\ge\kappa\Gamma(f,f)$：
+
+\begin{itemize}
+  \item $\kappa>0$ $\Rightarrow$ Bonnet--Myers 型直径界 $+$ L\'evy 型测度集中 $+$ Poincar\'e 谱隙；
+  \item $L=\Delta_g$、体积测度：$\kappa=\mathrm{Ric}$ 的下界；
+  \item 测度 $e^{-V}dx$（$L=\Delta_g-\nabla V\cdot\nabla$）：$\kappa=\mathrm{Ric}+\mathrm{Hess}V$ 的下界——Bakry--\'Emery 张量。
+\end{itemize}
+
+\textbf{真正的等式链是}
+\[
+\mathrm{Ric}\ (\text{或 }\mathrm{Ric}+\mathrm{Hess}V)\ \ge\ \kappa
+\iff\Gamma_2\ge\kappa\Gamma
+\Longrightarrow\ \text{集中/直径界/谱隙}.
+\]
+\textbf{“$\kappa>0\Rightarrow$ 集中”的直觉}：正 $\Gamma_2$ 压住“梯度的梯度”，函数不能又陡又持久，于是 Lipschitz 函数的值紧贴均值。这是测度集中的微分版本。
+
+\subsubsection{Wiener 测度：两个反直觉事实}
+
+$C([0,1])$ 上的 Wiener 测度 $\mathbb{W}$，特征函数
+\[
+\mathbb{E}_{\mathbb{W}}\left[e^{i\langle f,\omega\rangle}\right]=e^{-\frac12\lVert f\rVert_H^2}
+\]
+（$H$ 是 Cameron--Martin 空间）——BR2“高斯自对偶”的无穷维版本。
+
+\textbf{（a）Cameron--Martin}：$\mathbb{W}$ 与平移 $\mathbb{W}_h$ 等价（RN 导数存在）$\iff h\in H$；$h\notin H$ 时\textbf{互相奇异}。
+
+\textbf{（b）更反直觉}：$\mathbb{W}(H)=0$。\textbf{“可微方向”本身是零测集}，典型样本不在任何“好方向”上。
+
+这解释了“无穷维不是有限维取极限”：无穷维\textbf{不存在 Lebesgue 测度}，Wiener 测度只在一个稠密零测的子空间 $H$ 上准不变。
+
+\textbf{Malliavin 微积分}是 BR2/BR3 那个 $D=d/dx$ 的无穷维版：$D_hF=\lim_{\epsilon\to0}\frac{F(\omega+\epsilon h)-F(\omega)}{\epsilon}$，但只有 $h\in H$ 的平移才有意义。\textbf{它就是“在一个几乎所有方向都奇异的空间上做微分”的技术}，产物是分部积分（Skorokhod 积分）与 H\"ormander 定理。
+
+\subsection{BR4.6 第 4 层：PDE}
+
+\subsubsection{Feynman--Kac}
+
+\[
+\partial_tu=Lu-Vu,\ u(0,x)=f(x)
+\quad\Longleftrightarrow\quad
+u(t,x)=\mathbb{E}_x\left[f(X_t)\exp\left(-\int_0^tV(X_s)ds\right)\right].
+\]
+三种读法：
+\begin{enumerate}
+  \item \textbf{PDE 的概率表示}：解 $=$ 期望，两边定性可互换。
+  \item \textbf{半群的扰动} $e^{t(L-V)}$：$V$ 是杀死率，$e^{-\int V}$ 是存活概率。
+  \item \textbf{Trotter 公式}：$e^{t(L-V)}=\lim_n\left(e^{tL/n}e^{-tV/n}\right)^n$——“走一步 $+$ 掷骰子决定死不死”。
+\end{enumerate}
+这把 $e^{t\cdot}$ 一路焊死：$e^{tA}$（矩阵）$\to e^{tL}$（算子半群）$\to e^{t(L-V)}$（Feynman--Kac）。
+
+\subsubsection{大偏差：枢纽是 Legendre 变换}
+
+\[
+I(x)=\sup_{\theta\in\mathbb{R}}\big(\theta x-\log M(\theta)\big),\qquad M(\theta)=\mathbb{E}[e^{\theta X}].
+\]
+\textbf{这就是 Legendre 变换（凸共轭）}，$I=M^*$。准确链条是
+\[
+\log M\ \xrightarrow{\text{Legendre}}\ I\ \xrightarrow{\text{路径版}}\ 
+\frac12\int\lVert\dot\phi-b(\phi)\rVert^2 .
+\]
+\textbf{Cramér}（iid）：$-\frac1n\log P(\bar X_n\in A)\to\inf_{x\in A}I(x)$。
+
+\textbf{为什么 Legendre 是枢纽}：
+\begin{itemize}
+  \item 它是凸分析的对偶（与 BR2“选基对角化”同类：\textbf{选对偶坐标}）；
+  \item $I(x)=\sup_\theta(\theta x-\log M)$ 就是“用 $\theta$ 当 Lagrange 乘子、在 $\mathbb{E}X=x$ 下最大化熵”——\textbf{速率函数 $=$ 约束下的熵减}，这条把大偏差与最大熵接起来。
+\end{itemize}
+
+\textbf{Freidlin--Wentzell}（小噪声 $dX=b\,dt+\sqrt\epsilon\,dW$）：$I(\phi)=\frac12\int_0^T\lVert\dot\phi_s-b(\phi_s)\rVert^2ds$。\textbf{这就是作用量}——最小作用量原理变成“最可能的偏离路径”。
+
+\textbf{粘性解}：Hamilton--Jacobi $-\partial_tu+H(x,\nabla u)=0$ 的解可由 $-\epsilon\log$（大偏差）逼近。\textbf{粘性解 $=$ 大偏差极限的 PDE}，链条是“大偏差 $\to$ 变分 $\to$ HJ $\to$ 粘性解”。
+
+\subsubsection{SPDE（只标注边界，不深入）}
+
+随机热方程 $\partial_tu=\Delta u+\dot W$ 解是高斯过程，好办。乘性噪声 $\partial_tu=\Delta u+\sigma(u)\dot W$ 在 $d\ge2$ 时 \textbf{$\sigma(u)\dot W$ 无定义}（$u$ 不够光滑，两个分布不能相乘）。Hairer 的正则结构（2014）给“病态乘积”造代数框架，把 $u$ 提升到正则结构里让乘积有意义；KPZ $\partial_th=\partial_x^2h+(\partial_xh)^2+\xi$ 是原型。
+
+\textbf{入门者只需知道}：它解决的是“乘积无定义”这个纯代数问题，与 BR3 的“$d^2=0$ 需要 de Rham 复形”同类（给不够好的对象找个够好的容器）。
+
+\subsection{BR4.7 第 5 层：代数、数论、组合}
+
+\subsubsection{随机矩阵}
+
+\textbf{Wigner 半圆律}：$N\times N$ 对称随机矩阵（上三角 iid，方差 $1/N$），经验谱分布
+\[
+\mu_N=\frac1N\sum_{i=1}^N\delta_{\lambda_i}\ \longrightarrow\
+\sigma(x)=\frac{1}{2\pi}\sqrt{4-x^2}\,\mathbf{1}_{|x|\le2}.
+\]
+\textbf{为什么半圆}：矩 $\int x^{2k}d\sigma=C_k$（Catalan 数），Catalan 数数的是\textbf{非交叉配对}，而非交叉配对正是自由概率的自由累积量。\textbf{矩方法的胜利}：分布由矩唯一决定（Carleman 条件），矩由组合计数给出。
+
+\textbf{Tracy--Widom}：$N^{2/3}(\lambda_{\max}-2)\Rightarrow\mathrm{TW}_2$，是 Painlev\'e II 的解。\textbf{注意尺度}：平均是 $N^{1/2}$ 窗口，极大值涨落是 $N^{-1/6}$ 窗口（乘 $N^{2/3}$ 才稳）。这个 $1/6$ 是 KPZ 普适类的指纹。
+
+\subsubsection{自由概率：第三种独立性}
+
+\textbf{自由独立性}：$A,B$ 自由独立 $\iff$ 对任意无常数项的非交换多项式 $P,Q$，$\mathbb{E}[P(A)Q(B)]=0$。
+
+这个定义看起来怪，它的作用是把经典 CLT 的机制换掉：
+
+\begin{center}
+\begin{tabular}{L{4cm}L{8cm}}
+\toprule
+\textbf{独立性} & \textbf{CLT 极限} \\
+\midrule
+经典独立 & 高斯 \\
+自由独立 & \textbf{半圆律} \\
+Boolean 独立 & Bernoulli 律 \\
+单调独立 & arcsine 律 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{“CLT 的极限分布完全由‘什么算独立’决定”} —— 这是“概率论 $\to$ 代数”反馈的核心。而它反过来解释几何：半圆律是随机矩阵的极限谱，所以大随机矩阵 $=$ 自由独立的算子，这把算子代数与概率钉死。
+
+\subsubsection{概率方法与概率数论}
+
+\textbf{概率方法（Erd\H{o}s）}：Ramsey 下界 $R(k,k)>2^{k/2}$——随机 2-着色，任一 $K_k$ 单色的概率 $<1$，故\textbf{存在}好着色。\textbf{它暴露一个哲学点：概率论能给“存在”，不能给“构造”}——非构造存在性。
+
+\textbf{Erd\H{o}s--Kac}：
+\[
+\frac{\omega(n)-\log\log n}{\sqrt{\log\log n}}\Rightarrow N(0,1)
+\]
+（$\omega(n)$ 是 $n$ 的不同素因子个数）。不同素数的可除性近似独立，启发式的独立性直接给出正确答案，严格化靠筛法。\textbf{“随机化”不是近似工具，是发现工具。}
+
+\subsection{BR4.8 六个反馈产物（补全清单）}
+
+\subsubsection{（一）五种收敛——地图最容易漏的一条}
+
+\begin{center}
+\begin{tabular}{L{3.2cm}L{5.5cm}L{3.5cm}}
+\toprule
+\textbf{收敛} & \textbf{定义} & \textbf{强度} \\
+\midrule
+几乎必然 a.s. & $P(X_n\to X)=1$ & 强 \\
+依概率 & $\forall\epsilon:P(|X_n-X|>\epsilon)\to0$ & 中 \\
+依分布 $\Rightarrow$ & $\mathbb{E}[f(X_n)]\to\mathbb{E}[f(X)]$ & 弱 \\
+$L^p$ & $\mathbb{E}|X_n-X|^p\to0$ & 中（依 $p$） \\
+完全收敛 & $\sum_nP(|X_n-X|>\epsilon)<\infty$ & 强 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+关系：a.s. $\Rightarrow$ 依概率 $\Rightarrow$ 依分布；$L^p\Rightarrow$ 依概率；完全收敛 $\Rightarrow$ a.s.；依概率 $\Rightarrow$ 存在子列 a.s.。\textbf{反向一般不成立。}
+
+\textbf{为什么这是“反馈回数学”}：测度论原本只有“测度收敛”一个概念。概率论造出五种“随机变量收敛”，每种对应一个场景（大数定律用 a.s.、CLT 用依分布、鞅用 a.s.、$L^p$ 估计用 $L^p$）。\textbf{这是随机化逼出的概念分层，现在已是测度论的标准内容。}
+
+\subsubsection{（二）耦合 $\to$ 最优传输（概率论自己生的）}
+
+\textbf{耦合}：$\Pi(\mu,\nu)=\{\pi:\text{边缘分别是 }\mu,\nu\}$。
+\[
+W_p(\mu,\nu)=\inf_{\pi\in\Pi(\mu,\nu)}\left(\int d(x,y)^p\,d\pi\right)^{1/p}.
+\]
+\textbf{$W_p$ 就是“最优耦合”}——最优传输从概率这边看，就是耦合的定量化。\textbf{这是“概率 $\to$ 几何”最纯的例子}，不是几何强加的。
+
+\textbf{Brenier 定理}：$\mu\ll\lambda$ 时 $W_2$ 最优耦合是确定性映射 $T=\nabla\phi$（$\phi$ 凸）——\textbf{最优传输 $=$ 凸函数的梯度}。
+
+\textbf{Lott--Sturm--Villani}：在 $W_2$ 下，$\mathrm{Ric}\ge K\iff$ 熵沿 $W_2$ 测地线 $K$-凸。\textbf{“曲率 $=$ 熵凸性”的精确版本}，而驱动它的正是“耦合”这个纯概率概念。
+
+\subsubsection{（三）Dirichlet 空间 $=$ 概率版 Sobolev}
+
+布朗运动与调和函数：
+\[
+u(x)=\mathbb{E}_x[f(X_{\tau_D})]\quad\text{解 Dirichlet 问题 }(\Delta u=0,\ u|_{\partial D}=f),
+\]
+$\tau_D$ 是出 $D$ 的首中时。\textbf{Dirichlet 空间}（$L^2$ 上对称 Markov 半群 $+$ 能量形式 $\mathcal{E}(f,g)=\langle f,-Lg\rangle$）\textbf{就是“概率版的 Sobolev 空间”}：BR3 的 Sobolev 是“让 $D$ 有界”，Dirichlet 空间是“让 $L$ 自伴”——同一件事的两个名字。
+
+\subsubsection{（四）(五)(六) 速记}
+
+\begin{itemize}
+  \item \textbf{乘子理论}：独立和的极限 $\leftrightarrow$ 傅里叶乘子；Marcinkiewicz / H\"ormander--Mikhlin。概率给出“为什么乘子有界”的概率证明。
+  \item \textbf{随机矩阵 $\to$ 因子}：自由概率让 von Neumann 因子有了概率语言（Connes 嵌入问题）。
+  \item \textbf{测度集中}：高维测度的几何现象，反馈成度量测度空间与 RCD 空间理论。
+\end{itemize}
+
+\subsection{BR4.9 一句话收束}
+
+\textbf{数学 $\to$ 概率}：测度变 $P$，积分变 $\mathbb{E}$，\textbf{正交投影变条件期望}（$L^2$），\textbf{压缩半群变马尔可夫过程}，\textbf{度量 $g^{-1}$ 变协方差 $\sigma\sigma^T$}，\textbf{Laplace--Beltrami 变生成元}，\textbf{$\Gamma_2$ 变集中性}，\textbf{Legendre 变换变速率函数}。
+
+\textbf{概率 $\to$ 数学}：RN 导数、五种收敛、胎紧性、条件期望作为投影、鞅空间与 $H^1$-$BMO$、Burkholder $\leftrightarrow$ Calder\'on--Zygmund、Wiener 测度与无穷维高斯、耦合 $\to W_2\to$ Lott--Sturm--Villani、Feynman--Kac、Legendre $\to$ 粘性解、正则结构、随机矩阵与自由概率、概率方法。
+
+\textbf{而整份地图的经线只有三根}：
+
+\begin{center}
+\begin{tabular}{L{2.4cm}L{3.2cm}L{7cm}}
+\toprule
+\textbf{原语} & \textbf{代数身份} & \textbf{派生物} \\
+\midrule
+独立性 & 乘积测度 & $0$-$1$ 律、Borel--Cantelli、CLT \\
+条件化 & $L^2$ 正交投影 & 条件期望、Markov 性、Bayes \\
+鞅 & 条件期望的动力学 & Doob 分解、停时、$H^1$-$BMO$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{测度论一个都没有。} 概率论不是测度论的应用，它是“在测度论上装了时间轴与信息轴”之后长出来的新学科。

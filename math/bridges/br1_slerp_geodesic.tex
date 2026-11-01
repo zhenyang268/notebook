@@ -1,0 +1,156 @@
+%==============================================================
+\section{BR1. 从四元数 slerp 到大圆测地线}
+\label{sec:br1}
+%==============================================================
+
+本篇的目标不是讲清 slerp 怎么实现，而是把它放回几何：
+\textbf{slerp 不是插值技巧，它是球面测地线的等速参数化}。
+一旦看清这一点，大圆、指数映射、单参数子群、对极奇点会同时到位。
+
+\subsection{BR1.1 问题从哪来}
+
+两个单位四元数 $q_0,q_1\in S^3\subset\mathbb{H}$，表示两个旋转，要在其间插值。
+
+最朴素的做法是线性插值再归一化（nlerp）：
+\[
+q(t)=\frac{(1-t)q_0+tq_1}{\lVert (1-t)q_0+tq_1\rVert}.
+\]
+
+它能用，但有两个病：
+
+\begin{enumerate}
+  \item \textbf{参数与角度不同步}。归一化把 $t$ 和“转过的角度”的关系弄歪了：$t$ 走一半，角度不一定走一半，角速度非均匀。
+  \item \textbf{概念错位}。它把球面上的点投到弦上再投回来，等于承认“球面是弯的，但我假装它平”。
+\end{enumerate}
+
+要真正回答“球面上两点之间最直的路是什么”，必须先定义“直”。
+
+\subsection{BR1.2 “直”在弯曲空间里的三种刻画}
+
+球面 $S^n$ 嵌在 $\mathbb{R}^{n+1}$ 里，上面的“直线”叫\textbf{测地线}。三种等价刻画，由浅到深。
+
+\subsubsection{（a）对称性刻画}
+
+球面关于任何过球心的平面 $\Pi$ 反射不变。取 $\Pi=\mathrm{span}\{p,q\}$，这个反射的不动点集正是 $\Pi\cap S^n$——一个\textbf{大圆}。
+
+\textbf{道理}：一个几何对象若被“所有保持它不变的对称”钉住，它必然最自然。这也是“为什么不是小圆”的回答：小圆不被过球心的平面反射保持。
+
+\subsubsection{（b）变分刻画（最有用）}
+
+设曲线 $\gamma:[0,1]\to S^n$，$\lVert\gamma\rVert=1$，扰动 $\eta\perp\gamma$（保持单位约束）。弧长
+\[
+L[\gamma]=\int_0^1 \lVert\dot\gamma\rVert\,dt .
+\]
+要求 $L$ 取驻值。分部积分（端点固定）：
+\[
+\delta L=\int \frac{\dot\gamma\cdot\dot\eta}{\lVert\dot\gamma\rVert}\,dt
+=-\int\left(\frac{d}{dt}\frac{\dot\gamma}{\lVert\dot\gamma\rVert}\right)\cdot\eta\,dt .
+\]
+驻值要求括号那项垂直于所有 $\eta\perp\gamma$，即 $\dfrac{d}{dt}\dfrac{\dot\gamma}{\lVert\dot\gamma\rVert}\parallel\gamma$。
+
+改用弧长参数（$\lVert\dot\gamma\rVert\equiv 1$）：
+\[
+\boxed{\ \ddot\gamma=\lambda\gamma\ }
+\]
+再用约束 $\lVert\gamma\rVert^2=1$ 求两次导：$\gamma\cdot\dot\gamma=0$，$\dot\gamma\cdot\dot\gamma+\gamma\cdot\ddot\gamma=0$，即 $1+\lambda=0$。于是
+\[
+\boxed{\ \ddot\gamma=-\gamma\ }
+\]
+\textbf{这是一个简谐振子方程}。解为
+\[
+\gamma(t)=\cos t\,p+\sin t\,v,\qquad v\perp p,\ \lVert v\rVert=1,
+\]
+正是平面 $\mathrm{span}\{p,v\}$ 与球面的交——大圆。半径 $R$ 的球改为 $\ddot\gamma=-\gamma/R^2$。
+
+一般流形上的测地线方程是
+\[
+\ddot\gamma^k+\Gamma^k_{ij}\dot\gamma^i\dot\gamma^j=0,
+\]
+它只是 $\nabla_{\dot\gamma}\dot\gamma=0$ 的坐标写法：\textbf{切向量沿自己平行}。
+
+\subsubsection{（c）内蕴刻画}
+
+球面的高斯曲率 $K=1/R^2$。曲线的\textbf{测地曲率} $k_g$ 度量它在曲面\textbf{内部}看来的弯曲程度。大圆满足 $k_g=0$——它只弯在法方向，不弯在切平面里。
+
+\textbf{测地线 $=$ 测地曲率为零}。这是最本质的定义，因为它不需要嵌入。
+
+\subsection{BR1.3 slerp 公式的推导}
+
+有了测地线，剩下是\textbf{参数化}：要求 $t\in[0,1]$ 与走过的角度成正比（等速）。
+
+设 $\Omega=\arccos\langle p,q\rangle\in(0,\pi)$。在平面 $\mathrm{span}\{p,q\}$ 里令 $\gamma(t)=\alpha(t)p+\beta(t)q$，要求
+\[
+\langle\gamma(t),p\rangle=\cos(t\Omega),\qquad
+\langle\gamma(t),q\rangle=\cos\big((1-t)\Omega\big).
+\]
+这是关于 $(\alpha,\beta)$ 的 $2\times 2$ 线性方程组，Gram 矩阵为
+$\begin{pmatrix}1&\cos\Omega\\ \cos\Omega&1\end{pmatrix}$，解得
+\[
+\boxed{\ \mathrm{slerp}(p,q;t)=\frac{\sin((1-t)\Omega)}{\sin\Omega}\,p+\frac{\sin(t\Omega)}{\sin\Omega}\,q\ }
+\]
+
+\textbf{读法}：分子是“在圆上走弧长”的坐标，分母 $\sin\Omega$ 是归一化因子，保证 $t=0,1$ 精确落在 $p,q$。当 $p\perp q$（$\Omega=\pi/2$）时退化为 $\cos(t\pi/2)p+\sin(t\pi/2)q$。
+
+\subsection{BR1.4 两个奇点，性质完全不同}
+
+\begin{itemize}
+  \item $\Omega\to0$：$\sin\Omega\to0$ 是\textbf{坐标奇点}，不是几何奇点。真实几何是“两个旋转几乎相同”，路径是极短的测地线。工程上用分支处理，或改用指数映射写（见 BR1.5）即可消除。
+  \item $\Omega\to\pi$：这是\textbf{几何奇点}——对极情形。球面对极两点间有无穷多条等长的大圆，测地线\textbf{不唯一}。无论怎么实现都消灭不了，根源是 $\pi_1(SO(3))=\mathbb{Z}_2$。
+\end{itemize}
+
+\textbf{四元数的符号问题}：$q$ 与 $-q$ 是同一旋转。若 $\langle q_0,q_1\rangle<0$，slerp 走的是长弧。所以必须先做
+\[
+\texttt{if }\langle q_0,q_1\rangle<0:\ q_1\gets -q_1 .
+\]
+这不是数值技巧，是\textbf{在两个对极代表里挑离得近的那个}——几何上就是选大圆的哪一半。
+
+\subsection{BR1.5 指数映射：slerp 的真名}
+
+在 $p$ 处 $T_pS^n=p^\perp$。定义
+\[
+\exp_p(v)=\cos\lVert v\rVert\,p+\sin\lVert v\rVert\,\frac{v}{\lVert v\rVert},
+\]
+这正是 $\ddot\gamma=-\gamma$ 以 $v$ 为初速度的解。于是
+\[
+\boxed{\ \mathrm{slerp}(q_0,q_1;t)=\exp_{q_0}\big(t\cdot\log_{q_0}(q_1)\big)\ }
+\]
+其中 $\log_{q_0}(q_1)$ 是“从 $q_0$ 指向 $q_1$、长度为球面距离”的切向量。
+
+\textbf{这一步是本篇关键}：slerp 是\textbf{流形上的指数映射在等速参数下的像}。换到李群语言就是：$S^3=SU(2)$ 上的测地线就是单参数子群 $t\mapsto\exp(tX)$。所以
+\[
+\text{大圆}\;=\;\text{测地线}\;=\;\text{单参数子群}\;=\;\text{指数映射的像}
+\]
+这四件事在“紧李群 + 双不变度量”的场合是同一件事。
+
+用四元数乘法写更直白：相对旋转 $r=q_0^{-1}q_1=\cos\frac\theta2+\sin\frac\theta2\hat n$，则
+\[
+q(t)=q_0\otimes\left(\cos\frac{t\theta}{2}+\sin\frac{t\theta}{2}\hat n\right),
+\]
+与球面 slerp 同形，因为左乘 $q_0$ 是 $S^3$ 的等距变换，等距把测地线映成测地线。
+
+\subsubsection{等变性：为什么 slerp 是“几何量”}
+
+左乘、右乘都是 $S^3$ 的等距（双不变度量），所以
+\[
+\mathrm{slerp}(aq_0,aq_1;t)=a\,\mathrm{slerp}(q_0,q_1;t).
+\]
+\textbf{路径不依赖坐标系}。这是“几何量”与“坐标技巧”的分界：slerp 不是被定义的，是被群作用钉死的。
+
+\subsection{BR1.6 发散：从大圆能牵出什么}
+
+\begin{enumerate}
+  \item \textbf{球面距离与余弦相似度}。$d(p,q)=\arccos\langle p,q\rangle$。归一化 embedding 住在球面上，“最像”$=$ 球面距离最近 $=$ 大圆最短。
+  \item \textbf{共轭点}。测地线的线性化是 Jacobi 方程
+  \[
+  \ddot J+R(J,\dot\gamma)\dot\gamma=0 .
+  \]
+  单位球面上 $R=\mathrm{id}$（切向上），故 $\ddot J+J=0$，解为 $\sin$，在弧长 $\pi R$ 处 $J=0$。\textbf{对极点就是共轭点}。共轭点的意义：到那里测地线不再是唯一极小者（Jacobi 场告诉你可以岔开）——这精确解释了 $\Omega=\pi$ 时 slerp 不唯一。
+  \item \textbf{高斯--博内}。三条大圆弧围成的测地三角形满足
+  \[
+  \alpha+\beta+\gamma=\pi+\int_\triangle K\,dA=\pi+\frac{A}{R^2}.
+  \]
+  球面上三角形“胖”了，多出的面积正比于曲率。\textbf{曲率的全局指纹}：在球面上做几何，角度的账永远差一块面积。
+  \item \textbf{平行移动与 holonomy}。沿大圆把切向量平行搬一圈回来，仍转过 $\int K\,dA$ 的角度。大圆测地曲率为零，是“最不转”的路径，但一圈下来还是转了——球面是弯的。这解释图形学里“绕一圈的旋转不是恒等”（$SO(3)$ 的 holonomy，根源是 $\pi_1(SO(3))=\mathbb{Z}_2$）。
+  \item \textbf{常曲率三分}。球面 $K>0$（大圆）、欧氏 $K=0$（直线）、双曲 $K<0$（半圆/直线）。“直线”的样子完全由曲率符号决定，这是黎曼几何第一课。
+  \item \textbf{多点插值会出事}。球面不是向量空间，de Casteljau 不能随便搬。三个以上四元数做 spline 要用 squad 或直接在李代数上做。\textbf{原因}：不存在满足所有公理的“球面线性平均”——球面没有线性结构，只有测地中点，而测地中点不满足结合律。多个四元数的“平均”要用 Karcher（Fréchet）均值，迭代求解。
+\end{enumerate}

@@ -1,0 +1,211 @@
+%==============================================================
+\section{BR2. 正交基、傅里叶、正态特征函数与拉普拉斯变换}
+\label{sec:br2}
+%==============================================================
+
+本篇要立一根骨架，然后你会看到四个名词全是它的方言：
+\[
+\text{一切变换}\;=\;\text{选基}\;+\;\text{对角化},\qquad
+f=\sum_k\langle f,e_k\rangle e_k .
+\]
+
+\subsection{BR2.1 骨架：为什么偏偏选复指数}
+
+内积空间里若 $\{e_k\}$ 正交归一（$\langle e_j,e_k\rangle=\delta_{jk}$），则
+\[
+f=\sum_k\langle f,e_k\rangle e_k .
+\]
+\textbf{系数就是内积，没有别的。} 对照泰勒展开：$\{1,x,x^2,\dots\}$ 不正交，系数只能靠求导，很别扭。
+
+\textbf{为什么选复指数}：
+\[
+\frac{d}{dx}e^{inx}=in\,e^{inx},
+\]
+即\textbf{在傅里叶基下，微分算子是对角的}（$d/dx\leftrightarrow\mathrm{diag}(in)$）。这就是傅里叶变换能把微分方程变成代数方程的真正原因——不是巧合，是选对了基。
+
+\subsubsection{Sturm--Liouville 框架}
+
+任何二阶自伴算子
+\[
+L=-\frac{d}{dx}\left(p\frac{d}{dx}\right)+q
+\]
+配上合适边界条件，都有完备正交本征函数系，$L\phi_n=\lambda_n w\phi_n$。\textbf{选哪个基，取决于解哪个算子、在哪个区域}：
+
+\begin{center}
+\begin{tabular}{L{4.2cm}L{3.2cm}L{4.5cm}}
+\toprule
+\textbf{算子 / 区域} & \textbf{本征函数} & \textbf{出现场合} \\
+\midrule
+$d^2/dx^2$，周期 & $e^{inx}$ & 傅里叶级数 \\
+球坐标 $\theta$ 方向 & 勒让德 $P_l$ & 球谐、氢原子 \\
+柱坐标 & 贝塞尔 $J_\nu$ & 圆膜振动、热传导 \\
+$d^2/dx^2-x^2$（谐振子） & Hermite $H_ne^{-x^2/2}$ & \textbf{傅里叶变换的本征函数} \\
+区间 $(0,\infty)$ & 拉盖尔 & 氢原子径向 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{倒数第二行是整篇的伏笔}：Hermite 函数满足
+\[
+\mathcal{F}[\psi_n]=(-i)^n\psi_n,\qquad n=0:\ \ \mathcal{F}\left[e^{-x^2/2}\right]=e^{-\omega^2/2}.
+\]
+\textbf{高斯是傅里叶变换的不动点（本征值 1）}。后面所有“正态为什么特殊”的问题，答案都是它。
+
+\subsection{BR2.2 傅里叶级数到傅里叶变换：只是基变连续}
+
+周期 $T$ 的函数：
+\[
+f(x)=\sum_n c_ne^{i\omega_n x},\quad
+c_n=\frac1T\int_{-T/2}^{T/2}f\,e^{-i\omega_n x}dx,\quad
+\omega_n=\frac{2\pi n}{T}.
+\]
+令 $T\to\infty$：频率间隔 $\Delta\omega=2\pi/T\to 0$，求和变积分：
+\[
+f(x)=\frac{1}{2\pi}\int\hat f(\omega)e^{i\omega x}d\omega,\qquad
+\hat f(\omega)=\int f(x)e^{-i\omega x}dx .
+\]
+严谨化需要 Plancherel 定理（$L^2$ 等距同构）与谱定理。
+
+\subsubsection{Pontryagin 对偶：级数与变换不是两种东西}
+
+傅里叶变换是\textbf{平移群表示的“对角化”}，特征标是 $e^{i\omega x}$。而
+\[
+\widehat{\mathbb{R}}\cong\mathbb{R},\qquad
+\widehat{\mathbb{Z}}\cong S^1,\qquad
+\widehat{S^1}\cong\mathbb{Z}.
+\]
+\textbf{周期函数就是 $S^1$ 上的函数，它的对偶是 $\mathbb{Z}$，所以傅里叶级数的系数是“$\mathbb{Z}$ 上的函数”（离散谱）}。级数与变换是同一对偶框架在两个群上的样子，这就是“离散谱与连续谱”的终极解释。
+
+\subsection{BR2.3 特征函数：概率论里的傅里叶变换}
+
+\[
+\varphi_X(t)=\mathbb{E}[e^{itX}]=\int e^{itx}dF(x).
+\]
+\textbf{傅里叶变换的所有定理，立刻变成概率论定理}：
+
+\begin{center}
+\begin{tabular}{L{4.5cm}L{6.5cm}}
+\toprule
+\textbf{傅里叶} & \textbf{概率} \\
+\midrule
+变换是单射 & $\varphi_X$ 唯一决定分布 \\
+卷积 $\leftrightarrow$ 乘积 & $X\perp Y$ 时 $\varphi_{X+Y}=\varphi_X\varphi_Y$ \\
+求导 $\leftrightarrow$ 乘 $x$ & $\varphi^{(k)}(0)=i^k\mathbb{E}[X^k]$ \\
+反转公式 & $f(x)=\frac{1}{2\pi}\int e^{-itx}\varphi(t)dt$ \\
+高斯自对偶 & $N(0,1)$ 的 $\varphi$ 与密度同形 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR2.4 正态特征函数的严格计算}
+
+$X\sim N(0,1)$：
+\[
+\varphi(t)=\frac{1}{\sqrt{2\pi}}\int e^{-x^2/2+itx}dx .
+\]
+配方：$-x^2/2+itx=-\frac12(x-it)^2-\frac{t^2}{2}$，于是
+\[
+\varphi(t)=e^{-t^2/2}\cdot\frac{1}{\sqrt{2\pi}}
+\int_{\mathbb{R}}e^{-\frac12(x-it)^2}dx .
+\]
+
+\textbf{关键不是配方，是“为什么可以把路径从实轴移到 $\mathrm{Im}\,z=-t$”}：
+
+取矩形围道（上下边 $\mathrm{Im}=0$ 与 $\mathrm{Im}=-t$，两侧竖边 $\pm R$）。$e^{-z^2/2}$ 在 $\mathbb{C}$ 上\textbf{整}，矩形内积分为零。两侧竖边上
+$|e^{-z^2/2}|=e^{-(R^2-y^2)/2}\to0$（$|y|\le|t|$ 一致），故\textbf{上下两边积分相等}：
+\[
+\int_{\mathbb{R}}e^{-\frac12(x-it)^2}dx=\int_{\mathbb{R}}e^{-x^2/2}dx=\sqrt{2\pi}.
+\]
+所以 $\varphi(t)=e^{-t^2/2}$。一般 $N(\mu,\sigma^2)$：
+\[
+\boxed{\ \varphi(t)=\exp\left(i\mu t-\frac{\sigma^2t^2}{2}\right)\ }
+\]
+它和密度函数\textbf{形状完全相同}——这是 BR2.1 那条 Hermite 本征性质的直接后果。
+
+\subsection{BR2.5 中心极限定理：用 Taylor 展开看“为什么是高斯”}
+
+$X_i$ iid、均值 $0$、方差 $1$，$S_n=\frac{1}{\sqrt n}\sum X_i$：
+\[
+\varphi_{S_n}(t)=\left[\varphi\left(\frac{t}{\sqrt n}\right)\right]^n .
+\]
+原点附近 $\varphi(t)=1-\frac{t^2}{2}+o(t^2)$，故
+\[
+\varphi_{S_n}(t)=\left(1-\frac{t^2}{2n}+o\left(\frac1n\right)\right)^n\longrightarrow e^{-t^2/2}.
+\]
+再由 Lévy 连续性定理（特征函数逐点收敛 $\Rightarrow$ 分布弱收敛）得 $S_n\Rightarrow N(0,1)$。
+
+\textbf{本质}：所有分布的特征函数在原点附近都长得像 $1-t^2/2$，而它就是高斯特征函数对数的一阶近似。取 $n$ 次幂，高阶项被 $1/n$ 压死，只剩高斯。
+
+\subsubsection{隐藏条件：方差必须有限}
+
+若方差无限（如 Cauchy），$\varphi$ 在原点附近不是 $1-t^2/2$ 而是 $1-c|t|^\alpha$（$\alpha<2$），收敛到\textbf{稳定分布}：
+\[
+\varphi(t)=\exp\left(i\mu t-c|t|^\alpha\left(1-i\beta\,\mathrm{sgn}(t)\,\Phi(t,\alpha)\right)\right),
+\]
+$\alpha=2$ 是高斯，$\alpha=1$ 是 Cauchy。\textbf{“高斯特殊不特殊”的答案是：它是所有稳定分布里唯一二阶矩有限的（$\alpha=2$），因此也是 CLT 唯一的归宿}。这从背面把高斯钉死。
+
+\subsection{BR2.6 拉普拉斯变换：给傅里叶加一扇窗}
+
+\[
+\mathcal{L}[f](s)=\int_0^\infty f(t)e^{-st}dt,\qquad s=\sigma+i\omega .
+\]
+精确关系：
+\[
+\mathcal{L}[f](\sigma+i\omega)=\mathcal{F}\left[f(t)e^{-\sigma t}\mathbf{1}_{t>0}\right](\omega).
+\]
+\textbf{拉普拉斯 $=$ 单边 $+$ 乘指数衰减窗的傅里叶变换}。$e^{-\sigma t}$ 把指数增长的 $f$ 压成可积；$\sigma$ 的自由度就是收敛域（ROC）。
+
+\subsubsection{为什么工程上更爱拉普拉斯}
+
+\begin{enumerate}
+  \item \textbf{初值自动进门}：$\mathcal{L}[f']=sF(s)-f(0)$。求导变乘 $s$，初值变成加项，ODE 初值问题直接变代数方程——传递函数 $H(s)$ 的来源。
+  \item \textbf{因果性}：$t>0$ 才有，卷积是 $[0,\infty)$ 上的卷积。
+  \item \textbf{极点即模态}：极点 $\pm i\omega_0$ 等幅振荡；实部 $<0$ 衰减；实部 $>0$ 发散。\textbf{稳定性判据变成“极点在哪半个平面”}。
+  \item \textbf{三件套}：$s=i\omega$ 是稳态（傅里叶），$z=e^{sT}$ 是离散（$z$ 变换），$s$ 平面是连续频域。
+\end{enumerate}
+
+\subsubsection{与矩生成函数的关系}
+
+矩生成函数 $M(t)=\mathbb{E}[e^{tX}]$，特征函数 $\varphi(t)=\mathbb{E}[e^{itX}]$，故
+\[
+\varphi(t)=M(it).
+\]
+\textbf{同一个函数在实轴与虚轴上的两副面孔}。正态的
+\[
+M(t)=\exp\left(\mu t+\frac{\sigma^2t^2}{2}\right),\qquad
+\varphi(t)=\exp\left(i\mu t-\frac{\sigma^2t^2}{2}\right)
+\]
+正好是 $t\to it$ 的解析延拓。\textbf{正态是唯一让 MGF 与 CF 都闭式、且互为解析延拓的那一档}（因为它的对数在 $t$ 上是二次的，二次函数在旋转下闭）。
+
+\subsection{BR2.7 不确定性原理与“最集中”}
+
+正交基的完备性 + Plancherel 等距性推出：$f$ 与 $\hat f$ 不能同时窄。
+\[
+\sigma_x\,\sigma_\omega\ge\frac12,
+\]
+等号\textbf{恰好}在高斯时成立。检验：$f=e^{-x^2/4\sigma^2}$，$\hat f$ 宽度 $1/\sigma$，乘积为常数。
+
+\textbf{三者锁在一起}：正交基完备 $\Rightarrow$ 不确定性 $\Rightarrow$ 高斯自对偶。
+
+\subsection{BR2.8 三处补充}
+
+\subsubsection{（一）热核就是高斯}
+
+热方程 $u_t=\Delta u$，傅里叶变换后 $\hat u_t=-|\xi|^2\hat u$，故
+$\hat u(\xi,t)=e^{-t|\xi|^2}\hat u_0(\xi)$。逆变换（高斯自对偶 + 缩放）：
+\[
+u(x,t)=(G_t*u_0)(x),\qquad G_t(x)=(4\pi t)^{-n/2}e^{-|x|^2/4t}.
+\]
+\textbf{热核就是高斯}。“抹平初始条件”的高斯刷子，在频域里是乘 $e^{-t|\xi|^2}$——一个对角算子。这是“正交基把算子对角化”最实用的一次。
+
+\subsubsection{（二）小波：局部化的正交基}
+
+傅里叶基在空间上无穷宽、在频率上无穷窄（一条线）；小波基相反，是\textbf{时频平面铺砖}。两者同为 $L^2$ 正交基，差别只是砖怎么切。\textbf{选基的第三条依据}：除对称性与算子，还有“你关心的东西是局部还是全局”。
+
+\subsubsection{（三）Mercer 核与 KL 展开}
+
+正定核
+\[
+K(x,y)=\sum_k\lambda_k\phi_k(x)\overline{\phi_k(y)}
+\]
+是协方差算子的谱分解。高斯核对应的 $\phi_k$ 是 Hermite 函数（Mehler 核），所以\textbf{高斯核也是“高斯”}——这是高斯过程处处见闭式解的原因。PCA 是有限维版本的同一件事。
