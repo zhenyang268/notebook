@@ -126,8 +126,8 @@ def check_quick():
         else:
             n += 1
             text = p.read_text(encoding="utf-8")
-            if len(text) < 2500:
-                err(f"[quick] {w} 过短（{len(text)} 字），一小时通讲不应少于 2500 字")
+            if len(text) < 5000:
+                err(f"[quick] {w} 过短（{len(text)} 字符），按大纲详解不应少于 5000 字符")
     return n
 
 
