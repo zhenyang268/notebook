@@ -1,5 +1,5 @@
-# kaoyan/ 是嵌套的独立 git 仓（有自己的 .git 与 remote），本仓不跟踪
-kaoyan/
+# 2026-11-01：kaoyan/ 已并入本仓（原内嵌独立仓的 .git 已移除，仅 1 个 init 提交）
+# 本仓即 `11408-notebook` 远程仓的全部内容：math/ + kaoyan/ + projects/
 
 # LaTeX 编译产物
 *.aux
