@@ -96,23 +96,28 @@ def check_exam(kps):
 
 
 def check_projects():
-    """每个项目一个目录，两件套 OUTLINE / NOTES（2026-11-02 起；QUICK 已废除）。"""
+    """每个项目一个目录，两件套 OUTLINE / NOTES（2026-11-02 起；QUICK/DESIGN 已废除）。
+
+    两个位置都查：`projects/`（工程侧）与 `kaoyan/projects/`（考纲相关，必须有对位考点）。
+    """
     n = 0
-    d = ROOT / "projects"
-    if not d.exists():
-        return 0
-    for sub in sorted(d.iterdir()):
-        if not sub.is_dir():
+    # 注意：本文件里 ROOT 是 kaoyan/ 目录
+    for d, need_kp in ((ROOT.parent / "projects", False), (ROOT / "projects", True)):
+        if not d.exists():
             continue
-        n += 1
-        for name in ("OUTLINE.md", "NOTES.md"):
-            if not (sub / name).exists():
-                err(f"[projects] {sub.name}/ 缺 {name}")
-        if (sub / "QUICK.md").exists():
-            err(f"[projects] {sub.name}/ 仍有已废除的 QUICK.md")
-        notes = sub / "NOTES.md"
-        if notes.exists() and "## 对位考点" not in notes.read_text(encoding="utf-8"):
-            warn(f"[projects] {sub.name}/NOTES.md 缺「对位考点（单向引用）」一节")
+        where = d.relative_to(ROOT.parent)
+        for sub in sorted(x for x in d.iterdir() if x.is_dir()):
+            n += 1
+            for name in ("OUTLINE.md", "NOTES.md"):
+                if not (sub / name).exists():
+                    err(f"[projects] {where}/{sub.name}/ 缺 {name}")
+            for dead in ("QUICK.md", "DESIGN.md"):
+                if (sub / dead).exists():
+                    err(f"[projects] {where}/{sub.name}/ 仍有已废除的 {dead}")
+            if need_kp:
+                o = sub / "OUTLINE.md"
+                if o.exists() and "对位考点" not in o.read_text(encoding="utf-8"):
+                    err(f"[projects] {where}/{sub.name}/OUTLINE.md 缺「对位考点（单向引用）」行")
     return n
 
 
