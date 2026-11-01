@@ -33,7 +33,9 @@ notebook/
 
 ## 三条边界
 
-1. **`kaoyan/` 是嵌套独立仓**，有自己的 `.git` 与 remote，本仓不跟踪它。改动在 `kaoyan/` 内单独提交。
+1. **本仓是单一 git 仓**：`math/` `kaoyan/` `projects/` 共用同一个 `.git`，remote 沿用原 `11408-notebook`
+   （`origin` = GitHub `zhenyang268/11408-notebook`，**该仓未创建**；`gitee` = `we_we_we/11408-notebook`）。
+   （2026-11-01 之前 `kaoyan/` 曾是内嵌独立仓，已合并；**不要再找 `kaoyan/.git`**。）
 2. **`projects/` 与 `kaoyan/projects/` 的分界**：能对上考纲 KP 的进 `kaoyan/projects/`（受 `lint.py` 的「对位考点」检查约束）；对不上的进本层 `projects/`。
 3. **`math/bridges/` 是"跨篇串讲"**，不是新知识点。它的内容是篇与篇之间的连接，读法是"回头贯通"，不是"逐篇学"。
 
