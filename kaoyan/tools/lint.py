@@ -71,10 +71,15 @@ def check_exam(kps):
         if not re.match(r"^\d{2}-.+\.md$", p.name):
             err(f"[exam] 文件名不合规（应为一章一文件 NN-章名.md）：{rel}")
         # 章内必须至少引用一个合法 KP，且不得引用 syllabus 里没有的 KP
-        refs = set(re.findall(r"`((?:408|M1)-[A-Z]{2,3}-\d{2,4})`", text))
+        refs = set(re.findall(r"`((?:408|M1|E1|P1)-[A-Z]{2,3}(?:-\d{2,8})?)`", text))
         if not refs:
             err(f"[exam] 全章没有引用任何 KP：{rel}")
         for kp in sorted(refs):
+            if kp.startswith(("E1-", "P1-")):
+                # 英政按题型/模块建主键，只有前缀两级，允许不带数字
+                if not re.match(r"^(E1-[A-Z]{2}|P1-[A-Z]{2})(-\d{2,8})?$", kp):
+                    err(f"[exam] KP 格式不合法：{rel} -> {kp}")
+                continue
             if not KP_RE.match(kp):
                 err(f"[exam] KP 格式不合法：{rel} -> {kp}")
             elif kp not in kps:
