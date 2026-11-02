@@ -113,3 +113,5 @@
 - 2026-11-02 · 全仓重做（quick/note/exam/words/projects）· 按交接包 `HANDOFF/` 重做五层：quick 九份三合一速通稿（408 分四科）、note 184 个考点×真题复合版（思路 849 条与坑 849 条一一对应）、exam 59 篇分章详解（一章一文件）、单词书 26 组 5520 词 + 每组短文、10 个项目 OUTLINE（四段：在做什么 / 为什么这样做 / 章节大纲 / 不做什么）+ 双语版；删除全部 QUICK.md 与 talk/；syllabus 补档位与真题落点；覆盖率 100%，`verify.py` 与 `lint.py` 全绿
 
 - 2026-11-02 · projects 归并 + 真题扩容 · 工程线 5 个项目从 `kaoyan/projects/` 移入仓根 `projects/`；新增 `jos` `linux-api` `cpp-basics` `python-basics` 四个项目（各 10 章 NOTES）；14 个项目的 OUTLINE 补 `## 五、面试怎么讲`（口径模板，不冒充已完成）；真题库从 2021–2024 扩到 **2016–2024 共 9 年 360 道选择题**（题干照录，思路/坑由原解析压缩）
+
+- 2026-11-02 · projects 第三轮（能力方法论）· 新增 7 个项目：`perf-engineering`（8 章：指标口径→benchmark→profiling→火焰图→内存/IO/锁→压测→扩展性）、`testing`（9 章：金字塔→UT 边界→替身→覆盖率骗局→集成契约→冒烟回归→property/fuzz→flaky→CI 门禁）、`database`（12 章：存储引擎→B+ 树→LSM→ACID→隔离级别→MVCC→锁→WAL→优化→复制→**一致性四层串讲**）、`debug-toolchain`（8 章：core dump→gdb→ASan→UBSan→TSan→strace→/proc→可观测性）、`system-design`（8 章：量级估算→缓存→限流→MQ→分库分表→短链→秒杀→高可用）、`latent-issues`（12 章：**惊群**→伪共享→ABA→优先级反转→活锁→缓存击穿→队头阻塞→TIME_WAIT→fd 耗尽→碎片→Nagle/延迟 ACK→EINTR）、`algorithm-interview`（8 类题型 × 8–10 题）
