@@ -96,28 +96,23 @@ def check_exam(kps):
 
 
 def check_projects():
-    """每个项目一个目录，两件套 OUTLINE / NOTES（2026-11-02 起；QUICK/DESIGN 已废除）。
+    """工程线全部在仓根的 `projects/`（2026-11-02 起，kaoyan/projects 已并入）。
 
-    两个位置都查：`projects/`（工程侧）与 `kaoyan/projects/`（考纲相关，必须有对位考点）。
+    每个项目一个目录，两件套 `OUTLINE.md` + `NOTES.md`（英文版 `OUTLINE.bi.md` 可选成对）。
+    `QUICK.md` / `DESIGN.md` 已废除。
     """
+    d = ROOT.parent / "projects"
+    if not d.exists():
+        return 0
     n = 0
-    # 注意：本文件里 ROOT 是 kaoyan/ 目录
-    for d, need_kp in ((ROOT.parent / "projects", False), (ROOT / "projects", True)):
-        if not d.exists():
-            continue
-        where = d.relative_to(ROOT.parent)
-        for sub in sorted(x for x in d.iterdir() if x.is_dir()):
-            n += 1
-            for name in ("OUTLINE.md", "NOTES.md"):
-                if not (sub / name).exists():
-                    err(f"[projects] {where}/{sub.name}/ 缺 {name}")
-            for dead in ("QUICK.md", "DESIGN.md"):
-                if (sub / dead).exists():
-                    err(f"[projects] {where}/{sub.name}/ 仍有已废除的 {dead}")
-            if need_kp:
-                o = sub / "OUTLINE.md"
-                if o.exists() and "对位考点" not in o.read_text(encoding="utf-8"):
-                    err(f"[projects] {where}/{sub.name}/OUTLINE.md 缺「对位考点（单向引用）」行")
+    for sub in sorted(x for x in d.iterdir() if x.is_dir()):
+        n += 1
+        for name in ("OUTLINE.md", "NOTES.md"):
+            if not (sub / name).exists():
+                err(f"[projects] {sub.name}/ 缺 {name}")
+        for dead in ("QUICK.md", "DESIGN.md"):
+            if (sub / dead).exists():
+                err(f"[projects] {sub.name}/ 仍有已废除的 {dead}")
     return n
 
 
@@ -211,7 +206,7 @@ def check_links():
                 continue
             for m in re.finditer(r"`(exam/[^`]+?\.md|projects/[^`]+?\.md)`", line):
                 t = m.group(1)
-                if (ROOT / t).exists():
+                if (ROOT / t).exists() or (ROOT.parent / t).exists():
                     continue
                 if "*" in t or "…" in t or "<" in t or "xxx" in t or "名.md" in t:
                     continue      # 通配符 / 占位示例，不当作真实路径

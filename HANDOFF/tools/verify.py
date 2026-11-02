@@ -74,7 +74,7 @@ def verify_note(d):
     if not files:
         fail('note 下没有任何 md 文件')
         return
-    YEARS = {2021, 2022, 2023, 2024}      # exam/真题/ 里实际存在的年份，白名单
+    YEARS = set(range(2016, 2025))        # exam/真题/ 里实际存在的年份（2016–2024），白名单
     tot_si, tot_keng = 0, 0
     for p in files:
         txt = p.read_text(encoding='utf-8')
@@ -94,7 +94,7 @@ def verify_note(d):
             fail(f'{p.relative_to(ROOT)} 出现了答案（本层不写答案）')
         bad = sorted({int(y) for y in re.findall(r'(20\d{2})\s*(?:年|#)', txt)} - YEARS)
         if bad:
-            fail(f'{p.relative_to(ROOT)} 引用了真题库里不存在的年份 {bad}（只允许 2021–2024）')
+            fail(f'{p.relative_to(ROOT)} 引用了真题库里不存在的年份 {bad}（只允许 2016–2024）')
     info(f'note：{len(files)} 个考点文件，思路 {tot_si} 条，坑 {tot_keng} 条')
 
 # ---------- exam 真题 ----------

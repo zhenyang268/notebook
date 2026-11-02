@@ -93,3 +93,48 @@ python3 kaoyan/tools/lint.py
 
 **新增脚本**：`.gen/w4/kp_link.py`（给 `kaoyan/projects/*/OUTLINE.md` 注入对位考点）。
 **顺序纪律**：`assemble.py proj` 会整体重写 OUTLINE，所以永远是 **assemble → kp_link**，否则 lint 会报 5 个错。
+
+## 八、第三轮（2026-11-02 中午）：projects 归并与面试化 + 真题补到 9 年
+
+用户三条要求，逐条落地：
+
+### 1. 工程线全部搬到 `projects/`
+`kaoyan/projects/{6824,cs144,csapp,nand2tetris,algorithm}` 用 `git mv` 整体移入 `projects/`，
+`kaoyan/` 不再有任何项目目录。连带改动：`lint.py` 的 `check_projects` 改查仓根、
+`check_links` 同时认两种相对路径、`AGENTS.md`/`kaoyan/README.md`/根 `README.md` 全部改口径。
+
+### 2. 补 4 个项目 + 全部项目「面试怎么讲」
+| 新增 | 内容 |
+|---|---|
+| `projects/jos/` | MIT 6.828 JOS：引导 → 页表 → trap → 调度 → COW → IPC → 文件系统，10 章 |
+| `projects/linux-api/` | APUE 口径的系统编程：fd 语义、fork/exec/wait、信号、线程、IPC、socket，10 章 |
+| `projects/cpp-basics/` | 对象模型、RAII、移动语义、智能指针、模板、STL、异常安全、并发、UB，10 章 |
+| `projects/python-basics/` | 对象模型、迭代协议、装饰器、GIL、asyncio、GC、类型标注，10 章 |
+
+14 个项目的 `OUTLINE.md` 全部追加第五节 `## 五、面试怎么讲`（30 秒版本 + 6–8 个追问点 + 别说什么）。
+**口径纪律**：第一版写成「我写完了 JOS、make grade 全绿」这类完成断言，明显越界——
+重写为「可以照着说的口径模板」，并明确「没做到那一步就停在事实边界」。14 块全部重跑。
+
+### 3. 真题从 4 年补到 9 年（160 → 360 题）
+- 抓 `csgraduates.com` 的 2016–2020 五年公开页面（脚本 `zhenti_parse.py`），
+  解析出**题干、选项、原解析、知识点标签**；
+- 模型只做一件事：把原解析压成「**思路** + **坑**」，**不许写答案字母**；
+- 拼装按题号排序（`assemble_zhenti.py`），缺的题号单独补跑（`zhenti_fix.py`）。
+
+**踩到的坑（已写成机制）**：
+- 一块给 10 题时模型会「收尾」——2019 年一次丢了 15 题（26–40）。所以**补跑一律 ≤5 题/块**；
+- 2017 第 8 题整题是四张二叉树图，选项是图片，只能保留题干 + 标注「原卷四图从略」；
+- 拼装脚本的 glob 一开始写成 `zfix-{year}-*`，补漏文件叫 `zfix3-*` 就漏掉了——
+  文件名前缀一变，拼装必须重新核对（这次靠「拼完统计题数」才发现）。
+
+### 现状
+| 层 | 数量 |
+|---|---|
+| quick | 9 份 |
+| note | 184 考点（思路 849 / 坑 849） |
+| exam 分章 | 59 篇 |
+| exam/真题 | **9 年 360 题**（2016–2024） |
+| words | 30 组 + 大纲补全（5530/5530） |
+| projects | **14 个**（两件套 + 10 份双语 + 14 节面试口径） |
+
+`lint.py` 0 错 0 警、`verify.py` 覆盖率 100%、五道闸门全 PASS。

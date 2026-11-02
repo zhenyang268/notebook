@@ -1,0 +1,100 @@
+## 一、它在做什么
+
+这个项目要从「一台刚上电的 PC」写到「一个能跑用户程序的操作系统」。输入是 QEMU 模拟出来的一台 x86 机器：BIOS 固件、一段物理内存、一块 IDE 磁盘、一个串口、一片 8259A 中断控制器和一颗（或几颗）CPU；起点只有 BIOS 和一段 512 字节的引导扇区。输出是一个内核镜像加若干用户态程序，被写进磁盘镜像后能在 QEMU 里自举起来。
+
+验收不看代码行数，看可观察的行为：开机能从引导扇区接管，进入保护模式并跑到 C 的 `i386_init`；内核打印出物理内存地图；打开分页后，`0xf0100000` 以上是内核，`0xef800000` 附近能只读地看到所有进程的 `Env` 结构；敲键盘串口有回显；用户态 shell 起来后能执行 `cat`、`ls`、`forktree`、`primes`；`fork` 出来的子进程改自己的变量不影响父进程；两个进程通过管道把素数从 2 筛到几千；写文件、重启、再读，内容还在。
+
+一句话：把「进程、地址空间、系统调用、文件、管道」这五件事，从硬件给的裸资源上亲手长出来，而不是调用一个已有的内核。
+
+## 二、为什么这样做（功能设计）
+
+**用自家 Boot Loader 替掉 GRUB。** BIOS 只保证把第一个扇区搬到 `0x7c00` 并以实模式跳过去，剩下都是自己的事。引导器要关中断、开 A20、装 GDT、置 `CR0.PE` 切保护模式、把内核 ELF 的每个 program header 从磁盘搬到其链接地址、跳到入口。内核链接在 `0xF0100000`（虚拟）、物理落在 `0x100000`，靠一张手工写的静态页目录在开启分页的瞬间完成这个跳变。不用 multiboot 的代价是放弃通用性（这个内核只能被自己的 loader 启动），收益是 GDT、段选择子、ELF、页目录这些后面 trap 和内存管理要反复用的东西，在这里第一次被摸清楚。
+
+**物理内存：从 e820 地图到 PageInfo 空闲链表。** 拿到的是一串「可用/保留」区间，不可靠性有三层：低 1MB 塞满 ROM 与 MMIO 空洞，不能当普通 RAM；内核自身与 boot 栈占住 `[0x100000, end)`；后面的 COW、fork、IPC 都需要按页粒度的引用计数。做法是早期用 `boot_alloc` 做 bump 分配，把 `pages[]` 数组和页表建起来，再为每个 4KB 页建 `struct PageInfo{ pp_link, pp_ref }`，串成空闲链表。不用更简单的位图：位图给不出引用计数，而 `pp_ref` 是写时复制与共享页的地基。
+
+**页表：两级，且必须让用户态「看得见」。** 自己实现 `pgdir_walk`、`page_insert`、`page_remove`、`page_lookup`，掌握 PTE 的 P/W/U 位语义与 TLB 维护（`invlpg`、换 `CR3`）。关键约定是两条只读映射：`UVPT` 把页目录自身映射成用户可读的页表树，用户程序因此能在用户态遍历自己的地址空间（`pgfault` 处理与 COW 判定都要用）；`UENVS` 把 `envs[]` 只读映射给用户，`forktree` 这类程序才能读到别的进程状态。为什么不用恒等映射图省事：恒等映射给不了每进程独立地址空间，保护、COW、`uvpt` 全部落空。
+
+**用户环境与异常。** 用 `struct Env` 表进程，`envid_t` 不是数组下标，而是「下标 + 复用计数」拼出来的复合 id，`envid2env` 校验计数，杜绝 id 回收后的悬空引用——这是整套代码里最值得学的一个小设计。异常走 IDT 256 项：`trapentry.S` 用汇编宏给每个向量生成小桩（压陷阱号、必要时压错误码），统一跳到 `alltraps`，按 `Trapframe`/`PushRegs` 的固定布局保存现场；C 结构体字段顺序必须和汇编压栈顺序逐字节对齐，错一个字段就是随机崩溃。
+
+**中断不是可选项。** 8259A 要重映射到 `0x20–0x2F` 避开 CPU 异常向量；时钟中断提供抢占，串口中断提供输入。只靠轮询的话，一个死循环用户程序就能独占 CPU，`spin` 也永远停不下来。代价是要认真处理 `cli/sti`、EOI 顺序和「中断处理中被中断」。
+
+**系统调用入口。** 用户经汇编桩执行 `int $0x30`，内核在 `trap()` 里识别 `T_SYSCALL`，把 trapframe 里的寄存器当参数，用函数指针表分发。`fork` 被拆成三步：`sys_exofork` 造一个「寄存器清零、状态不可运行」的 env，父进程逐页 `duppage` 建立映射，最后 `sys_env_set_status` 设为可运行。拆开的好处是每一步都能单独观察。
+
+**fork 与写时复制。** 全量拷贝在「fork 后立刻 exec」的场景里是纯浪费，`forktree` 还会瞬间吃光物理页。做法是 `duppage` 时清掉 PTE 的写位、打上自定义的 `PTE_COW`（借用 x86 PTE 的三个软件可用位），父子共享同一物理页、`pp_ref` 加一；写缺页时在 `page_fault_handler` 里用错误码的写位加 `PTE_COW` 判定，分配新页、拷贝、恢复可写。难点在两处：必须区分「COW 缺页」与真正的非法访问；用户栈溢出要走 `UXSTACKTOP` 上的 upcall，让用户态 `pgfault` 自己决定怎么修。代价是缺页路径成了热路径，判定写错就表现为难以复现的随机错误。
+
+**文件系统放用户态。** IDE 磁盘上是一套简化 FS：superblock、位图、inode、数据块。内核只提供 IPC 与 `sys_page_map`，真正的解析和块缓存在一个用户态 `fs` 进程里，读写数据靠把缓冲区页映射给调用方。为什么不塞进内核：内核里写磁盘驱动加缓存加并发保护，工作量和出错面都大得多；放用户态后崩溃可重启、逻辑可单测。代价是每次读写一次 IPC 往返，`fs` 自己维护 offset 与缓存一致性。
+
+**IPC 用同步会合。** 每个 env 有 `env_ipc_value`/`env_ipc_from`/`env_ipc_perm`，`ipc_send` 把值和可选的一页共享内存交给对方，`ipc_recv` 阻塞直到有人来。选同步而不是消息队列：实现短，且天然提供背压。管道就是 `fs` 用一页共享内存做环形缓冲加两个端点。代价是阻塞必须与调度器正确配合。
+
+**并发。** 多处理器启动后内核可被并发进入，用自旋锁（原子 test-and-set 加 `cli`）保护 `envs`、空闲页链表、IPC 字段；先用粗粒度 `kernel_lock` 保证正确，再谈缩小临界区。
+
+## 三、章节大纲
+
+1. **引导与 Boot Loader** — 实模式、BIOS、A20、GDT/段描述符、`CR0.PE`、ELF program header、链接地址与加载地址分离。验证：内核在 `0xF0100000` 跑起来并向串口打印。
+2. **物理内存分配与页表** — e820 地图、`boot_alloc`、`PageInfo` 空闲链表、`pp_ref`、两级页表、`pgdir_walk/page_insert/page_remove`、`UVPT`、TLB 失效。验证：`page_alloc` 不重复发页；用户态能遍历 `uvpt`。
+3. **用户环境与异常处理** — `Env`、`envid_t` 复合 id、`envid2env`、IDT、`trapentry.S`、`Trapframe`、异常分发与环境销毁。验证：除零、断点、非法指令被正确捕获并杀掉进程。
+4. **中断** — 8259A 重映射、时钟中断、串口中断、EOI、`cli/sti`、抢占。验证：控制台能收键盘输入；死循环程序被时钟抢占。
+5. **系统调用与陷入内核** — `int $0x30`、`T_SYSCALL`、参数从 trapframe 取、`syscalls[]` 表、返回值正负约定、`sys_cputs`。验证：用户态发起调用能在串口打出字。
+6. **进程创建与调度** — `env_alloc/env_free`、就绪队列、轮转、`env_run`、上下文切换（`env_pop_tf`）、`sys_yield`。验证：两个 `spin` 程序交替输出。
+7. **fork 与写时复制** — `duppage`、`PTE_COW`、`pp_ref` 与共享页、缺页错误码解析、`UXSTACKTOP` upcall、用户态 `pgfault`。验证：子进程写变量父进程看不见；`forktree` 在有限内存里跑完。
+8. **并发与自旋锁** — SMP 启动、LAPIC、原子指令、自旋锁与关中断、`kernel_lock`、临界区划分。验证：多核下内核数据结构不被撕裂。
+9. **文件系统** — IDE PIO 读写、superblock/位图/inode/数据块、块缓存、`open/read/write/close`、offset 维护、`fs` 进程与 `sys_page_map`。验证：写文件、重启、再读内容一致。
+10. **IPC 与管道** — `ipc_send/ipc_recv`、`env_ipc_*` 字段、共享页授权、同步会合与阻塞、环形缓冲、管道端点与 EOF。验证：`primes` 用管道把素数逐级筛出。
+11. **JOS 与 xv6 / Linux 的对照** — 把前面的选择放进坐标系：xv6 的 `proc` 与 JOS 的 `Env`、xv6 的 `copyuvm` 与 JOS 的 COW、Linux 的系统调用表与 VFS 分层、用户态 FS 与内核 FS 的取舍。验证：能说清每个设计点「换一种做法会失去什么」。
+
+## 四、不做什么
+
+- 不做网络协议栈、图形、声音；不做多用户与权限模型；不做动态链接与完整 POSIX 兼容层。
+- 不做磁盘 DMA 与中断驱动的块设备优化，PIO 轮询足够；不做日志式文件系统与崩溃一致性。
+- 不追求调度公平性与实时性，轮转够用；优先级、CFS 一类不做。
+- 实现自由度：调度策略、时间片长度、管道容量、文件系统块大小与缓存替换、错误码取值、锁的粒度与作用域，都允许自行决定，只要行为可解释。
+- 常见跑偏：绕开 `pgdir_walk` 用恒等映射图快；把 COW 写成全量拷贝；忘记 `pp_ref` 造成页泄漏或提前释放；在中断处理里随意开中断；把文件系统搬回内核；直接照抄 xv6 而不理解 JOS 为什么选了另一条路。
+
+## 五、面试怎么讲
+
+### 30 秒版本
+
+> 这个项目是 MIT 6.828 的 JOS，目标是从 BIOS 把 512 字节引导扇区读进 0x7c00 开始，一层层搭到用户进程能 fork、能通过管道通信。真正的难点不是写代码，而是看清每一层的约定：实模式到保护模式在哪步切换、内核为什么链接在 0xF0100000 却加载到 0x00100000、trapframe 在内核栈上是什么布局、COW 时父子页表权限为什么必须同时改。验证过程看的是分阶段的内核自检，以及在 QEMU 里单步查看寄存器、CR3 和页表项，而不是只看有没有打印出那句话。
+
+### 可能被追问的 8 个点
+
+下面每条都写成可以照着说的口径。如果自己没做到那一步，就停在事实边界，不要继续编。
+
+**1. “内核为什么链接在 0xF0100000，物理上却在 0x00100000？”**
+- 考点：虚拟地址与物理地址分离、早期分页、链接脚本与 ELF 的关系。
+- 答：链接脚本把内核的 VMA 定在 0xF0100000，而 ELF program header 里的 `p_paddr` 是 0x00100000，两者差 `KERNBASE = 0x08000000`。boot loader 按 `p_paddr` 把 PT_LOAD 段读到低物理地址。为了让 C 代码开分页前后都能跑，entry.S 先用一张静态的 `entry_pgdir`，把 `[0xF0000000, 0xF0400000)` 用 4MB 大页（PDE 的 PS 位置 1）映射到 `[0, 4MB)`，再设 CR3、置 `CR0.PG`，然后跳过去。`mem_init` 之后才建立正式的 pgdir，并继续保留这段 KERNBASE 映射。追问“为什么不恒等映射”时，回答：低地址整段留给用户进程，切换 CR3 时内核映射不用动。
+
+**2. “从加电到进保护模式，具体发生了什么？”**
+- 考点：实模式寻址、GDT、CR0.PE、远跳转的必要性。
+- 答：BIOS 把第一扇区读到 0x7c00，此时是实模式，地址 = 段寄存器 << 4 + 偏移，可寻址 1MB。boot.S 先 `cli`、清方向标志，加载 GDT（code32 段 base=0、limit=4G），把 `CR0` 的 PE 位（bit 0）置 1，再执行一条 `ljmp` 到 32 位代码段。这条远跳转是必须的：CS 的隐藏描述符缓存只有在重新 load 段选择子后才更新，不跳就还是 16 位语义。之后才能用 32 位寻址去读磁盘（int 0x13 扩展读或 ATA PIO）。
+
+**3. “页表怎么组织的？`pgdir_walk` 到底做了什么？”**
+- 考点：两级页表、CR3、PDE/PTE 权限位、大页特判。
+- 答：32 位 x86 是两级，CR3 存页目录物理地址，`va[31:22]` 索引 PDE，`va[21:12]` 索引 PTE，低 12 位是页内偏移。`pgdir_walk(pgdir, va, create)` 返回指向该 va 对应 PTE 的指针：PDE 不存在且 create 为真，就 `page_alloc` 一页、清零、`page_insert` 进页目录；如果 PDE 的 PS 位置位说明是 4MB 大页，要单独处理而不是当页表用。`page_insert` 里必须先查旧 PTE，必要时 `page_remove` 并维护 `pp_ref`，写完 PTE 后 `invlpg` 刷 TLB，否则旧映射还在。
+
+**4. “用户态怎么能读自己的页表？UVPT 是什么？”**
+- 考点：页表自映射、权限位、COW 需要读 PTE 的原因。
+- 答：`env_setup_vm` 里把 UVPT（0xef400000）那一段的 PDE 指回 pgdir 自己，于是用户态可以只读地遍历自己的页目录和页表。`duppage` 要判断某个页是不是可写、是不是已经是 COW，就得读 PTE——用 `UVPT[PGNUM(va)]` 取到 PTE 再 `PTE_ADDR` 算物理页。注意 UVPT 的映射必须是 `PTE_U` 且**不带** `PTE_W`，否则用户能改自己的页表，隔离就没了。
+
+**5. “写时复制 fork 具体怎么落地的？”**
+- 考点：`sys_exofork` 的 eax=0 技巧、映射顺序与权限、缺页处理路径。
+- 答：`sys_exofork` 用 `env_alloc(&e, 0)` 拿一个子 env，把父的 trapframe 整份拷过去，然后 `e->env_tf.tf_regs.reg_eax = 0` ——子进程“从 fork 返回 0”就是这一行，没有别的魔法；`e->env_status = ENV_NOT_RUNNABLE`，父进程返回子 envid。`duppage` 对每个可写页在父子两边都映射成 `PTE_U | PTE_COW` 并去掉 `PTE_W`，只读页直接 `PTE_U` 共享。缺页时 `page_fault_handler` 看 PTE 里有没有 `PTE_COW`：`page_alloc` 一页、`memcpy`、`sys_page_map` 带 `PTE_W` 重映射、`sys_page_unmap` 掉旧 COW 映射。坑有两个：必须先把父的页改成 COW 再映射子，否则中间窗口父进程能写穿；以及 env 分配了但后续失败要 `env_free` 回收，不然后面 `envid2env` 会拿到脏 env。
+
+**6. “系统调用从用户态到内核是怎么走的？用户指针为什么不能直接信？”**
+- 考点：int 0x30、IDT 门 DPL、trapframe 传参、`user_mem_check`。
+- 答：lib/syscall.c 把系统调用号放 eax、参数依次放 edx/ecx/ebx/edi/esi，执行 `int $0x30`。IDT 里这个门必须设 DPL=3，否则用户态 int 直接 #GP。trapentry 压好 trapframe 后，`trap_dispatch` 看到 `trapno == T_SYSCALL` 就按 `reg_eax` 查表分发，返回值写回 `tf_regs.reg_eax`——因为 iret 会恢复通用寄存器，这就是返回值能回到用户态的路径。用户传进来的指针必须过 `user_mem_check`：检查 `[va, va+len)` 不越过 ULIM，逐页确认 PTE 有 `PTE_P` 和 `PTE_U`，写操作还要 `PTE_W`，不满足就返回 `-E_FAULT`，绝不能在内核里直接解引用。
+
+**7. “内核态出错和用户态出错怎么区分？”**
+- 考点：`tf_cs & 3`、CR2、err code 各位含义、谁负责压 err code。
+- 答：CPU 进 trap 时压的 CS 低两位就是 CPL，所以 `tf_cs & 3 == 3` 说明来自用户态。page fault 时出错地址在 CR2，err 的 bit0 是 P（页不存在 vs 保护违例）、bit1 是 W/R、bit2 是 U/S——COW 就靠“err 表示写 + PTE 带 PTE_COW”认出来。用户态出错打印诊断并 `env_destroy(curenv)`，内核态出错直接 panic，因为内核映射是自己建的，错了一定是 bug。这里还有一个常见实现错误：`#PF`、`#GP`、`#DF` 等异常 CPU 会自动压 err code，其余不压，所以 trapentry 要按 trapno 决定是否补压一个 0，否则整个 trapframe 错位，后面所有字段全读错。
+
+**8. “进程怎么切换的？阻塞的 IPC 怎么实现？”**
+- 考点：时钟中断、`env_tf` 就是栈上那份 trapframe、`env_pop_tf`/iret、阻塞-唤醒。
+- 答：IRQ0 周期性进 trap，`trap_dispatch` 里调 `sched_yield`，按 envs 数组轮转找下一个 `ENV_RUNNABLE` 的 env 交给 `env_run`。关键点是：内核栈上那份 trapframe 就是 `env->env_tf`——trapentry 从 TSS 的 esp0 拿到本 env 的内核栈，pushal 之后寄存器布局正好等于 `struct Trapframe`；`env_run` 把 `env->env_tf` 拷回栈上，`env_pop_tf` 弹通用寄存器、`popal`、`iret`，CS/EFLAGS/EIP 一起恢复，所以第一次跑新进程也走同一条路径，`env_alloc` 里设好 `tf_cs`、`tf_eip`、`tf_esp` 就够了。IPC 就建在这上面：`sys_ipc_recv` 把 `curenv->env_status` 设成 `ENV_NOT_RUNNABLE` 再 `sched_yield` 让出 CPU，`sys_ipc_send` 把值写进接收方的 `env_ipc_value`/`env_ipc_from`，把它置回 `ENV_RUNNABLE`，下次被调度到就从 `sys_ipc_recv` 的返回点继续。
+
+### 别说什么
+
+- **别说“调个 `page_insert` 就实现了 COW”。** 把库函数当原理讲，一问“PTE_COW 用哪一位、谁负责清、为什么父子两边必须同时改权限”就会露馅。要能落到具体的位和顺序上。
+- **别说“能跑起来、能打印 hello 就算过了”。** 跑通不等于实现对了：UVPT 是不是真的只读、`user_mem_check` 是不是真的挡得住越界指针、`pp_ref` 漏减会不会在几十次 fork 后才炸——这些是“验证做对了”的口径，讲不出检查手段就只是“跑通了”。
+- **别报没测过的数字。** “fork 快了多少”“性能提升几倍”这类话，JOS 里没有基准就没有结论，说了必然被追着问测试方法，一问就塌。
+- **别说“我完成了 lab1 到 lab5”。** 这是课程进度，不是能力证明。换成“我在 trapframe 错位这个问题上卡了很久，最后是靠对照 err code 压栈规则定位的”这类具体定位过程，可信度高得多。

@@ -39,3 +39,50 @@
 - 不做生产级 serving：不要求动态批处理、量化、投机解码、beam search；采样到 top-p 即可。
 - 实现自由度：层数、宽度、头数、词表大小、是否 weight tying、是否用 bf16，均可按算力调整；但 `encode/decode` 的可逆性、`forward` 的形状契约、cache 等价性、loss 只对目标段计算这四条不能变。
 - 常见跑偏：用 `transformers` 的 tokenizer 或模型“省事”；标签忘了右移一位；mask 加在 softmax 之后；忘了除 `√d`；KV cache 的 position 从 0 重新开始；DPO 的参考模型没有冻结；在训练 prompt
+
+## 五、面试怎么讲
+
+**30 秒版本**
+
+> 这个项目是把 decoder-only 语言模型的整条链路自己搭一遍：字节级 BPE、Transformer、预训练、SFT/DPO，以及带 KV cache 的推理，全程不调 `transformers`、`tiktoken`。卡点基本都在“错了也不容易报错”的地方，比如 mask 加在 softmax 前还是后、scale 有没有除 `√head_dim`、cache 的 position offset 从几开始、SFT 的 mask 有没有跟着标签一起右移。所以我的验证口径是一组可判定的检查：分词器对任意 UTF-8 往返一致，且在固定语料上逐 id 对齐参考实现；同一 prompt 开/关 cache 的 logits 在数值误差内相等；改未来 token 后，过去位置的 logits 逐位不变；对齐效果看留出偏好对的胜率，不看训练 loss。
+
+**可能被追问的点**
+
+1. **“你这分词器和 `tiktoken` 结果一样吗？”**
+   → 考点：是否真理解 byte-level BPE 的确定性，而不是只会调包。
+   → 答法：先说清一致的**口径**是“同一份语料、同一套预分词正则、逐 id 对照”，再说差异只可能出在四个地方：GPT-2 正则对缩写/数字/空白的切分方式、special token 是否先切分再走 BPE、是否做 Unicode 规范化、并列频次怎么 tie-break。我的实现里 tie-break 用 `(count, pair)` 的确定序，保证同一语料训两次得到同一份 merge 列表；编码时是**按 rank 升序反复合并当前序列里 rank 最小的相邻 pair**，不是最长匹配。不一致时用逐块 dump 字节对比来定位：byte-level 之后任何块都编得出来，所以差异必然在预分词或合并顺序，不会是“未登录词”。
+
+2. **“为什么非得 byte-level？用字符级不行吗？”**
+   → 考点：OOV 与可逆性的因果链。
+   → 答法：byte-level 把词表基座钉死成 256 个字节，任意 UTF-8 字符串都可编码，没有 UNK，可逆性由“每步合并只是拼接、从不丢信息”保证。代价是非 ASCII 字符被拆成 3–4 个字节 token，序列变长。`byte-to-unicode` 只是一张双射表，把 0–255 里不可打印的部分映射到可见码位，方便放进 vocab 和调试，不改变语义。一个边界：decode 必须**整体**把 token 映射回字节串再 `utf-8` 解码，逐 token 单独解码遇到跨 token 的多字节字符会出替换符——所以往返测试要覆盖中文和 emoji。
+
+3. **“mask 为什么必须加在 softmax 之前？”**
+   → 考点：理解 `-inf` 与归一化的关系，而不是背 API。
+   → 答法：如果在 softmax 之后乘 0/1 矩阵，被遮位置仍然进了分母，过去位置的输出会被未来 token 的数值稀释；某行全被遮时还会除出 NaN。正确做法是 softmax 前给未来位置加 `-inf`（实践里用 dtype 的极小值或 `-inf` + fp32 softmax），exp 后严格为 0。这条的验证不是“看起来对”，而是断言“改未来 token，过去位置 logits 逐位不变”。
+
+4. **“除 `√d` 是为什么？不除会怎样？”**
+   → 考点：缩放点积的方差分析，以及 `d` 到底指哪个维度。
+   → 答法：q·k 是 `head_dim` 个近似独立项之和，分量方差为 1 时点积方差约等于 `head_dim`、标准差 `√head_dim`；不除的话 logits 量级随 head 维度增长，softmax 饱和到近似 one-hot，梯度趋近 0。常错点是把 `d` 写成 `d_model`，应该是 `head_dim`。
+
+5. **“KV cache 缓存什么？position 从哪算？”**
+   → 考点：增量解码的语义，而不是“加了个 cache 变快了”。
+   → 答法：每层缓存该层已算过的 K 和 V，形状 `(B, n_head, T_past, head_dim)`，**不缓存 Q**，Q 只用当前步。prefill 一次喂完 prompt 建满缓存，decode 每步喂 1 个 token 并在 T 维 concat。position offset 就是 `T_past`：RoPE 的旋转角按绝对位置算，第二个 decode step 的位置是 `T_prompt` 不是 0。这条错了的典型症状是 shape 全对、输出变胡话。等价性就用“同 prompt，关 cache 与开 cache 跑最后位置 logits 比最大绝对误差”。
+
+6. **“SFT 的 loss mask 怎么加？跟右移一位冲突吗？”**
+   → 考点：shift 与 mask 的索引对齐。
+   → 答法：`input_ids = tokens[:-1]`、`labels = tokens[1:]` 已经错开一位，所以 mask 必须做**同样的 shift**，含义是“预测第 t+1 个 token 时，只有第 t+1 个位置属于 assistant 段才计损失”。不 shift 直接乘是经典 bug，等价于教模型预测用户提问。另外交叉熵用 `reduction='none'` 乘 mask 后除以 `mask.sum()`，不能用 batch 元素总数当分母，否则短回答被长 prompt 稀释；special token 和 padding 位置一并置 0。
+
+7. **“warmup 在解决什么问题？你怎么确定是它起的作用？”**
+   → 考点：优化器状态 + 早期梯度，是否有对照意识。
+   → 答法：Adam 的二阶矩在最初几步样本极少、估计噪声大，有效步长会异常大；叠上归一化层尺度参数初期梯度大，就容易在头几百步发散。warmup 是线性把 lr 从 0 拉到峰值，给 v 的估计时间收敛。验证要做**对照**而不是看曲线好看：同 seed 关掉 warmup 跑，观察前若干步的梯度全局范数与 loss 是否出现尖峰；再加上按全局范数的梯度裁剪（超阈值等比缩放），看尖峰是否被压住。这样“warmup 有用”才是可复现的结论。
+
+8. **“DPO 为什么不用奖励模型？beta 是什么？”**
+   → 考点：隐式奖励的推导，以及工程上的坑。
+   → 答法：KL 约束下的 RLHF 目标有闭式最优策略，代回去后奖励可写成 `β·log(π_θ/π_ref)`，偏好概率就成了 `sigmoid(β·(Δchosen − Δrejected))` 的形式，于是直接用偏好对做二分类，不需要采样、不需要显式 RM。β 控制允许偏离参考模型的程度：大则保守、小则容易过拟合偏好数据。参考模型必须**冻结并置 eval**，否则 `logπ_ref` 也在动，闭式解的前提就没了。评价用留出提示上的成对胜率，同时看输出长度分布和复读率，因为胜率可以靠变长刷出来。
+
+**别说什么**
+
+- **别把「跑通了」说成「实现对了」。** loss 在降、能生成通顺句子，都不能证明 mask、scale、cache 是对的——忘除 `√d`、mask 错一位照样能训出能看的曲线。要说就说出你用哪条断言把语义钉住的。
+- **别把框架名当原理讲。** 说“用了 RMSNorm / SwiGLU / RoPE”不算答案；被追问“pre-norm 和 post-norm 的梯度路径差在哪”“SwiGLU 的门控为什么有用”“RoPE 为什么表达相对位置”答不上来，比一开始就说“这块我按论文实现、原理细节还需要再确认”更露怯。
+- **别报没测过的数字。** 没跑过 baseline 就不要说“提速 3 倍”“困惑度降 40%”；改成“提速要固定计时口径：是否含 prefill、是否跳过 warmup 步、是否 `torch.cuda.synchronize`，在这个口径下才谈倍数”。胜率同理，要说清判定方式和样本量。
+- **别下笼统的完成断言。** “我全部实现了”一旦被追问到某个分支没做就崩；说清做到哪一步、哪块是留了接口没做（比如注意力只用 PyTorch 算子拼、没写 fused kernel；没做动态 batch、量化、beam search），边界清楚反而是加分项。
