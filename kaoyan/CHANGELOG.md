@@ -119,3 +119,5 @@
 - 2026-11-02 · projects 第五轮（基础层）· `cs231n`/`cs336`/`cmu11785` 合并重写为 `ai/`（8 章，按架构演进：最小数学集→张量→线性/感知机→MLP→CNN→序列→Transformer→选型，**不含训练**）；新增 `compiler/`（10 章 LLVM）+ `MINI-COMPILER.md`（自研五阶段路线）；新增 `asm-link-arch/`（10 章，x86-64 与 AArch64 对照 + 链接装载全链路）；新增 `cpu-microarchitecture/`（10 章，五级流水线→冒险→分支预测→乱序→重命名→乱序访存→超标量→存储层次→roofline）
 
 - 2026-11-02 · projects · 新增 `cuda/`（10 章：SIMT 与延迟隐藏 → grid/block/warp → 内存层次与 bank conflict → warp 分歧与占用率 → 同步原子 → 归约扫描 → 矩阵乘 tiling → 访存合并 → Nsight 指标归因与 roofline → 工程边界），GPU 从 cs149 里的一节独立成项目
+
+- 2026-11-02 · projects · 新增 `discrete-math/`（10 章：逻辑与归纳 → 集合关系 → 计数 → 递推与主定理 → 图论基础 → 匹配与网络流 → 数论与 RSA 骨架 → 代数结构 → 布尔代数与电路 → 离散概率与随机算法）；离散不在数一考纲内，故置于工程线而非 math/ 或 kaoyan/
