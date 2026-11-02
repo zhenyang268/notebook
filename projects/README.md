@@ -56,12 +56,13 @@
 | `algorithm/` | 代码基座体检：B+ 树/红黑树删除崩溃、ASan 记录 | 结构实现细节、边界条件、怎么用工具挖 bug |
 | `cs149/` | SIMD、多核、GPU 与性能分析 | 加速比来源、伪共享、访存层次 |
 
-## 五、AI 与图形（2）
+## 五、AI、图形与 GPU（3）
 
 | 项目 | 一句话 | 面试主打 |
 |---|---|---|
 | `ai/` | **从模型架构讲起**：最小数学集 → MLP → CNN → 序列 → Transformer | 形状与参数量、卷积与感受野、QKV 与多头、架构选型 |
 | `pku-cg/` | 自己写渲染器出图 | 变换与投影、光栅化、着色与光追 |
+| `cuda/` | kernel 从朴素到分块的优化链路 | 线程映射与占用率、共享内存与 bank conflict、访存合并、Nsight 指标归因 |
 
 > `ai/` 是 2026-11-02 把 `cs231n` / `cs336` / `cmu11785` 三份课程笔记合并重写而成：
 > 按**架构演进**排序，不写训练（不写损失、优化器、学习率、正则、数据增强、分布式）。
@@ -92,6 +93,6 @@
 ```bash
 cd notebook
 python3 kaoyan/tools/lint.py                                  # 两件套齐、无 QUICK/DESIGN
-python3 .gen/w4/gates.py 4                                    # 22 个项目 + 真题 ≥9 年 + 词表
+python3 .gen/w4/gates.py 4                                    # 23 个项目 + 真题 ≥9 年 + 词表
 python3 HANDOFF/tools/verify.py kaoyan/exam/真题               # 真题年份结构
 ```

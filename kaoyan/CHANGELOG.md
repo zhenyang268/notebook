@@ -117,3 +117,5 @@
 - 2026-11-02 · projects 第三轮（能力方法论）· 新增 7 个项目：`perf-engineering`（8 章：指标口径→benchmark→profiling→火焰图→内存/IO/锁→压测→扩展性）、`testing`（9 章：金字塔→UT 边界→替身→覆盖率骗局→集成契约→冒烟回归→property/fuzz→flaky→CI 门禁）、`database`（12 章：存储引擎→B+ 树→LSM→ACID→隔离级别→MVCC→锁→WAL→优化→复制→**一致性四层串讲**）、`debug-toolchain`（8 章：core dump→gdb→ASan→UBSan→TSan→strace→/proc→可观测性）、`system-design`（8 章：量级估算→缓存→限流→MQ→分库分表→短链→秒杀→高可用）、`latent-issues`（12 章：**惊群**→伪共享→ABA→优先级反转→活锁→缓存击穿→队头阻塞→TIME_WAIT→fd 耗尽→碎片→Nagle/延迟 ACK→EINTR）、`algorithm-interview`（8 类题型 × 8–10 题）
 
 - 2026-11-02 · projects 第五轮（基础层）· `cs231n`/`cs336`/`cmu11785` 合并重写为 `ai/`（8 章，按架构演进：最小数学集→张量→线性/感知机→MLP→CNN→序列→Transformer→选型，**不含训练**）；新增 `compiler/`（10 章 LLVM）+ `MINI-COMPILER.md`（自研五阶段路线）；新增 `asm-link-arch/`（10 章，x86-64 与 AArch64 对照 + 链接装载全链路）；新增 `cpu-microarchitecture/`（10 章，五级流水线→冒险→分支预测→乱序→重命名→乱序访存→超标量→存储层次→roofline）
+
+- 2026-11-02 · projects · 新增 `cuda/`（10 章：SIMT 与延迟隐藏 → grid/block/warp → 内存层次与 bank conflict → warp 分歧与占用率 → 同步原子 → 归约扫描 → 矩阵乘 tiling → 访存合并 → Nsight 指标归因与 roofline → 工程边界），GPU 从 cs149 里的一节独立成项目
