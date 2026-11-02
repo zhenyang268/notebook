@@ -1,0 +1,203 @@
+\section{几何与李群：同一个旋转的三件衣服}
+
+\subsection*{串讲五：$\mathrm{hat}$、四元数、$SO(3)$ 为什么是一件事}
+
+三种表示都在描述「绕某轴的转动」，差别只在\textbf{存什么、怎么复合}：
+
+\begin{center}
+\begin{tabular}{L{2.3cm}L{3.2cm}L{3.4cm}L{4.2cm}}
+\toprule
+表示 & 存什么 & 复合 & 代价 / 陷阱 \\
+\midrule
+旋转矩阵 $R\in SO(3)$ & 9 个数 & 矩阵乘 & 无奇点，但 9 个数里只有 3 个自由度；正交性会漂 \\
+李代数 $\hat u\,\theta\in\mathfrak{so}(3)$ & 3 个数 & 需要 $\exp$ 才能回到群 & 最省，但 $\theta$ 有 $2\pi$ 周期、$\pi$ 附近反解不稳 \\
+单位四元数 $q\in S^{3}$ & 4 个数 & 四元数乘 & 无双覆盖歧义但有 $\pm q$；插值最自然 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+桥梁是两条：$\exp(\theta\hat u)$ 给出 Rodrigues（G2），而四元数的 $q=\cos\frac\theta2+\sin\frac\theta2\hat u$
+与它满足 $R(q)=\exp(\theta\hat u)$（G6）。\textbf{半角}不是技巧，是双覆盖的必然：
+$q$ 与 $-q$ 必须映到同一个 $R$，所以角度只能吃一半。
+
+\begin{know}{G1}{叉积、hat 与反对称矩阵}{已实现：linalg/so3.hpp}
+\field{是什么} $a\times b=(a_yb_z-a_zb_y,\ a_zb_x-a_xb_z,\ a_xb_y-a_yb_x)$；
+$\mathrm{Hat}(u)$ 是满足 $\mathrm{Hat}(u)b=u\times b$ 的 $3\times3$ 反对称矩阵，
+即 $\mathrm{Hat}(u)=\begin{bmatrix}0&-u_3&u_2\\u_3&0&-u_1\\-u_2&u_1&0\end{bmatrix}$。
+
+\field{为什么需要} 它把「叉积」变成「矩阵作用」，于是旋转可以写成指数——这就是李代数到李群的入口。
+
+\field{关键结论} 性质：$\mathrm{Hat}(u)^{\mathsf T}=-\mathrm{Hat}(u)$、
+$\mathrm{Hat}(\lambda u)=\lambda\,\mathrm{Hat}(u)$（\textbf{线性，绝不归一化}）、
+$\mathrm{Hat}(u)^{2}=uu^{\mathsf T}-\norm{u}^{2}I$、$\abs{a\times b}=\abs{a}\abs{b}\sin\angle$。
+成立条件：入参出参一律 $3\times1$ 列向量（D19），形状不对抛错而不是静默接受。
+
+\field{判据} $\mathrm{Hat}(u)b$ 与显式叉积逐分量对拍；$\mathrm{Hat}$ 的反对称性逐元素查。
+
+\field{前置} L10、L3。
+
+\field{常见误解} 以为「$\mathrm{Hat}$ 该把 $u$ 归一化」。归一化会把 $\theta$ 从矩阵里抹掉，
+$\exp$ 之后只能得到单位角度；线性性是整套记号成立的前提。
+\end{know}
+
+\begin{know}{G2}{立方恒等式与 Rodrigues 公式}{已实现：linalg/so3.hpp}
+\field{是什么} $\mathrm{Hat}(u)^{3}=-\norm{u}^{2}\mathrm{Hat}(u)$；于是
+$\exp(\theta\,\mathrm{Hat}(\hat u))=I+\sin\theta\,\mathrm{Hat}(\hat u)+(1-\cos\theta)\,\mathrm{Hat}(\hat u)^{2}$。
+
+\field{为什么需要} 它是 $SO(3)$ 的闭式指数映射——不需要矩阵级数，也不需要特征分解。
+
+\field{关键结论} 立方恒等式让级数在三次之后闭合，故 $\exp$ 只有三项。单位轴时化为
+$\mathrm{Hat}(\hat u)^{3}=-\mathrm{Hat}(\hat u)$。成立条件：$\norm{\hat u}=1$（否则把 $\theta$ 换成 $\theta\norm u$
+并把轴换成 $\hat u=u/\norm u$）。源码实测残差 $2.2\times10^{-16}$。
+
+\field{判据} $\norm{\exp(\theta\hat u)-R_{\text{显式}}}$；立方恒等式残差；
+但\textbf{整体符号翻转抓不到}（$\hat u\to-\hat u,\theta\to-\theta$ 给同一 $R$）。
+
+\field{前置} G1、C3。
+
+\field{常见误解} 以为「$R$ 唯一决定轴和角」。$R$ 只决定 $\{\pm\hat u,\ \theta\leftrightarrow2\pi-\theta\}$ 这一对等价类；
+反解必须额外定约定（通常取 $\theta\in[0,\pi]$）。
+\end{know}
+
+\begin{know}{G3}{vee 与对数映射：用 atan2 而不是 arccos}{已实现：linalg/so3.hpp}
+\field{是什么} $\mathrm{Vee}(K)=(K_{21},K_{02},K_{10})$，满足 $\mathrm{Vee}(\mathrm{Hat}(u))=u$；
+反解
+\[
+\theta=\mathrm{atan2}\Bigl(\tfrac12\norm{\mathrm{Vee}(R-R^{\mathsf T})},\ \tfrac12(\mathrm{tr}R-1)\Bigr).
+\]
+
+\field{为什么需要} 把 $R$ 变回「轴 $\times$ 角」，才能在两个旋转之间插值、做误差度量。
+
+\field{关键结论} 用 $\mathrm{atan2}$ 而不是 $\arccos$：后者在 $\theta\to0$ 时相对误差约 $\sqrt{\eps}/\theta$，
+$\theta=10^{-8}$ 直接返回 0。成立条件：$\theta\ne\pi$（此时 $R-R^{\mathsf T}=0$，轴不可辨，
+需要改用对称部分 $\frac{R+I}{2}$ 求轴）。
+
+\field{判据} 往返 $\mathrm{Exp}(\mathrm{Log}(R))$ 与 $R$ 的差；$\theta$ 很小时（$10^{-8}$）仍应给出非零轴角。
+
+\field{前置} G1、G2、A6。
+
+\field{常见误解} 以为「$\arccos$ 与 $\mathrm{atan2}$ 只是写法不同」。在 $\theta$ 接近 0 或 $\pi$ 的两端，
+两者的\textbf{有效位}差几个数量级；这是「同一个函数、两种数值行为」的典型。
+\end{know}
+
+\begin{know}{G4}{李括号：$[\mathrm{Hat}(a),\mathrm{Hat}(b)]=\mathrm{Hat}(a\times b)$}{已实现：linalg/so3.hpp}
+\field{是什么} 矩阵换位子 $[A,B]=AB-BA$；对 $\mathfrak{so}(3)$ 有
+$[\mathrm{Hat}(a),\mathrm{Hat}(b)]=\mathrm{Hat}(a\times b)$。
+
+\field{为什么需要} 它说明「$\mathfrak{so}(3)$ 对换位子封闭」，即它确实是李代数；
+也是「旋转不可交换」的代数表达。
+
+\field{关键结论} 因子是 $1$ 不是 $2$（不同书的约定会差常数，本库取 1）。
+成立条件：$a,b$ 为 $3\times1$。
+
+\field{判据} 两边逐分量对拍（精确恒等式，容差到 $10^{-14}$ 即可）。
+
+\field{前置} G1。
+
+\field{常见误解} 以为「换位子小就说明两个旋转接近可交换」。换位子为零才是可交换（共轴）；
+它的大小与角度无关地给出「转轴夹角」，不是「角度差」。
+\end{know}
+
+\begin{know}{G5}{四元数代数：唯一非交换来源是叉积}{已实现：quat/quaternion.hpp}
+\field{是什么} $i^{2}=j^{2}=k^{2}=ijk=-1$；
+$(w_1+\mathbf v_1)(w_2+\mathbf v_2)=(w_1w_2-\mathbf v_1\cdot\mathbf v_2)+
+(w_1\mathbf v_2+w_2\mathbf v_1+\mathbf v_1\times\mathbf v_2)$。
+
+\field{为什么需要} 四元数是最省的四维代数表示旋转：4 个数、无奇点、复合只需 16 次乘法。
+
+\field{关键结论} 最后一项 $\mathbf v_1\times\mathbf v_2$ 是\textbf{唯一的非交换来源}；
+去掉它就是复数。成立条件：$T$ 为浮点；四元数是除环（非零元可逆）但\textbf{非交换}，
+所以不得进入自动微分的交换环域（D1）。
+
+\field{判据} 结合律与单位元；$qq^{-1}=1$；$\abs{q_1q_2}=\abs{q_1}\abs{q_2}$（范数乘法性）。
+
+\field{前置} G1、C1。
+
+\field{常见误解} 以为「四元数乘法就是四个分量各自乘」。它含叉积项，顺序反了得到共轭旋转；
+把四元数当向量逐分量算会「看起来像」但结果不是旋转。
+\end{know}
+
+\begin{know}{G6}{双覆盖与半角}{已实现：quat/quaternion.hpp}
+\field{是什么} $q=\cos\frac\theta2+\sin\frac\theta2\hat u$ 对应旋转 $\theta$；
+$q$ 与 $-q$ 给出同一个旋转矩阵，即映射 $S^{3}\to SO(3)$ 是\textbf{二对一}（双覆盖）。
+
+\field{为什么需要} 它解释了半角、$\theta+2\pi$ 的等价、以及为什么四元数的「角度」只能取 $[0,\pi]$ 的一半。
+
+\field{关键结论} $M(q)=M(-q)$；旋转复合对应四元数乘（同向）；共轭对应逆旋转。
+成立条件：$\norm{q}=1$（单位四元数）才有纯旋转；非单位会带缩放。
+
+\field{判据} $M(q)=M(-q)$ 逐元素；$\abs q=1$ 时 $M(q)$ 正交且 $\det=1$。
+
+\field{前置} G2、G5。
+
+\field{常见误解} 以为「四元数转动 $2\pi$ 就回到原状态」。四元数要 $4\pi$ 才回到自己
+（$q\to-q$），这正是「自旋 $1/2$」的几何来源；用它插值时选短弧就是在处理这个歧义（G8）。
+\end{know}
+
+\begin{know}{G7}{四元数的逆与零判据}{已实现：quat/quaternion.hpp}
+\field{是什么} $q^{-1}=q^{*}/\abs{q}^{2}$，$q^{*}=(w,-\mathbf v)$；单位四元数下 $q^{-1}=q^{*}$。
+
+\field{为什么需要} 逆旋转、误差度量（$q_1^{-1}q_2$ 的角）、以及插值的中间量都用到它。
+
+\field{关键结论} 判零用\textbf{四个分量精确全为 0}，不带容差——与矩阵求逆的容差判据（N9）不同。
+成立条件：非零四元数。
+
+\field{判据} $qq^{-1}=1$（到 $10^{-15}$）；零四元数抛异常而不是返回 inf。
+
+\field{前置} G5。
+
+\field{常见误解} 以为「四元数求逆和矩阵求逆一样该带容差」。矩阵的「接近奇异」有实际意义
+（条件数大），四元数的「接近零」只是一个点；加容差会把合法的极小四元数误杀。
+\end{know}
+
+\begin{know}{G8}{球面插值：slerp 与 nlerp}{已实现：quat/quaternion.hpp}
+\field{是什么} $\mathrm{slerp}(t)=\dfrac{\sin((1-t)\Omega)}{\sin\Omega}q_0+\dfrac{\sin(t\Omega)}{\sin\Omega}q_1$，
+$\Omega=\arccos\abs{q_0\cdot q_1}$；退化时用线性插值再归一化（nlerp）。
+
+\field{为什么需要} 关键帧动画、姿态平滑都用它；「匀速转动」是它唯一的正确性标准。
+
+\field{关键结论} 短弧判据：$q_0\cdot q_1<0$ 时把 $q_1$ 翻号（否则绕远路）。
+$\Omega$ 很小时 $\sin\Omega$ 出现在分母会放大误差，故 $d>0.9995$（$\Omega\ge0.0316$）时切 nlerp。
+成立条件：$q_0,q_1$ 均已归一。
+
+\field{判据} 插值后 $\abs q=1$；角速度恒定的用例（等步长 $t$ 给出的角增量应相等）。
+
+\field{前置} G6、G7。
+
+\field{常见误解} 以为「nlerp 就是 slerp 的近似、差别很小」。线性插值会让 $\abs q$ 掉到 0.857 附近，
+再归一化后\textbf{角速度不均匀}——慢—快—慢，动画上看得出顿挫。
+\end{know}
+
+\begin{know}{G9}{从旋转矩阵反解四元数（Shepperd）}{已实现：quat/quaternion.hpp}
+\field{是什么} 四个候选量形如 $\frac{1+R_{ii}-R_{jj}-R_{kk}}{4}$，取\textbf{最大}的那个开根作「大头」，
+再由它推出其余三个分量。
+
+\field{为什么需要} 从 $R$ 回到 $q$ 是刚体状态互换的必经步骤；单分支写法在 $\theta\to\pi$ 处精度崩。
+
+\field{关键结论} 之所以要分支：当某个分量接近 0 时，从它反解会把误差放大到 $\sqrt{\eps}$ 量级；
+选最大者保证分母不为小量。成立条件：$R$ 是正交且 $\det=1$（不是的话先做正交化）。
+
+\field{判据} 往返 $M(\mathrm{Quat}(R))=R$；$\theta=\pi$ 附近（$\mathrm{tr}R\to-1$）单独加用例。
+
+\field{前置} G6、G2。
+
+\field{常见误解} 以为「用 $\sqrt{1+\mathrm{tr}R}/2$ 一个公式就够了」。$\mathrm{tr}R\to-1$ 时它就是 $0/0$；
+所有教程里的「一个公式」都隐含了「$w$ 不小」的假设。
+\end{know}
+
+\begin{know}{G10}{角度公式：为什么是 $2\,\mathrm{atan2}(\abs{\mathbf v},w)$}{已实现：quat/quaternion.hpp}
+\field{是什么} $\theta=2\,\mathrm{atan2}(\norm{\mathbf v},w)$（先令 $w\ge0$）；
+两旋转之差 $\Omega=2\arccos\abs{q_0\cdot q_1}$。
+
+\field{为什么需要} 角度是所有「误差/容差」的度量单位：姿态误差多大算收敛，全靠它。
+
+\field{关键结论} 不用 $2\arccos w$：后者的相对误差约 $\sqrt{\eps}/\theta$，$\theta=10^{-8}$ 时返回 0。
+成立条件：$q$ 已归一（否则 $\norm{\mathbf v}$ 与 $w$ 不在同一圆上）。
+
+\field{判据} 小角度用例（$\theta=10^{-8}$）必须给出非零值；与 G3 的矩阵路径对拍。
+
+\field{前置} G3、G6。
+
+\field{常见误解} 以为「$\arccos$ 更直接所以更好」。在 0 附近 $\cos\theta\approx1-\theta^{2}/2$，
+$\arccos$ 要开方两次才能分辨；$\mathrm{atan2}$ 用的是比值，天然避开这个相消。
+\end{know}

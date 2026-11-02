@@ -1,0 +1,274 @@
+\section{张量代数与微分形式}
+
+\subsection*{串讲六：弱形式与 $d^{2}=0$ 是同一条边界的两种写法}
+
+F3 的分部积分和 M3 的 $d^{2}=0$ 看起来一个属于有限元、一个属于微分几何，其实是同一件事的两端：
+
+\begin{center}
+\begin{tabular}{L{2.4cm}L{5.0cm}L{6.4cm}}
+\toprule
+ & 有限元（F3） & 微分形式（M3、M6） \\
+\midrule
+核心恒等式 & $\int_\Omega\nabla u\cdot\nabla v=-\int_\Omega(\Delta u)v+\int_{\partial\Omega}\partial_nu\,v$ & $\int_M d\omega=\int_{\partial M}\omega$ \\
+「挪一次导数」 & 分部积分 & 外微分 + Stokes \\
+边界项怎么来 & 被积函数求导产生全导数项 & 定向边界上的低一阶形式 \\
+二阶导消失 & 弱形式只含一阶 & $d^{2}=0$：再微一次必为 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+所以「为什么有限元必须用弱形式」与「为什么 $d^{2}=0$」本质是同一个机制：\textbf{求导会把信息推到边界上}。
+把这句话记住，两块内容就只需要记一份。
+
+\subsection*{串讲七：三种「连续性」，别混}
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{3.6cm}L{3.4cm}L{3.0cm}}
+\toprule
+说法 & 属于谁 & 判据 & 违反后果 \\
+\midrule
+张量连续性（连续布局） & T3 & 步长与形状推出的步长逐维相等 & reshape 必须抛错（T5） \\
+函数光滑性 $C^{p}$ & H11 & 第 $p$ 阶导数连续 & 谱系数衰减只有 $O(k^{-p-1})$ \\
+收敛阶 $O(h^{p})$ & A5 & $h$ 减半误差降 $2^{p}$ & 渐近区外比值乱、判据假红 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+三者都叫「连续/光滑」，但一个讲内存、一个讲函数、一个讲误差率。
+
+\begin{know}{T1}{形状与行主序步长}{框架：core/tensor.hpp}
+\field{是什么} 秩 $r$、形状 $\text{shape}[0..r-1]$；步长从最后一维往前算：
+$\text{strides}[r-1]=1$，$\text{strides}[d]=\text{strides}[d+1]\cdot\text{shape}[d+1]$，
+即 $\text{strides}[d]=\prod_{k>d}\text{shape}[k]$。
+
+\field{为什么需要} 步长是「多维下标 → 一维偏移」的全部信息；视图、切片、换轴都只改步长不动数据。
+
+\field{关键结论} 必须\textbf{从后往前}算（行主序）。成立条件：$r\ge1$；$\text{shape}[d]\ge0$。
+
+\field{判据} $\{2,3,4\}\Rightarrow\text{strides}=\{12,4,1\}$。
+
+\field{前置} L1。
+
+\field{常见误解} 以为「步长就是形状的累乘」。只在行主序且连续时才对；
+换轴之后步长与形状不再有那个关系（T4），这正是「视图」能零拷贝的原因。
+\end{know}
+
+\begin{know}{T2}{下标到偏移的线性映射}{框架：core/tensor.hpp}
+\field{是什么} $\text{offset}=\sum_{d=0}^{r-1}\text{idxs}[d]\cdot\text{strides}[d]$。
+
+\field{为什么需要} 它是「多维数组」的全部实现原理：所有访问都是这一行点积。
+
+\field{关键结论} 这是\textbf{线性映射}（对下标线性），所以换轴=换求和顺序、切片=给某一项加常数。
+成立条件：$0\le\text{idxs}[d]<\text{shape}[d]$；下标个数必须等于秩。库只在 \texttt{at()} 里查越界，
+\texttt{operator()} 不逐维查——个数写错会越界读或丢下标（静默错）。
+
+\field{判据} shape $\{2,3,4\}$ 下 $(1,2,3)=1\cdot12+2\cdot4+3=23$。
+
+\field{前置} T1。
+
+\field{常见误解} 以为「列主序只是把两个下标换一下」。步长整组都变（$\text{strides}=\{1,2,6\}$），
+所有切片与换轴的语义随之改变；两套约定不能局部混用。
+\end{know}
+
+\begin{know}{T3}{连续性的正确定义}{框架：core/tensor.hpp}
+\field{是什么} $\text{IsContiguous}\iff\text{strides}=\text{ComputeStrides(shape)}$（逐维相等）。
+
+\field{为什么需要} 它是 reshape 能否零拷贝的唯一判据；也是性能上「能不能走顺序访问」的判据。
+
+\field{关键结论} 连续性是\textbf{布局性质}，与指针是否相邻无关——换轴后某些情形下标恰好仍然连续，
+但一般不是；用「肉眼看着挨着」判断必错。成立条件：秩相同。
+
+\field{判据} 直接比两组步长（不抽样、不看内容）。
+
+\field{前置} T1。
+
+\field{常见误解} 以为「转置之后还是连续」。转置交换了步长（$\{12,4,1\}\to\{1,4,12\}$），
+绝大多数情况不再连续；numpy 也是这样。
+\end{know}
+
+\begin{know}{T4}{切片与换轴：零拷贝视图}{框架：core/tensor.hpp}
+\field{是什么} 沿轴 $a$ 取 $[b,e)$：指针加 $b\cdot\text{strides}[a]$、$\text{shape}'[a]=e-b$、步长不变。
+换轴（置换）：$\text{shape}'[d]=\text{shape}[\text{axes}[d]]$、$\text{strides}'[d]=\text{strides}[\text{axes}[d]]$、指针不变。
+
+\field{为什么需要} 大张量的切片必须是 $O(1)$；复制会让「取一个通道」这种操作退化成整块搬运。
+
+\field{关键结论} 两者都不搬字节，所以都\textbf{与宿主共享内存}——视图生命周期不得长于宿主（契约，不做运行期检查）。
+成立条件：切片区间合法；置换须是 $0..r-1$ 的排列。
+
+\field{判据} 切片/换轴后元素总数与预期一致；修改视图要能反映到宿主（别名语义）。
+
+\field{前置} T1、T3。
+
+\field{常见误解} 以为「换轴会把数据搬成新布局」。不搬；搬的话 reshape 就不需要「非连续必须抛错」这条规则了。
+\end{know}
+
+\begin{know}{T5}{reshape 的合法条件与拷贝顺序}{框架：core/tensor.hpp}
+\field{是什么} 合法的充要条件：(1) $\text{IsContiguous}()$；(2) $\prod\text{newShape}=\text{Size}()$。
+
+\field{为什么需要} 非连续张量的「内存顺序」与新形状的行主序不一致，直接重解释会得到\textbf{形状对、数值错}的结果。
+
+\field{关键结论} 深拷贝必须按「里程表」从\textbf{最后一维}进位递增下标，
+\[\text{out}[n]=\text{ptr}\big[\text{Offset}(\text{idx},\text{srcStrides})\big];\]
+从第 0 维进位会得到转置结果。
+成立条件：连续性 + 元素数相等。非连续时库\textbf{一律抛错}（numpy 会静默复制，语义陷阱）。
+
+\field{判据} 拿 $a^{\mathsf T}$ 的拷贝与「转置后的拷贝」对比，两者必须不同（否则进位方向错了）。
+
+\field{前置} T1、T2、T3。
+
+\field{常见误解} 以为「reshape 就是改形状标签」。只有连续张量才可以只改标签；否则必须复制，
+而复制顺序错了就是个静默的转置 bug。
+\end{know}
+
+\begin{know}{T6}{广播与形状推导}{框架：core/tensor.hpp（语义参照 autodiff）}
+\field{是什么} 逐元素运算要求形状相同或可广播（例如 $1\times1$ 的标量与 $m\times n$ 张量）——
+库的选择是：\textbf{只在明确的 $1\times1$ 情形放行}，其余同形状要求，否则抛错。
+
+\field{为什么需要} 广播能省内存，但也让形状错误变得难以发现；自动微分的雅可比形状尤其依赖这条约定。
+
+\field{关键结论} 广播的数学后果：$f$ 为标量函数作用在 $1\times1$ 上时，$J=\varphi'(a)\cdot\mathbf 1$（全 1 矩阵）；
+形状错误必须\textbf{逐维}检查（只比一个维度会退化成恒真——源码记录过这个 bug 导致越界读）。
+成立条件：被广播维度确实是 1，或形状完全一致。
+
+\field{判据} 形状校验逐维；广播情形的 $J$ 与解析值对拍。
+
+\field{前置} T1、D3。
+
+\field{常见误解} 以为「广播是免费的」。它放大的是\textbf{读写次数}（同一份数据被重复读），
+在 cache 带宽受限时是实打实的代价。
+\end{know}
+
+\begin{know}{T7}{元素总数与空乘积}{框架：core/tensor.hpp}
+\field{是什么} $\text{Size}()=\prod_d\text{shape}[d]$；秩 0（标量）时\textbf{空乘积为 1}。
+
+\field{为什么需要} 标量必须有一个元素而不是零个；否则「$1\times1$ 矩阵」与「标量」的运算语义会分裂。
+
+\field{关键结论} 任一维为 0 $\Rightarrow\text{Size}=0$（合法空张量，不是错误）；含 0 维时\textbf{秩仍照算}
+（$\{2,0,3\}$ 的秩是 3、元素数 0）。成立条件：形状非负。
+
+\field{判据} 空张量与标量分别用例；`0×0` 的写盘/读回（对应 NOW 的 npy 契约）也要能过。
+
+\field{前置} T1。
+
+\field{常见误解} 以为「元素数为 0 就是秩为 0」。秩是维数、元素数是乘积；$\{0\}$ 的秩是 1、元素数是 0。
+\end{know}
+
+\begin{know}{M1}{$k$-形式与分量存放}{未建：math/forms.hpp}
+\field{是什么} $k$-形式是反对称的 $k$ 重线性映射；$\R^{n}$ 上分量个数为 $\binom nk$，
+用递增下标 $i_1<i_2<\dots<i_k$ 作字典序索引，其余分量由反对称性决定符号。
+
+\field{为什么需要} 它是「有向面积/体积」的代数化；梯度、旋度、散度都是它在 $n=3$ 的不同阶表现（M7）。
+
+\field{关键结论} 反对称性 $\omega(\dots,v_i,\dots,v_j,\dots)=-\omega(\dots,v_j,\dots,v_i,\dots)$ 决定一切；
+$k>n$ 时不存在非零 $k$-形式。成立条件：单个坐标卡（不做流形与图册）。
+
+\field{判据} $d^{2}=0$ 与 Leibniz 律在二次多项式系数上逐分量 $\le10^{-14}$（代数恒等式，不是收敛）。
+
+\field{前置} L7、T1。
+
+\field{常见误解} 以为「$k$-形式就是反对称张量」。还要有\textbf{拉回}与\textbf{外微分}这两件配套运算，
+否则它只是个带符号的表。
+\end{know}
+
+\begin{know}{M2}{外积（楔积）}{未建：math/forms.hpp}
+\field{是什么} $(\omega\wedge\eta)(v_1,\dots,v_{p+q})=\sum_\sigma\mathrm{sgn}(\sigma)\,
+\omega(v_{\sigma(1)},\dots)\eta(v_{\sigma(p+1)},\dots)/\text{重复计数}$；
+分量层面就是「按组合数展开并带符号」。
+
+\field{为什么需要} 它把低阶形式建成高阶，且天然反对称——行列式、体积形式 $dx\wedge dy\wedge dz$ 都是它。
+
+\field{关键结论} 反交换：$\omega\wedge\eta=(-1)^{pq}\eta\wedge\omega$（$p,q$ 为阶数）；
+$\omega\wedge\omega=0$ 当 $p$ 为奇数。成立条件：$p+q\le n$（超过就表示层存不下，抛错）。
+
+\field{判据} 与显式叉积/行列式对拍（$n=3$ 的全部组合）；$k+l>n$ 必须抛错而不是截断。
+
+\field{前置} M1。
+
+\field{常见误解} 以为「$\omega\wedge\eta=\eta\wedge\omega$ 差个符号而已」。差的符号是 $(-1)^{pq}$，
+两个奇形式交换\textbf{不变号}（$pq$ 为奇 $\times$ 奇 = 奇？注意 $p=q=1$ 时 $pq=1$，故反号）。
+算清楚指数，别背口诀。
+\end{know}
+
+\begin{know}{M3}{外微分与 $d^{2}=0$}{未建：math/forms.hpp}
+\field{是什么} $d$ 把 $k$-形式映到 $k+1$ 形式，分量上是对系数取偏导再反对称组合；
+库的实现里\textbf{偏导由调用方给}（$C(n,k)\times n$ 矩阵），只做反对称组装。
+
+\field{为什么需要} 它是「梯度、旋度、散度」的统一算子，也是 $d^{2}=0$ 这条「边界没有边界」的代数表述。
+
+\field{关键结论} 两条恒等式：$d^{2}=0$；Leibniz 律 $d(\omega\wedge\eta)=d\omega\wedge\eta+(-1)^{p}\omega\wedge d\eta$
+（$p=\deg\omega$，符号来自反交换）。成立条件：系数 $C^{2}$（混合偏导可交换）。
+
+\field{判据} 在二次多项式上 $d^{2}=0$ 逐分量 $\le10^{-14}$；Leibniz 律同样；
+「$d$ 的符号约定」用 $n=3$ 字典（M7）反查，不与叉积冲突。
+
+\field{前置} M1、M2。
+
+\field{常见误解} 以为「$d^{2}=0$ 只是符号巧合」。它的实质是「混合偏导可交换 + 反对称化」，
+所以凡是对称二阶导可交换的场合都成立；在离散化里它会以「边界算子复合为零」的形式重现（串讲六）。
+\end{know}
+
+\begin{know}{M4}{拉回}{未建：math/forms.hpp}
+\field{是什么} 光滑映射 $F:M\to N$ 把 $N$ 上的 $k$-形式拉回成 $M$ 上的 $k$-形式：
+$(F^{*}\omega)_p(v_1,\dots,v_k)=\omega_{F(p)}(dF_pv_1,\dots,dF_pv_k)$；分量上是 Cauchy--Binet 子式。
+
+\field{为什么需要} 换元积分、坐标变换下「同一个量怎么写」全靠它；也是「$F^{*}$ 与 $d$ 可交换」这条结构的载体。
+
+\field{关键结论} $F^{*}(d\omega)=d(F^{*}\omega)$（与 $d$ 交换）；$F^{*}(dx\wedge dy)=\det(J)\,dx\wedge dy$（2 维）。
+成立条件：$F$ 光滑；定向一致（否则符号翻转）。
+
+\field{判据} 线性 $F$ 与二次 $F$ 各一例；$\det(J)$ 与显式行列式对拍。
+
+\field{前置} M2、M3、L9。
+
+\field{常见误解} 以为「拉回就是换元」。换元是拉回在积分里的\textbf{一个应用}；
+拉回本身定义在形式上，与积分无关，所以它才能与 $d$ 交换。
+\end{know}
+
+\begin{know}{M5}{Hodge star}{未建：math/forms.hpp}
+\field{是什么} 在 $\R^{n}$ 的欧氏度量与标准定向下，$\star$ 把 $k$-形式映到 $(n-k)$-形式，
+由 $\omega\wedge\star\eta=\inner{\omega}{\eta}\,\mathrm{vol}$ 唯一确定。
+
+\field{为什么需要} 它把「内积」翻译成「楔积 + 体积」，从而把散度写成 $d\star$，把拉普拉斯写成 $\star d\star d$。
+
+\field{关键结论} 对合性 $\star\star\omega=(-1)^{k(n-k)}\omega$；成立条件：只做欧氏度量（非欧需度量矩阵）。
+
+\field{判据} 对合性逐分量 $\le10^{-14}$；$n=3$ 时 $\star$ 与叉积/散度的对应（M7）。
+
+\field{前置} M2、L4。
+
+\field{常见误解} 以为「$\star$ 就是补下标」。补下标只是一半，还要按体积元与定向确定符号；
+搞错符号会让散度差一个负号，在 PDE 里表现为「椭圆算子变双曲」。
+\end{know}
+
+\begin{know}{M6}{Stokes 三定理的统一形式}{未建：math/forms.hpp}
+\field{是什么} $\int_M d\omega=\int_{\partial M}\omega$。取 $n=3$ 的不同阶即得 Green、散度、Stokes 三条经典定理。
+
+\field{为什么需要} 它把「边界上的积分」与「内部微分」等价，是有限元弱形式（F3）的几何版本。
+
+\field{关键结论} 三条退化：0-形式给梯度定理、1-形式给 Stokes（环量=旋度通量）、
+2-形式给散度定理（通量=散度积分）。成立条件：$M$ 有定向、边界分段光滑、$\omega$ 在闭包上 $C^{1}$。
+
+\field{判据} 三次多项式 + 张量积 Simpson（对三次精确），两边差 $\le10^{-13}$。
+
+\field{前置} M3、M4。
+
+\field{常见误解} 以为「这是三个定理」。它是一个定理的三次取值；记住 $\int_{\partial}=\int d$ 即可，
+三条公式都能现推。
+\end{know}
+
+\begin{know}{M7}{$n=3$ 字典：grad / curl / div}{未建：math/forms.hpp}
+\field{是什么} 0-形式 $\leftrightarrow$ 梯度、1-形式 $\leftrightarrow$ 旋度、2-形式 $\leftrightarrow$ 散度；
+即 $d$ 在三个阶上分别实现这三个算子（配合 M5 的 $\star$）。
+
+\field{为什么需要} 它是「微分形式不是抽象玩具」的证据：向量分析的三件套就是同一个 $d$ 的不同阶表现。
+
+\field{关键结论} 两条熟知的恒等式在此变成一句话：$\mathrm{curl}\,\mathrm{grad}=0$ 与
+$\mathrm{div}\,\mathrm{curl}=0$ 都是 $d^{2}=0$。成立条件：欧氏度量 + 标准定向。
+
+\field{判据} 与显式叉积/散度逐分量对拍；$d^{2}=0$ 的三阶版本各自验证。
+
+\field{前置} M3、M5。
+
+\field{常见误解} 以为「$\mathrm{curl}\,\mathrm{grad}=0$ 是算出来的巧合」。它是拓扑事实
+（$d^{2}=0$），与坐标系无关；换成曲线坐标依然成立，而手算展开会累死。
+\end{know}

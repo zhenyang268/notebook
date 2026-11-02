@@ -1,0 +1,198 @@
+\section{概率：特征函数是「方向相反的那个傅里叶变换」}
+
+\subsection*{串讲三：为什么 DFT 是 $-i$，特征函数是 $+i$}
+
+这是全库唯一一处\textbf{故意反号}的地方（D20）。两边都在做「投影到 $e^{i\omega t}$」，
+但一边是分析信号（把时间函数拆成频率成分），一边是刻画分布（把概率质量映射成
+$\R$ 上的函数）。符号差异的具体后果很实在：
+
+\begin{center}
+\begin{tabular}{L{3.2cm}L{4.9cm}L{5.1cm}}
+\toprule
+ & DFT（$e^{-2\pi ikn/N}$） & 特征函数（$e^{+itx}$） \\
+\midrule
+反号后谁变 & $X_k\to X_{-k}$（谱镜像） & $\varphi'(0)$ 从 $+iE[X]$ 变 $-iE[X]$ \\
+模长判据能否发现 & 能（谱位置反） & \textbf{不能}（共轭后模长相同） \\
+修法 & 索引回卷 & 只能测\textbf{实/虚两槽} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+所以 P5 那条「接缝测试」必须用\textbf{复值概率质量函数}：实 pmf 下「只翻频轴」与「翻轴再共轭」
+数值恰好相同，测试测不出错。
+
+\begin{know}{P1}{特征函数与 $+i$ 约定}{框架：math/prob.hpp}
+\field{是什么} $\varphi_X(t)=E[e^{itX}]=\int e^{itx}p(x)\,dx=\sum_k p_ke^{itx_k}$。
+
+\field{为什么需要} 它把「独立和的分布」变成「函数相乘」（P3），把「矩」变成「导数」（P4）。
+
+\field{关键结论} 与傅里叶变换方向\textbf{相反}（H1 用 $-i$）。成立条件：$E\abs{X}$ 存在时 $\varphi$
+可微；$\varphi(0)=1$、$\abs{\varphi(t)}\le1$、$\varphi$ 一致连续。
+
+\field{判据} 矩的判据必须分实/虚槽（P4），不能只看模。
+
+\field{前置} C3、H1。
+
+\field{常见误解} 以为「特征函数就是傅里叶变换」。数学上是，但\textbf{符号约定相反}；
+照抄 FFT 的符号会得到 $\overline{\varphi}$，而模长判据完全看不出来。
+\end{know}
+
+\begin{know}{P2}{高斯的特征函数}{框架：math/prob.hpp}
+\field{是什么} $X\sim N(\mu,\sigma^{2})\Rightarrow\varphi(t)=e^{i\mu t-\sigma^{2}t^{2}/2}$。
+
+\field{为什么需要} 它是唯一「特征函数仍是高斯型」的分布，也是中心极限定理的解析支点。
+
+\field{关键结论} $\mu=0$ 时 $\varphi$ 实、偶、非负；$\mu=0,\sigma=1$ 时
+$\varphi(t)=e^{-t^{2}/2}$ \textbf{恰好等于}标准正态密度函数——高斯是傅里叶变换的不动点（差常数）。
+成立条件：$\sigma>0$。
+
+\field{判据} 高斯不动点：取 $dx\in\{0.5,0.4,0.3,0.25\}$ 四点，残差随 $dx$ 的衰减斜率与
+$\exp(-\pi/dx^{2})$ 的预测一致。
+
+\field{前置} P1。
+
+\field{常见误解} 以为「不动点意味着 $\varphi=\varphi$ 恒成立」。它只在 $\mu=0,\sigma=1$ 且按
+$\hat f(\xi)=\int f(x)e^{-2\pi i\xi x}dx$ 归一化时成立；换约定就多出常数与相位。
+\end{know}
+
+\begin{know}{P3}{卷积定理（概率版）}{框架：math/prob.hpp}
+\field{是什么} $X\perp Y\Rightarrow\varphi_{X+Y}(t)=\varphi_X(t)\varphi_Y(t)$，等价于
+$p_{X+Y}=p_X*p_Y$。
+
+\field{为什么需要} 它是「独立随机变量求和」的唯一省力算法；也是 H3 在概率侧的同一条定理。
+
+\field{关键结论} 成立条件：$X,Y$ 独立（不相关不够）；$\varphi$ 存在（即分布有定义）。
+
+\field{判据} 与直接卷积对拍；离散情形用 H3 的循环卷积要注意补零（H4）。
+
+\field{前置} P1、H3。
+
+\field{常见误解} 以为「卷积定理说明两个和的分布等于两个密度相乘」。恰好\textbf{反了}：
+是\textbf{特征函数}相乘、\textbf{密度}卷积。
+\end{know}
+
+\begin{know}{P4}{矩即导数：$i^{k}$ 因子与实虚分槽}{框架：math/prob.hpp}
+\field{是什么} $\varphi^{(k)}(0)=i^{k}E[X^{k}]$。具体地：$\varphi'(0)=i\mu$（纯虚），
+$\varphi''(0)=-(\mu^{2}+\sigma^{2})$（纯实）。
+
+\field{为什么需要} 它把「求矩」变成「在 0 处求导」，是从特征函数反推分布的最短路径。
+
+\field{关键结论} 奇阶导数带 $i^{\text{奇}}$ 因子，故落在虚部；偶阶落在实部。
+成立条件：$E\abs{X}^{k}<\infty$；$0$ 处可导。
+
+\field{判据} 判据必须分实/虚两槽比较；若整体用 $\mathrm{abs2}$，符号错误会被抹平。
+
+\field{前置} P1。
+
+\field{常见误解} 以为「$\varphi$ 在 0 处的斜率就是均值」。斜率是 $i\mu$，差一个 $i$；
+把它当实数会得到 0（因为 $\mu$ 在虚部）。
+\end{know}
+
+\begin{know}{P5}{接缝：只翻频轴、不共轭}{框架：math/prob.hpp}
+\field{是什么} 连续情形 $\varphi_X(2\pi\xi)=P(-\xi)$，其中 $P$ 是 $p$ 的傅里叶变换；
+离散情形 $\varphi_X(2\pi k/N)=\mathrm{FFT}[p]_{(N-k)\bmod N}$。
+
+\field{为什么需要} 库同时有 FFT（$-i$）与特征函数（$+i$），两者必须在某处对齐；
+对齐点错了，整条「分布 $\leftrightarrow$ 频谱」的桥就歪了。
+
+\field{关键结论} 正确做法是\textbf{只翻频轴}（索引回卷），\textbf{不额外共轭}。
+成立条件：$p$ 为实 $pmf$ 时 $P(-\xi)=\overline{P(\xi)}$ 恰好成立，所以错误的实现看起来也对。
+
+\field{判据} 必须用\textbf{复值} pmf 测：实 pmf 下「翻轴」与「翻轴+共轭」数值相同，测不出错。
+
+\field{前置} P1、H1、H5。
+
+\field{常见误解} 以为「反正实信号有共轭对称，共不共轭一个样」。共轭对称是\textbf{实信号}的性质，
+一旦输入变成复数（比如已经乘过相位），这条性质消失，错误立刻显形。
+\end{know}
+
+\begin{know}{P6}{经验特征函数}{框架：math/prob.hpp}
+\field{是什么} $\hat\varphi(t)=\frac1n\sum_{j=1}^{n}e^{itx_j}$，即把样本当经验分布的 pmf 代入 P1。
+
+\field{为什么需要} 它是从数据估计特征函数的标准做法；大数律保证 $\hat\varphi\to\varphi_X$。
+
+\field{关键结论} 误差量级 $O(1/\sqrt n)$（均值型统计量的标准差）；成立条件：样本独立同分布。
+判据侧取 $3/\sqrt n$ 作容差。
+
+\field{判据} $\abs{\hat\varphi(t)-\varphi(t)}\le3/\sqrt n$ 量级；同 seed 逐位可复现。
+
+\field{前置} P1、P7。
+
+\field{常见误解} 以为「样本量翻倍误差就减半」。$1/\sqrt n$ 意味着要误差减半需要\textbf{四倍}样本；
+这个尺度差是很多「加数据没用」的根源。
+\end{know}
+
+\begin{know}{P7}{Box--Muller：从均匀到正态}{框架：math/prob.hpp}
+\field{是什么} 取 $u_1,u_2\sim U(0,1]$ 独立，$r=\sqrt{-2\ln u_1}$，$\theta=2\pi u_2$，
+则 $z_0=r\cos\theta$、$z_1=r\sin\theta$ 独立且 $\sim N(0,1)$。
+
+\field{为什么需要} 它是「用可生成的均匀随机数造正态」的标准做法，也是「极坐标 + 逆变换」的经典组合。
+
+\field{关键结论} 正确性：$R^{2}$ 服从参数 $1/2$ 的指数分布（即 $\chi^{2}_{2}$），$\Theta$ 均匀，
+所以 $r$ 是「指数分布逆变换」；两个输出天然独立。成立条件：$u_1\in(0,1]$——
+$u_1=0$ 会让 $\ln0=-\infty$ 污染均值。
+
+\field{判据} $N=10^{6}$ 时 $\abs{\text{mean}}\le3/\sqrt N$、$\abs{\text{var}-1}\le3\sqrt{2/N}$；
+同 seed 逐位可复现。
+
+\field{前置} P1。
+
+\field{常见误解} 以为「$r$ 该从 $N(0,1)$ 里取」。$r$ 是半径、服从指数分布；
+把半径和角度都取成正态会得到一个错误的分布（而且看起来也像正态）。
+\end{know}
+
+\begin{know}{P8}{$\mathrm{erf}$、$\Phi$ 与尾部互补}{框架：math/special.hpp}
+\field{是什么} $\mathrm{erf}(x)=\frac{2}{\sqrt\pi}\int_0^{x}e^{-t^{2}}dt$，
+$\Phi(x)=\frac{1+\mathrm{erf}(x/\sqrt2)}{2}$，密度 $\varphi_{\text{pdf}}(x)=e^{-x^{2}/2}/\sqrt{2\pi}$。
+
+\field{为什么需要} 正态的分布函数是「查表」的全部内容；尾部概率是显著性检验的语言。
+
+\field{关键结论} 左尾必须走互补：$\Phi(-x)=\mathrm{erfc}(x/\sqrt2)/2\ (x>0)$——
+因为 $x\gtrsim5.9$ 时 $\mathrm{erf}(x)=1-2.5\times10^{-16}$，只差 1 ulp，
+用 $1-\mathrm{erf}$ 算左尾会得到 0。对称性 $\Phi(-x)=1-\Phi(x)$ 数学上成立但\textbf{数值上不能用}。
+成立条件：$\sigma>0$ 且有限。
+
+\field{判据} $\mathrm{erf}/\mathrm{erfc}$ 与语言内建差 $\le2$ ulp；$\abs{\Phi(\Phi^{-1}(u))-u}\le10^{-14}$
+对 $u\in[10^{-12},1-10^{-12}]$。
+
+\field{前置} A6、C5。
+
+\field{常见误解} 以为「$\mathrm{erfc}=1-\mathrm{erf}$ 直接实现就行」。定义恒等，数值不恒等：
+相消会把尾部信息全部抹掉（A6）。
+\end{know}
+
+\begin{know}{P9}{分位数：Acklam 近似 + 一步 Newton}{框架：math/special.hpp}
+\field{是什么} 求 $z$ 使 $\Phi(z)=u$。先用 Acklam 有理逼近给初值 $z_0$（相对误差约 $1.15\times10^{-9}$），
+再走一步 Newton：$z_1=z_0-\big(\Phi(z_0)-u\big)/\varphi_{\text{pdf}}(z_0)$。
+
+\field{为什么需要} 分位数是「从概率反查阈值」的唯一工具（置信区间、显著性、采样）。
+
+\field{关键结论} Newton 的收敛是二次的，前提是初值已落在收敛域内且 $\varphi(z_0)\ne0$（尾部会趋 0，
+故 $u$ 必须严格在 $(0,1)$ 开区间）。成立条件：$u$ 不取端点（端点对应 $\pm\infty$，库不返回）。
+
+\field{判据} $\abs{\Phi(z)-u}\le10^{-14}$，$u\in[10^{-12},1-10^{-12}]$；
+锚点 $u=0.975\Rightarrow z\approx1.959963984540054$。
+
+\field{前置} P8。
+
+\field{常见误解} 以为「近似公式够了，不必再迭代」。Acklam 单独只有约 $10^{-9}$，
+而 $\Phi$ 本身能到 ulp 级——不迭代就把上游精度白白丢掉三个数量级。
+\end{know}
+
+\begin{know}{P10}{尾部相消与判据的位置}{框架：math/special.hpp}
+\field{是什么} 尾部（$|x|$ 大）概率极小，任何「大数减小数」的写法都会丢光有效位；
+所以判据不能只写在「函数值」上，还要写在「反函数复合」上。
+
+\field{为什么需要} 尾部是「精度最容易假通过」的地方：中心区域对拍全绿，尾部错得离谱。
+
+\field{关键结论} 两条互补判据：$\mathrm{erfc}$ 与内建对拍（绝对差 $\le2$ ulp）覆盖尾部；
+$\Phi(\Phi^{-1}(u))$ 复合判据覆盖「往返一致性」。成立条件：$u$ 在 $[10^{-12},1-10^{-12}]$ 内，
+再往外 $\Phi^{-1}$ 的绝对误差会让复合判据失真。
+
+\field{判据} 复合误差 $\le10^{-14}$；$\mathrm{erfc}(+\infty)=0$、$\mathrm{erfc}(-\infty)=2$、$\mathrm{erf}(\pm\infty)=\pm1$。
+
+\field{前置} P8、P9、A6。
+
+\field{常见误解} 以为「函数值与反函数值都测了就万事大吉」。两者可能\textbf{一致地错}
+（同一个相消 bug 让两边偏移相同），必须再加一条与外部实现的绝对对拍。
+\end{know}

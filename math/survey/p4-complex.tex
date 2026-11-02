@@ -1,0 +1,104 @@
+\section{复分析：多值性不是缺陷，是定义的一部分}
+
+\begin{know}{C1}{复代数与非有序域}{已实现：core/complex.hpp}
+\field{是什么} $(a+bi)(c+di)=(ac-bd)+(ad+bc)i$，$\abs{z}^{2}=a^{2}+b^{2}$，
+$z^{-1}=\overline{z}/\abs{z}^{2}$。
+
+\field{为什么需要} 它是全库唯一的「非有序标量」：所有比较必须绕道 $\mathrm{abs2}$（D7），
+所有正交必须用共轭转置（L3）。
+
+\field{关键结论} 复数域\textbf{不存在}与加法乘法相容的全序。成立条件：无——
+这是定理（任何把 $\C$ 变成有序域的尝试都会导致 $-1\ge0$）。
+
+\field{判据} 判复数相等必须逐分量比实虚两槽；$\mathrm{abs2}$ 只能判模长（L5）。
+
+\field{前置} L4。
+
+\field{常见误解} 以为「复数也能比大小，只是编译器不给」。不是编译器限制，是数学上不可能：
+只要 $\abs{\cdot}$ 与加减乘相容，$i^{2}=-1<0$ 必然矛盾。
+\end{know}
+
+\begin{know}{C2}{Smith 除法}{已实现：core/complex.hpp}
+\field{是什么} 朴素式 $(a+bi)/(c+di)=\big[(ac+bd)+(bc-ad)i\big]/(c^{2}+d^{2})$ 会在 $c,d$ 极大时上溢、
+极小时下溢。Smith 形式：若 $\abs{c}\ge\abs{d}$，取 $r=d/c$，
+则商 $=\dfrac{a+br}{c+dr}+\dfrac{b-ar}{c+dr}i$；$\abs{c}<\abs{d}$ 时对称地按 $d$ 归一化。
+
+\field{为什么需要} 中间量必须落在可表示范围：$c^{2}+d^{2}$ 在 $\abs{c},\abs{d}\sim10^{200}$ 时直接溢出成
+$\infty$，商变成 $0$ 或 NaN，而真实商可能就在 1 附近（如 $(10^{200}+i)/(10^{200}+i)=1$）。
+
+\field{关键结论} 先按大分量归一化，使 $\abs{r}\le1$，所有中间量不超过约 $2\max(\abs{c},\abs{d})$。
+成立条件：分母非零（零由 IEEE 传播，不在标量层判，见 D12）。
+
+\field{判据} 用例：同量级大数相除应为 $1$；$\abs{c},\abs{d}\sim10^{-200}$ 时不出现 inf/nan。
+
+\field{前置} C1、A6。
+
+\field{常见误解} 以为「先算模方再除」只是慢一点。它是\textbf{错}：模方的动态范围是原分量的两倍，
+越界即坏，且无法靠提高精度根治。
+\end{know}
+
+\begin{know}{C3}{欧拉公式与复指数}{已实现：core/complex.hpp、linalg/expm.hpp 对照}
+\field{是什么} $\exp(a+bi)=e^{a}(\cos b+i\sin b)$。
+
+\field{为什么需要} 它是「旋转」的解析表达：单位圆上的 $\exp(i\theta)$ 就是转动 $\theta$；
+DFT 的旋转因子、特征函数的 $e^{itX}$、四元数的半角公式，都是它的变体。
+
+\field{关键结论} 它与矩阵指数 $\exp(A)$ \textbf{只在 $1\times1$ 时重合}。成立条件：$b$ 为实数；
+相位按模 $2\pi$ 有意义。
+
+\field{判据} 无（恒等式本身）；\texttt{expm.hpp} 明确区分两者（N10）。
+
+\field{前置} C1。
+
+\field{常见误解} 以为 $\exp(A)$ 可以先对元素取 $\exp$。见 N10；两者的「指数」含义不同：
+一个是标量函数，一个是幂级数的矩阵和。
+\end{know}
+
+\begin{know}{C4}{对数主值与分支切割}{已实现：core/complex.hpp}
+\field{是什么} $\log z=\ln\abs{z}+i\arg z$，$\arg z\in(-\pi,\pi]$（主值）。
+
+\field{为什么需要} 复对数是多值（$\log z$ 差 $2\pi ik$），必须选一支；选哪一支决定了哪些地方不连续。
+
+\field{关键结论} 主值分支的\textbf{切割在负实轴}：从上方趋近给 $+\pi$，从下方给 $-\pi$，
+所以 $\log$ 在负实轴上不连续。这是多值性的必然，不是实现缺陷。需要连续性时要自己做相位展开（unwrapping）。
+
+\field{判据} 无。
+
+\field{前置} C3。
+
+\field{常见误解} 以为「主值就是唯一正确的值」。主值是\textbf{约定}；换一支（比如 $[0,2\pi)$）
+得到另一套连续性与另一套公式，物理结果相同但中间步骤的符号会变。
+\end{know}
+
+\begin{know}{C5}{开方主值与半角写法}{已实现：core/complex.hpp}
+\field{是什么} $\sqrt{z}=\sqrt{\dfrac{\abs{z}+a}{2}}+\mathrm{sign}(b)\sqrt{\dfrac{\abs{z}-a}{2}}\,i$，
+其中 $a=\mathrm{Re}\,z$。
+
+\field{为什么需要} 直接算 $\sqrt{a+bi}$ 需要解二次方程，会遇相消（A6）；半角形式把它变成
+两个非负量之和。
+
+\field{关键结论} 实部恒取正号 $\Rightarrow$ 结果的实部 $\ge0$（这是主值的定义）；
+$z=0$ 必须单独返回，否则 $b=0/0$ 变 NaN；跨负实轴时虚部符号翻转，故\textbf{不连续}。
+$\abs{z}$ 要用 \texttt{hypot}，$\abs{z}\pm a$ 要用不抵消的写法。成立条件：$z\ne0$ 走通用分支。
+
+\field{判据} $\abs{a},\abs{b}\sim10^{200}$ 时不能出现 inf/nan；$z<0$ 时结果应为纯虚且符号与 $b$ 一致。
+
+\field{前置} C4、A6。
+
+\field{常见误解} 以为 $\sqrt{z^{2}}=\abs{z}$。复域里 $\sqrt{z^{2}}$ 依赖分支，可能是 $z$ 也可能是 $-z$。
+\end{know}
+
+\begin{know}{C6}{幂主值与「不是实数幂」}{已实现：core/complex.hpp}
+\field{是什么} $z^{w}=\exp(w\log z)$，取 $\log$ 的主值即得幂的主值。
+
+\field{为什么需要} 它说明「分数次幂」在复域天然多值；求根、算 $\sqrt[3]{\cdot}$ 都要先决定分支。
+
+\field{关键结论} $(-8)^{1/3}$ 的主值是 $1+1.732i$，\textbf{不是} $-2$。成立条件：$z\ne0$（$0^{0}$ 与 $0^{w}$ 另议）。
+
+\field{判据} 无。
+
+\field{前置} C4、C5。
+
+\field{常见误解} 以为复数的幂可以「先化成实数再算」。一旦底数为负或指数非整数，
+实数路径给出的那个根只是若干分支中的一个，且常不是主值。
+\end{know}

@@ -1,0 +1,163 @@
+\section{微分：从 $\eps^{2}=0$ 到伴随传播}
+
+\subsection*{串讲四：为什么「前向一次得列、反向一次得行」}
+
+这件事看着像工程技巧，其实全是维度：
+
+\begin{itemize}[leftmargin=1.4em]
+  \item 前向：把 $\eps$ 塞进第 $j$ 个输入分量 $x_j$。仿射部分立刻吐出
+        $\partial f/\partial x_j$——\textbf{一次一个输入}，是 $J$ 的一列。
+  \item 反向：从标量 $L$ 出发，把「上游的伴随」按链式法则往回乘——\textbf{一次一个输出}，是 $J$ 的一行。
+\end{itemize}
+
+于是代价对偶：$n$ 个输入、$m$ 个输出时，前向 $O(n)$ 次、反向 $O(m)$ 次。
+深度学习里 $m=1$（损失是标量）而 $n$ 是百万参数，所以必须反向。这不是「反向模式更先进」，
+只是 $m\ll n$ 时它更便宜。
+
+\begin{know}{D1}{对偶数：$\eps^{2}=0$ 的代数}{已实现：autodiff/dual.hpp}
+\field{是什么} $z=v+d\eps$，规定 $\eps^{2}=0$ 且 $\eps\ne0$。注意 $\eps$ 不是 $i$：
+$i^{2}=-1$，$\eps^{2}=0$。
+
+\field{为什么需要} 它把「求导」变成「在同一个数域里做算术」——不需要符号系统，也不需要差分步长。
+
+\field{关键结论} 对任意光滑 $f$，$f(v+d\eps)=f(v)+d\,f'(v)\eps$：因为 $h^{2}=0$，
+\textbf{高阶项精确消失}，所以链式法则成为代数恒等式（不是极限意义下的近似）。成立条件：
+$f$ 在 $v$ 的邻域内解析（有 Taylor 展开）；$T$ 必须是\textbf{交换环}——四元数不满足，不得进此域。
+
+\field{判据} 二阶导数用嵌套 $\mathrm{Dual\langle Dual\rangle}$：$v+d_1\eps_1+e\eps_2+(\partial^{2})\eps_1\eps_2$。
+
+\field{前置} 无。
+
+\field{常见误解} 以为「$\eps$ 是个很小的数」。它不是数，是一个幂零生成元；
+写成 $10^{-8}$ 就退化成数值差分，误差从机器精度掉到 $O(\sqrt\eps)$。
+\end{know}
+
+\begin{know}{D2}{传播规则与链式法则}{已实现：autodiff/dual.hpp}
+\field{是什么} $(a+b\eps)(c+e\eps)=ac+(ae+bc)\eps$；
+$(a+b\eps)/(c+e\eps)=\frac ac+\frac{bc-ae}{c^{2}}\eps$（$c\ne0$）。
+原函数：$\sin:( \sin a,\ \cos a\cdot b)$、$\exp:(\exp a,\ \exp a\cdot b)$、$\ln:(\ln a,\ b/a)$、
+$\sqrt:(\sqrt a,\ b/(2\sqrt a))$。
+
+\field{为什么需要} 只要每种原函数都满足「值 + 导数」二元传播，整条表达式树就自动正确——
+这是把微积分降级成算术的关键。
+
+\field{关键结论} 连乘的导数用前后缀积可做到 $O(n)$ 而避免零因子问题：
+$dY=\sum_i\big(\prod_{j\ne i}v_j\big)dx_i$。成立条件：$c\ne0$（除零由 IEEE 传播，标量层不判，D12）。
+
+\field{判据} 与解析导数对拍；$n$ 元连乘的 $O(n)$ 版本与朴素 $O(n^{2})$ 版本互相对拍。
+
+\field{前置} D1。
+
+\field{常见误解} 以为「除法要单独实现一套导数」。它完全由乘法与可逆元推出；
+手写公式容易在 $c$ 接近 0 时与乘法版本不一致。
+\end{know}
+
+\begin{know}{D3}{雅可比布局：行是输出、列是输入}{已实现：autodiff/jacobian.hpp}
+\field{是什么} 分子布局：$J\in\R^{m\times n}$，$J_{ij}=\partial y_i/\partial x_j$（D19 第二次修订）；
+链式法则取自然序 $J_{f\circ g}=J_f\cdot J_g$。
+
+\field{为什么需要} 布局不统一，全库的「转置」会到处漏；链式法则的方向一错，反传全错。
+
+\field{关键结论} 标量输出时 $J$ 是 $1\times n$ \textbf{行}向量，而梯度 $\nabla f=J^{\mathsf T}$ 是 $n\times 1$ 列——
+两者\textbf{不是同一个东西}，梯度与被微对象同形。成立条件：向量一律 $n\times1$（D19）。
+
+\field{判据} 差分校验 $J_{ij}\approx\frac{f_i(x+he_j)-f_i(x-he_j)}{2h}$，$h=10^{-6}$ 时误差约 $10^{-10}$，
+判据取差 $<10^{-8}$。
+
+\field{前置} L1、L2。
+
+\field{常见误解} 以为「分母布局只是写法的偏好」。两种布局互为转置，链式法则的乘法顺序相反
+（$J_gJ_f$）；混用一次就会得到形状对、数值错的结果。
+\end{know}
+
+\begin{know}{D4}{种子 sweep：一次填一列}{已实现：autodiff/jacobian.hpp}
+\field{是什么} 令 $x=x_0+e_j\eps$，则 $f(x)=f(x_0)+(\partial f/\partial x_j)\eps$；
+扫遍 $j=1..n$ 即得完整 $J$，共 $n$ 次前向。
+
+\field{为什么需要} 它是前向模式的实际算法，也是「代价 = 输入维数」这个说法的出处。
+
+\field{关键结论} 第 $j$ 次 sweep 只填第 $j$ 列；形状校验必须\textbf{逐维}（只比一个维度会退化成恒真）。
+成立条件：$x$ 为 $n\times1$、输出 $m\times1$。
+
+\field{判据} 与 D3 的差分校验对拍；对角/逐元素函数的 $J$ 应为 $\mathrm{diag}(\varphi')$，
+广播（$f$ 为 $1\times1$）时 $J=\varphi'(a)\cdot\mathbf{1}$。
+
+\field{前置} D1、D3。
+
+\field{常见误解} 以为「一次 sweep 能得整行」。前向一次只给一列；要整行必须反向（D5）。
+方向搞反会让整体代价从 $O(n)$ 变成 $O(n^{2})$ 而不报错。
+\end{know}
+
+\begin{know}{D5}{反向模式与伴随传播}{已实现：autodiff/grad\_graph.hpp}
+\field{是什么} 设 $v=\partial L/\partial z$ 为「上游伴随」，则
+$\partial L/\partial n=\sum_{m:n\to m}(\partial L/\partial m)(\partial m/\partial n)$。
+
+\field{为什么需要} $m=1$ 时一次反向得到整个梯度，代价与参数规模成线性——这是训练可行性的全部基础。
+
+\field{关键结论} 三条要点：(1)fan-out 处必须\textbf{累加}（同一节点被多条路径用到）；
+(2)局部导数按算子给：MatMul 是 $\partial L/\partial W=vx^{\mathsf T}$、$\partial L/\partial x=W^{\mathsf T}v$；
+(3)形状唯一确定公式（$vx^{\mathsf T}$ 必为 $m\times n$）。成立条件：图是有向无环；无 tape 时 fan-out 会重算导致指数爆炸。
+
+\field{判据} 恒等图 $L=x$ 的梯度必须恰为 $1$；差分校验 $h=10^{-6}$、误差约 $1\times10^{-10}$。
+
+\field{前置} D3、L10。
+
+\field{常见误解} 以为「反向就是前向的逆运算」。它不是逆矩阵，是\textbf{转置}（伴随）传播：
+每一步乘的是局部雅可比的转置，而不是它的逆。
+\end{know}
+
+\begin{know}{D6}{Lipschitz 条件与解的存在唯一}{骨架：math/ode.hpp}
+\field{是什么} 初值问题 $y'=f(t,y)$、$y(t_0)=y_0$；若 $f$ 对 $y$ 满足 Lipschitz 条件
+$\abs{f(t,y_1)-f(t,y_2)}\le L\abs{y_1-y_2}$，则局部解存在且唯一（Picard--Lindelöf）。
+
+\field{为什么需要} 没有唯一性，任何数值解都失去「在对什么东西逼近」的前提。
+
+\field{关键结论} Lipschitz 弱于连续可微，强于连续；只有连续性（Peano）时解可能不唯一。
+契约要求 $f$ 光滑；\textbf{跳变不处理}（需要事件检测，不做）。
+
+\field{判据} 无（骨架未实现）。
+
+\field{前置} A5。
+
+\field{常见误解} 以为「右端连续就一定有唯一解」。经典反例 $y'=\sqrt{\abs y},y(0)=0$ 有无穷多解；
+差的就是 Lipschitz。
+\end{know}
+
+\begin{know}{D7}{Euler 与 RK4 的阶}{骨架：math/ode.hpp}
+\field{是什么} Euler：$y_{n+1}=y_n+hf(t_n,y_n)$，1 阶。RK4：
+$k_1=f(t,y)$，$k_2=f(t+h/2,y+\frac h2k_1)$，$k_3=f(t+h/2,y+\frac h2k_2)$，$k_4=f(t+h,y+hk_3)$，
+$y_{n+1}=y+h(k_1+2k_2+2k_3+k_4)/6$，4 阶。
+
+\field{为什么需要} 它们是「局部误差阶 $\to$ 全局误差阶」的标准例子，也是收敛阶判据（A5）的常用靶子。
+
+\field{关键结论} Euler 局部 $O(h^{2})$、全局 $O(h)$（$h$ 减半误差降 2 倍）；
+RK4 局部 $O(h^{5})$、全局 $O(h^{4})$（$h$ 减半误差降 16 倍），每步 4 次 $f$。
+成立条件：$f$ 足够光滑且步长进入渐近区。
+
+\field{判据} 三次 $h$ 减半的误差比值（2 与 16），落区间内才算过。
+
+\field{前置} D6、A5。
+
+\field{常见误解} 以为「RK4 一定比 Euler 准」。$h$ 很大时 RK4 的 4 次求值可能落在解的外面，
+反而发散；阶是\textbf{渐近}性质。
+\end{know}
+
+\begin{know}{D8}{辛结构与 Verlet 的能量行为}{骨架：math/ode.hpp}
+\field{是什么} 力学系统写成 $\dot q=v$、$\dot v=a(q)$。辛 Euler：$v_{n+1}=v_n+ha(q_n)$、
+$q_{n+1}=q_n+hv_{n+1}$（用\textbf{新}速度）。Verlet：半步速度—整步位置—半步速度
+（$v_{1/2}=v_n+\frac h2a(q_n)$、$q_{n+1}=q_n+hv_{1/2}$、$v_{n+1}=v_{1/2}+\frac h2a(q_{n+1})$）。
+
+\field{为什么需要} 长时间积分时，普通高阶方法会让能量单调漂移；保结构方法让能量\textbf{有界振荡}。
+
+\field{关键结论} 辛方法精确保持的是\textbf{扰动哈密顿量} $H+O(h^{2})$，故能量误差不发散。
+Verlet 2 阶、每步 2 次加速度；辛 Euler 1 阶但已有界。成立条件：$H=\frac12\abs v^{2}+U(q)$，
+力由 $a=-\nabla U$ 给出（保守系统）。
+
+\field{判据} 判能量\textbf{包络}（上下界是否随时间增长），不判单步误差；
+比较辛 Euler 与 RK4 的长时间能量曲线是标准用例。
+
+\field{前置} D7。
+
+\field{常见误解} 以为「阶更高就更守恒」。RK4 阶高但不保辛，长时间能量会\textbf{系统性漂移}；
+这是「结构 > 阶数」最著名的反例。
+\end{know}

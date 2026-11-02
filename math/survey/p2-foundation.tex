@@ -1,0 +1,293 @@
+\section{分析基础：误差是怎么被量出来的}
+
+这一节是全篇的地基。后面每个阈值、每条「误差 $O(h^p)$」的判据，根都在这里。
+
+\begin{know}{A1}{机器 epsilon 与相对精度}{已实现：core/scalar.hpp}
+\field{是什么} 设浮点舍入到最近，$\eps$ 定义为满足 $1+\delta\ne1$ 的最小正 $\delta$。
+它给的不是「最小正数」，而是\textbf{相对精度}的量级单位：$\abs{\mathrm{fl}(x)-x}\lesssim \eps\abs{x}/2$。
+
+\field{为什么需要} 全库所有容差都以它为分子；判断「这个残渣算不算零」必须先知道机器能分辨到哪。
+
+\field{关键结论} $\eps_{\text{float}}\approx1.19\times10^{-7}$，$\eps_{\text{double}}\approx2.22\times10^{-16}$，
+\textbf{两者差 9 个数量级}。成立条件：舍入到最近；进入次正规数区间后相对误差界失效。
+
+\field{判据} 源码无独立用例，但它是 \texttt{DefaultTol} 的唯一来源。
+
+\field{前置} 无。
+
+\field{常见误解} 以为 $\eps$ 是「最小正浮点数」。那是次正规下界（double 约 $5\times10^{-324}$），
+与 $\eps$ 差三百多个数量级；两者混用会让阈值失去量纲意义。
+\end{know}
+
+\begin{know}{A2}{累加误差与 $8n\eps$ 的来历}{已实现：core/scalar.hpp}
+\field{是什么} $n$ 次量级相当的加减乘，舍入误差累积上界约为 $n\eps\cdot(\text{结果量级})$；
+库取系数 $8$ 作余量，定义 $\mathrm{DefaultTol}(n)=8n\eps(\text{real\_t})$。
+
+\field{为什么需要} 它是全库\textbf{唯一默认容差}：判主元是否为零、判 Cholesky 主元是否为正、
+判特征值迭代是否收敛，都用它。
+
+\field{关键结论} $8n\eps$ 的量级是「$n$ 次累加的最坏舍入」。成立条件：各步量级相当、
+\textbf{没有相消}（见 A6）。一旦出现严重相消，相对误差无界，这个界不再有效。
+
+\field{判据} \texttt{solve.hpp} 判 $\abs{\text{pivot}}\le \mathrm{DefaultTol}(n)$；
+\texttt{cholesky.hpp} 判 $\mathrm{real}(d)>\mathrm{DefaultTol}(n)$（写成 \texttt{!(d>tol)} 让 NaN 也抛）。
+
+\field{前置} A1。
+
+\field{常见误解} 以为 $8n\eps$ 是误差分析严格推出来的。源码明确写着「系数 8 是余量、非推导」——
+它是个经过实测校准的工程常数，不是定理。
+\end{know}
+
+\begin{know}{A3}{前向误差与后向误差}{已实现（概念），但链路未展开}
+\field{是什么} 前向误差 $\abs{\hat x-x}/\abs{x}$；后向误差是最小的 $\norm{E}/\norm{A}$，
+使 $(A+E)\hat x=b$ 精确成立。前者问「算得准不准」，后者问「算的是不是某个邻近问题的精确解」。
+
+\field{为什么需要} 判断一个算法「稳不稳」必须说清是哪一种。LU 带部分主元是\textbf{后向稳定}的
+（$\norm{E}\sim n\eps\norm{A}$），但它的前向误差还要被 $\kappa(A)$ 放大。
+
+\field{关键结论} 一阶近似下 $\text{前向}\lesssim\kappa(A)\cdot\text{后向}$。成立条件：$\kappa$ 取与范数匹配的
+2-范数条件数，且扰动不改变秩。
+
+\field{判据} 原文未给——\texttt{solve.hpp} 的「三」段没有展开这条链，属于第 \ref{sec:audit} 节的缺口。
+
+\field{前置} A1、A4。
+
+\field{常见误解} 以为「残差小就等于解准」。残差正是后向误差；$\kappa$ 很大时，
+残差 $10^{-16}$ 的解可以离真解差很远。
+\end{know}
+
+\begin{know}{A4}{条件数与误差放大}{部分已实现：linalg/svd.hpp 提及}
+\field{是什么} $\kappa(A)=\norm{A}\norm{A^{-1}}$；在谱范数下 $\kappa=\sigma_{\max}/\sigma_{\min}$
+（对可逆矩阵）。它衡量「输入的小相对扰动最多被放大几倍」。
+
+\field{为什么需要} 解释「为什么解方程的结果比矩阵本身还不准」，也是 SVD 走 $A^{H}A$ 路线
+精度损失的唯一解释（N12）。
+
+\field{关键结论} $\kappa(A^{H}A)=\kappa(A)^{2}$；$\sigma$ 的相对误差约 $\sqrt{\eps}$ 而非 $\eps$。
+成立条件：$A$ 非奇异；方阵。
+
+\field{判据} 原文只给了一个数字：$\kappa(A)=10^{8}$ 时 $\sigma$ 的相对误差约 $10^{-8}$。
+其余文件都「原文未给」（缺口见第 \ref{sec:audit} 节）。
+
+\field{前置} L7。
+
+\field{常见误解} 以为 $\kappa$ 是矩阵的固有性质、与范数无关。换范数 $\kappa$ 会差常数倍；
+说 $\kappa$ 必须同时说范数。
+\end{know}
+
+\begin{know}{A5}{收敛阶与「h 减半」判据}{已实现（判据方法论）}
+\field{是什么} 全局误差 $e(h)=O(h^{p})$ 称 $p$ 阶。实操判据：$h$ 每减半，误差应降 $2^{p}$ 倍，
+即 $\log e$ 对 $\log h$ 的斜率约为 $p$。
+
+\field{为什么需要} RK4 的四阶、P1 有限元在 $L^{2}$ 下的二阶，都只能这样验收——没有精确解的场合
+这是唯一可用的客观判据。
+
+\field{关键结论} 局部截断误差 $p+1$ 阶 $\Rightarrow$ 全局 $p$ 阶。成立条件：方法稳定、右端项足够光滑、
+\textbf{步长已进入渐近区}（$h$ 太大时高阶项未起来，比值会乱）。
+
+\field{判据} 三次 $h$ 减半的比值落在区间内（P1 取 $[3.8,4.2]$）；Euler 减半降 2 倍、RK4 降 16 倍。
+
+\field{前置} A1。
+
+\field{常见误解} 以为「阶越高越准」。阶是渐近率；常数项很大时，低阶方法在中等 $h$ 下可能更准
+（RK4 步长过大时反而不如小步长 Euler）。
+\end{know}
+
+\begin{know}{A6}{相消与三种改写}{已实现：core/complex.hpp、math/special.hpp}
+\field{是什么} 两个相近数相减，结果的相对误差约为 $\eps\abs{a}/\abs{a-b}$——
+当 $\abs{a-b}\ll\abs{a}$ 时有效位成批消失。
+
+\field{为什么需要} 四个地方直接踩它：复数模长 $\sqrt{a^{2}+b^{2}}$、开方里的 $\abs{z}\pm a$、
+\texttt{erfc} 的大参数、二次方程小根。
+
+\field{关键结论} 三条改写手段：\textbf{换形式}（分子有理化、半角公式）、
+\textbf{用不抵消表达式}（\texttt{hypot}、倒数形式）、\textbf{切到互补函数}（$\mathrm{erf}\leftrightarrow\mathrm{erfc}$、
+$\Phi(-x)=\mathrm{erfc}(x/\sqrt2)/2$）。成立条件：改写必须在同一数学恒等式的两侧，不能引入新的近似。
+
+\field{判据} \texttt{special.hpp} 要求 $\mathrm{erf}/\mathrm{erfc}$ 与语言内建差 $\le 2$ ulp；
+$\mathrm{erfc}$ 在 $x\gtrsim5.9$ 处若用 $1-\mathrm{erf}$ 只剩 1 ulp 可用，必错。
+
+\field{前置} A1。
+
+\field{常见误解} 以为「上 long double 就能治相消」。相消丢的是\textbf{已经算出来的位}，
+加精度只多几位，改写形式才根治。
+\end{know}
+
+\section{线性代数：矩阵是线性映射，不是数字表}
+
+\subsection*{串讲一：$8n\eps$、回代、条件数是一条链}
+
+A2 给的是「$n$ 步运算能攒多少舍入」；A3 把它翻译成「解方程的后向误差」；
+A4 再加上「问题本身的放大倍率」。三者串起来才是完整的误差预算：
+\[
+\text{解的相对误差}\ \lesssim\ \underbrace{\kappa(A)}_{\text{A4}}\cdot
+\underbrace{n\eps}_{\text{A2}}\ .
+\]
+所以看到 \texttt{DefaultTol(n)}~$=8n\eps$ 时不要只想「机器精度乘 n」，它是这条链的第一环。
+
+\begin{know}{L1}{矩阵作为线性映射与行主序}{已实现：core/matrix.hpp}
+\field{是什么} $A\in\R^{m\times n}$ 表示映射 $x\mapsto Ax$（$x$ 为 $n\times1$ 列向量，D19）；
+存储上 $A(i,j)$ 落在 \texttt{data}[$i\cdot n+j$]。
+
+\field{为什么需要} 它是所有形状规则与布局规则的源头：向量是列、雅可比是 $m\times n$、
+链式法则是 $J_{f\circ g}=J_fJ_g$。
+
+\field{关键结论} 行主序意味着「同一行的元素在内存里相邻」；这是\textbf{存储}约定，
+与「向量写成 $n\times1$」不冲突——两者是不同层面的约定。
+
+\field{判据} 无（存储公式本身即是定义）。
+
+\field{前置} 无。
+
+\field{常见误解} 以为行主序 $\Rightarrow$ 向量该写成行向量。布局决定遍历顺序，不决定向量的形状语义。
+\end{know}
+
+\begin{know}{L2}{矩阵乘法与形状约束}{已实现：core/matrix.hpp}
+\field{是什么} $(AB)_{ij}=\sum_{k=0}^{n-1}A_{ik}B_{kj}$，形状 $(m\times n)(n\times p)=(m\times p)$。
+
+\field{为什么需要} 复合映射就是矩阵乘；雅可比链式法则、反向传播的 $\partial L/\partial W=vx^{\mathsf T}$
+都建立在它之上。
+
+\field{关键结论} 中间维必须相等，否则抛异常——库\textbf{不做隐式转置、不做广播}。
+成立条件：维数匹配；Hadamard 积走独立入口，不混用。
+
+\field{判据} 无。
+
+\field{前置} L1。
+
+\field{常见误解} 以为逐元素乘（Hadamard）是矩阵乘的特例。两者是不同的运算，
+库把它们拆成两个入口正是为了防止混淆。
+\end{know}
+
+\begin{know}{L3}{转置、共轭转置与伴随}{已实现：core/matrix.hpp}
+\field{是什么} $(A^{\mathsf T})_{ij}=A_{ji}$；$(A^{H})_{ij}=\mathrm{conj}(A_{ji})$。
+数学上伴随的定义是 $\inner{A^{H}u}{v}=\inner{u}{Av}$。
+
+\field{为什么需要} 复域一切酉性、正交性、Hermitian 判据都只能用 $A^{H}$；反向传播的转置也是它。
+
+\field{关键结论} 实域 $\mathrm{conj}$ 恒等，故 $A^{\mathsf T}=A^{H}$，\textbf{bug 只在复数域暴露}——
+源码记录这个坑已踩两次（\texttt{givens}、\texttt{qr\_inverse}）。换内积（度量矩阵 $G$）时
+伴随变成 $G^{-1}A^{H}G$。成立条件：内积为标准 Hermite 内积。
+
+\field{判据} $\norm{Q^{H}Q-I}$、Hermitian 判定，均在 double 下恒真、Complex 下才有效。
+
+\field{前置} C1。
+
+\field{常见误解} 以为「转置 = 改行列布局」。那是实现层面的交换下标；数学上转置是\textbf{伴随}，
+与内积绑定，所以换度量它就换形状。
+\end{know}
+
+\begin{know}{L4}{内积、共轭位置与正定性}{已实现：linalg/operator.hpp}
+\field{是什么} $\inner{a}{b}_{F}=\sum_i \overline{a_i}b_i$（共轭在\textbf{第一个}参数）。
+
+\field{为什么需要} 范数、正交、投影、最小二乘、CG 的正定性前提，全由内积定义。
+
+\field{关键结论} 共轭必须在第一参数，才有 $\inner{x}{x}=\norm{x}^{2}\in\R_{\ge0}$——即\textbf{正定性}。
+漏写共轭不会「少一点精度」，而是让内积不再是正定形式，依赖它的正交性判据静默给出错误结论。
+成立条件：元素类型具备 $\mathrm{conj}$ 与 $\mathrm{abs2}$ 语义（D7）。
+
+\field{判据} 复数域才测得出（实域共轭恒等，测试免疫）。
+
+\field{前置} C1。
+
+\field{常见误解} 以为「先乘 a 还是先乘 b 无所谓」。复内积是半双线性的，交换要付共轭；顺序错就塌成双线性。
+\end{know}
+
+\begin{know}{L5}{Frobenius 范数、迹恒等式与「平方阈值」}{已实现：linalg/operator.hpp}
+\field{是什么} $\norm{A}_{F}^{2}=\sum_{ij}\abs{A_{ij}}^{2}$；$\inner{A}{B}_{F}=\mathrm{tr}(A^{H}B)$；
+比较一律写成 $\mathrm{abs2}\le \mathrm{tol}^{2}$。
+
+\field{为什么需要} 全库「判大小」的统一写法：避免开方、避免比较复数本身。
+
+\field{关键结论} 平方在非负实数上保序，故 $\abs{x}\le t\iff\abs{x}^{2}\le t^{2}$；
+但 $\mathrm{abs2}$ \textbf{丢相位}，只能判模长，判复向量相等必须逐分量比实虚两槽（D7 的已知盲区）。
+
+\field{判据} 所有范数判据（$\norm{A^{\mathsf T}A-I}$、$\norm{A-QR}$、$\mathrm{off}(A)$）都写成平方比较。
+
+\field{前置} L4、A6。
+
+\field{常见误解} 以为 $\mathrm{abs2}$ 判等与 $\abs{\cdot}$ 判等等价。对模长等价；对「两个复数相同」不等价。
+\end{know}
+
+\begin{know}{L6}{谱分解与实对称可对角化}{已实现：linalg/eigen.hpp（仅对称/Hermitian）}
+\field{是什么} $A=Q\Lambda Q^{H}$，$Q^{H}Q=I$，$\Lambda=\mathrm{diag}(\lambda_1,\dots,\lambda_n)$ 实。
+
+\field{为什么需要} 「旋转坐标系把矩阵变成对角」这件事，是所有对称问题的标准手法；
+Jacobi 迭代就是逐步逼近这个 $Q$。
+
+\field{关键结论} 谱定理：$A^{H}=A\Rightarrow$ 正交可对角化、特征值全实、特征向量可取成正交基。
+成立条件：\textbf{Hermitian 是结构条件}，不是算法保证——非对称矩阵走这条路径会直接抛错。
+
+\field{判据} 迹不变 $a'+b'=a+b$；$\mathrm{off}(A)\le 8n\eps\norm{A}_{F}$；单元素跳过阈值 $\mathrm{tol}^{2}/n_d$
+（保证全部跳过时总和仍不超）。
+
+\field{前置} L3。
+
+\field{常见误解} 以为「实矩阵的特征值都是实的」。只有对称/Hermitian 才保证；一般实矩阵的特征值可成共轭对。
+\end{know}
+
+\begin{know}{L7}{奇异值分解与三个恒等式}{已实现：linalg/svd.hpp}
+\field{是什么} $A=USV^{H}$，$U^{H}U=I_r$、$V^{H}V=I_r$，$r=\min(m,n)$，
+$\sigma_i=\sqrt{\lambda_i(A^{H}A)}\ge0$ 且降序。
+
+\field{为什么需要} 秩、条件数、最小二乘、低秩逼近都由它给出；它也是唯一能在数值上「看清」$\kappa$ 的工具。
+
+\field{关键结论} 三条恒等式：$\sum_i\sigma_i^{2}=\norm{A}_{F}^{2}$（Frobenius）、
+$\sum_i\sigma_i=\norm{A}_{*}$（核范数）、$\sigma_{\max}\sigma_{\min}=\abs{\det A}$（方阵非奇异）。
+左奇异向量 $u_i=Av_i/\sigma_i$，$\sigma_i\approx0$ 时 $u_i$ 不唯一（可任取正交补中的向量）。
+
+\field{判据} 秩用相对阈值：$\mathrm{rank}(A)=\#\{i:\sigma_i>\tau\sigma_0\}$，$\tau=\max(m,n)\eps$；
+奇异值判零用的 $\mathrm{tol\_sig}=\mathrm{DefaultTol}(r)\cdot\sigma_0$。
+（任务说明里提到的「可信阈值 $1\times10^{-6}$」\textbf{原文未给}。）
+
+\field{前置} L6。
+
+\field{常见误解} 以为 $\sigma_i>0$ 就能判秩。浮点下 $\lambda$ 可能出现 $-10^{-17}$，
+必须 $\max(\lambda,0)$ 夹取并用相对阈值；绝对阈值在尺度变化时全错。
+\end{know}
+
+\begin{know}{L8}{正交相似与不变量}{已实现：linalg/eigen.hpp}
+\field{是什么} $A'=G^{H}AG$，$G$ 酉（$G^{H}G=I$）。
+
+\field{为什么需要} Jacobi 每做一次旋转都在做这个变换，靠不变量判断「有没有把矩阵搞坏」。
+
+\field{关键结论} 酉相似保持：谱、Frobenius 范数、迹、Hermitian 性。成立条件：$G$ 必须\textbf{酉}；
+非正交相似只保谱，会把范数放大。
+
+\field{判据} 「迹不变」是唯一廉价可查的判据（$a'+b'=a+b$）；$\norm{A}_{F}$ 只算一次，后面对拍。
+
+\field{前置} L3、L5。
+
+\field{常见误解} 以为「相似就保范数」。$G$ 不正交时 $\norm{G^{H}AG}$ 可以任意放大，迭代的收敛判据随之失效。
+\end{know}
+
+\begin{know}{L9}{行列式是体积，不是「接近 0 就奇异」}{库无 det 入口（原文未给）}
+\field{是什么} $\det A$ 是有向体积缩放因子；方阵下 $\abs{\det A}=\prod_i\sigma_i$。
+
+\field{为什么需要} 判断坐标变换的 Jacobian 是否为零（拉回与积分换元要它），以及体积判据。
+
+\field{关键结论} $\abs{\det A}$ 小\textbf{不等于}病态：把单位矩阵乘 $10^{-8}$，$\det=10^{-8n}$ 而 $\kappa=1$。
+判断奇异性要用 $\sigma_{\min}/\sigma_{\max}$。
+
+\field{判据} 原文未给——库没有 \texttt{det} 入口，这条属缺口。
+
+\field{前置} L7。
+
+\field{常见误解} 以为 $\det\approx0$ 就是奇异。尺度一改判断就翻，它是个\textbf{绝对量}，不能横向比较。
+\end{know}
+
+\begin{know}{L10}{秩 1 修正（外积）}{已实现：linalg/qr.hpp、autodiff/grad\_graph.hpp}
+\field{是什么} $uv^{H}$ 是秩 1 矩阵，$(uv^{H})_{ij}=u_i\overline{v_j}$。
+
+\field{为什么需要} Householder 反射 $H=I-2vv^{H}/(v^{H}v)$ 就是秩 1 修正；
+反向传播里 $\partial L/\partial W=vx^{\mathsf T}$ 也是外积。
+
+\field{关键结论} 秩 1 修正只改变一个方向上的分量，故一次反射能把一个向量整体打到坐标轴上。
+成立条件：$u,v$ 为列向量（D19）；形状必须匹配，否则抛错。
+
+\field{判据} 反向模式的形状校验：$\partial L/\partial W$ 必须是 $m\times n$，由 $vx^{\mathsf T}$ 唯一确定（G4）。
+
+\field{前置} L2、L3。
+
+\field{常见误解} 以为外积是内积的「转置版」。内积给标量、外积给矩阵，维数差一个量级。
+\end{know}

@@ -1,0 +1,106 @@
+\section{覆盖度自查与缺口}\label{sec:audit}
+
+\subsection{文件到条目的映射}
+
+下表是「每个文件贡献了哪几条」。\textbf{没有任何一个文件是零贡献}——
+最少的 \texttt{core/common.hpp} 与 \texttt{core/scalar\_traits.hpp} 也各有归属
+（前者给 $\eps$ 的实际取值与 $\pi$ 精度口径，后者自述「没有数学公式」，故并入 A1 的口径说明）。
+
+\begin{longtable}{L{4.8cm}L{1.2cm}L{2.7cm}L{5.2cm}}
+\toprule
+文件 & 状态 & 贡献条目 & 归不进数学的内容 \\
+\midrule
+\endhead
+\texttt{core/scalar.hpp} & 已实现 & A1、A2、L4 & concept 约束写法、静态函数替代 constexpr 的工程理由 \\
+\texttt{core/complex.hpp} & 已实现 & C1--C6、A6 & 不用 \texttt{std::complex} 的三条理由 \\
+\texttt{core/matrix.hpp} & 已实现 & L1--L3、L10 & 哑容器设计、i-k-j 循环的 cache 友好性 \\
+\texttt{core/tensor.hpp} & 框架 & T1--T7 & 视图生命周期契约、不做并发/表达式模板 \\
+\texttt{core/common.hpp} & 部分注释掉 & A1（$\eps$ 取值）、A2（$\pi$ 口径） & 三个 enum 的结构标签 \\
+\texttt{core/scalar\_traits.hpp} & 已实现 & （并入 A1 说明） & 一行前向声明用于打断循环包含 \\
+\texttt{linalg/solve.hpp} & 已实现 & N1、N2、A2、A3 & 行交换簿记、\texttt{piv} 存列号 \\
+\texttt{linalg/inverse.hpp} & 已实现 & N9、N8、L3 & 五条路径不复用的工程理由 \\
+\texttt{linalg/qr.hpp} & 已实现 & N3、N4、N5、N6、L10 & 三条路径对拍策略、\texttt{Adjoint} 踩坑记录 \\
+\texttt{linalg/cholesky.hpp} & 已实现 & N7、N8 & 异常类型的历史遗留 \\
+\texttt{linalg/svd.hpp} & 已实现 & L7、N12、N13、A4 & 排序须与 $V$ 列同步置换 \\
+\texttt{linalg/eigen.hpp} & 已实现 & L6、L8、N11 & 特征值返回顺序不保证 \\
+\texttt{linalg/expm.hpp} & 已实现 & N10、C3 & 求逆 vs 求解的 flops 纪律 \\
+\texttt{linalg/operator.hpp} & 已实现 & L4、L5 & 暂驻/搬家理由、禁用 \texttt{+=} \\
+\texttt{linalg/so3.hpp} & 已实现 & G1--G4 & 三层否决的分层理由、不查反对称 \\
+\texttt{quat/quaternion.hpp} & 已实现 & G5--G10 & 不提供标量除法的二义性 \\
+\texttt{autodiff/dual.hpp} & 已实现 & D1、D2 & ADL/友元断链、无复合赋值 \\
+\texttt{autodiff/jacobian.hpp} & 已实现 & D3、D4 & 重载偏序、形状检查的旧 bug \\
+\texttt{autodiff/grad\_graph.hpp} & 已实现 & D5、L10 & tape 的拓扑排序实现 \\
+\texttt{math/ode.hpp} & 骨架 & D6--D8 & \texttt{std::function} 别名、异常分类 \\
+\texttt{math/fourier.hpp} & 框架 & H1--H8 & 长度契约分档、不自动分派 \\
+\texttt{math/series.hpp} & 框架 & H9--H11 & 与 fourier 分文件的理由 \\
+\texttt{math/special.hpp} & 框架 & P8--P10、A6 & 默认参数、不用 Dual/Complex 的取舍 \\
+\texttt{math/prob.hpp} & 框架 & P1--P7 & seed 显式化、逐位可复现口径 \\
+\texttt{NOW: grid.hpp} & 未建 & F1 & 手算表对拍的验收方式 \\
+\texttt{NOW: sparse.hpp} & 未建 & F7 & 「生产路径不许 ToDense」的纪律 \\
+\texttt{NOW: assemble.hpp} & 未建 & F2--F6 & 非多项式 $f$ 需要求积器（不做） \\
+\texttt{NOW: cg.hpp} & 未建 & F8、F9 & \texttt{std::invocable} 零开销约束 \\
+\texttt{NOW: forms.hpp} & 未建 & M1--M7 & 「定义用性质、公式作推论」的书写纪律 \\
+\bottomrule
+\end{longtable}
+
+\subsection{97 条的构成}
+
+\begin{center}
+\begin{tabular}{L{3.0cm}L{2.0cm}L{9.0cm}}
+\toprule
+类别 & 条数 & 含义 \\
+\midrule
+已实现 & 50 & 有真实算法，判据可跑（A1--A6、L1--L10、N1--N13、C1--C6、D1--D5、G1--G10）\\
+框架 & 28 & 公式可信、函数体全 throw（H1--H11、P1--P10、T1--T7）\\
+骨架 & 3 & 源码自述骨架（D6--D8）\\
+未建 & 16 & 只在 \texttt{NOW.md} 规划（F1--F9、M1--M7）\\
+\midrule
+合计 & 97 & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{这个分布本身就是一条结论}：这张清单里 31 条（框架+骨架）的公式是「设计意图」而非「已验证事实」，
+16 条连文件都还没有。它们能用来复习，\textbf{不能}用来论证「库实现了这个数学」。
+
+\subsection{缺口：库用到、但数学上没成体系}
+
+以下六处是真正值得补的空白。它们的共同点：\textbf{不是缺一条公式，而是缺一段推导}。
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item \textbf{$8n\eps$ 背后的舍入分析}（A2）。源码只说「系数 8 是余量、非推导」。
+        完整的推导需要：$n$ 步运算的误差累积上界、以及「阈值反推」四步（$R=e_{\text{tol}}/e_{\text{worst}}\in[10^{1},10^{6}]$）。
+        这一段在 \texttt{03-test-standard.md} 里只有工程口径，没有数学证明。
+
+  \item \textbf{条件数 $\kappa(A)$ 的定义与增长}（A4、N12）。\texttt{svd.hpp} 之外，
+        其余文件的「三、公式与符号表」都\textbf{没有}出现 $\kappa$。这是全库最明显的一处「用了但没写」。
+
+  \item \textbf{SVD 走 $A^{H}A$ 的精度损失链条}（N12）。$\kappa(A^{H}A)=\kappa(A)^{2}$ 只是一句话；
+        「$\sigma$ 的相对误差为何是 $\sqrt\eps$ 量级」还差一步：$\lambda$ 的误差 $\eps\kappa^{2}$ 经开方变成
+        $\sqrt{\eps}\kappa$。Golub--Kahan 双对角化能避开，但未实现。
+
+  \item \textbf{Gibbs 过冲常数 $\frac2\pi\int_0^\pi\frac{\sin t}{t}dt$ 的来源}（H10）。
+        数值 $1.08949\ldots$ 有了，但「为什么是 sinc 积分、为什么与 $K$ 无关」的推导没有。
+
+  \item \textbf{QR 与最小二乘的联系}（N6）。\texttt{qr.hpp} 的「三、公式与符号表」里\textbf{完全没有}
+        最小二乘；而最小二乘是 QR 最重要的消费场景。这条是本清单里唯一「数学上必需、源码里缺失」的。
+
+  \item \textbf{行列式与体积}（L9）。库没有 \texttt{det} 入口，但拉回（M4）需要 $\det J$，
+        第四节的「体积形式」也需要它——目前只能靠 SVD 的恒等式绕过去。
+\end{enumerate}
+
+\subsection{另外三处「形式上完整、实质待验证」}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{框架层的判据全是意图}：H、P、T 三组的阈值（$10^{-13}$、$2$ ulp、$10^{-14}$）都写在注释里，
+        没有一条跑过。它们的价值是「给出了验收目标」，不是「已经验收」。
+  \item \textbf{骨架层的阶数是承诺}：D7 的「RK4 四阶」、D8 的「能量有界」都还没有实现，
+        所以「辛 vs 非辛」的对照目前只是数学陈述。
+  \item \textbf{未建层的编号是计划}：F1 的「$4\times3$ 网格有 12 个三角形」这类数字是手算目标，
+        库里还没有能跑的代码去核对它。
+\end{itemize}
+
+\subsection{最后一句}
+
+这份清单能保证的是：\textbf{每个数学对象都找到了它在库里的位置，且说清了它的成立条件与失败长相}。
+它不能保证的是：这些条件的\textbf{数值}已经验证过。二者的差别，就是「读过」与「做过」的差别。

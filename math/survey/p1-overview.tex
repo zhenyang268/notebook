@@ -1,0 +1,112 @@
+\section{总图：十个分支与一张依赖网}
+
+\subsection{状态图例}
+
+全篇每个条目后面都跟一个状态词，取值为：
+
+\begin{center}
+\begin{tabular}{L{2.6cm}L{12.4cm}}
+\toprule
+状态 & 含义 \\
+\midrule
+已实现 & 源码头文件标注「已实现」，函数体有真实算法 \\
+框架 & 签名与注释已定、函数体全部 \texttt{throw}；注释即规格，公式可信，数值未验证 \\
+骨架 & 同上，但源码自述为「骨架」；公式仍是规格 \\
+未建 & 只在 \texttt{NOW.md} 里规划，文件不存在 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{框架与骨架的数学含量并不低}：它们是「先写契约后写代码」的产物，公式段往往是全仓最完整的。
+但它们的\textbf{判据全部未经验证}——条目里凡是标「未验证」的阈值，都只代表意图，不代表实测。
+
+\subsection{十个分支与条目编号}
+
+条目编号是全局的、不按章的先后。同一编号在全文中唯一，交叉引用都用它。
+
+\begin{center}
+\begin{tabular}{L{2.5cm}L{2.9cm}L{8.4cm}}
+\toprule
+分支 & 编号 & 覆盖对象 \\
+\midrule
+分析基础 & A1--A6 & 机器精度、累加误差、前向/后向误差、条件数、收敛阶、相消 \\
+线性代数 & L1--L10 & 线性映射、矩阵乘、转置与伴随、内积、范数与迹、谱、奇异值、正交相似 \\
+数值线性代数 & N1--N13 & 部分主元、Householder、Givens、MGS、Cholesky、Padé、Jacobi、$A^{H}A$ 路线、秩判定 \\
+复分析 & C1--C6 & 复代数、Smith 除法、欧拉公式、主值与分支切割、开方、幂 \\
+调和分析 & H1--H11 & DFT、归一化、卷积定理、频轴、radix-2、Parseval、级数投影、Gibbs、谱收敛 \\
+概率 & P1--P10 & 特征函数、矩、接缝、经验特征函数、Box--Muller、erf/$\Phi$、分位数 \\
+微分与自动微分 & D1--D8 & 对偶数、链式法则、雅可比布局、种子 sweep、反向模式、Lipschitz、RK 阶、辛结构 \\
+几何与李群 & G1--G10 & 叉积与 hat、Rodrigues、李括号、四元数代数、双覆盖、插值、Shepperd \\
+离散化与变分 & F1--F9 & 网格与自由度、P1 刚度、弱形式、一致载荷、Dirichlet、收敛阶、CSR、CG \\
+张量代数 & T1--T7 & 形状与步长、偏移、连续性、零拷贝视图、reshape 合法性、广播 \\
+微分形式 & M1--M7 & $k$-形式、外积、外微分、拉回、Hodge、Stokes、$n=3$ 字典 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{依赖网（ASCII）}
+
+箭头读作「是……的基础」。方括号里是状态。
+
+\begin{verbatim}
+ A1 eps --> A2 8n*eps --> A3 fwd/bwd err --> A4 cond number
+   |            |               |                |
+   |            v               v                v
+   |          N1 pivot     N5 MGS ill-cond   N12 A^H A squared
+   v            |                                ^
+ C2 Smith       v                                |
+            N3 Householder --> N6 thin QR    L7 singular values
+                 |                 |              ^
+                 v                 v              |
+               N4 Givens      N6b least sq   N11 Jacobi spectrum
+
+ L1 row-major --> L2 matmul --> L3 transpose/adjoint
+   |                              |
+   v                              v
+ T1 shape/stride --> T2 offset --> T3 contiguous --> T4 view
+                                                        |
+                                                        v
+                                                   T5 reshape
+ D1 dual eps^2=0 --> D2 chain rule --> D3 jacobian layout
+                                        |--> D4 seed sweep (col)
+                                        \--> D5 reverse mode (row)
+
+ H1 DFT --> H2 1/N --> H3 circular conv --> H4 linear conv (pad)
+   |          |                                |
+   v          v                                v
+ H5 freq axis  H8 Parseval            H10 Gibbs / H11 spectral decay
+   |
+   v
+ P1 char func (+i, opposite sign) --> P3 conv theorem --> P6 empirical
+                                          |
+                                          v
+                                     P4 moments = derivatives
+
+ G1 cross/hat --> G2 Rodrigues --> G4 Lie bracket
+      |               |
+      v               v
+ G6 quat double cover --> G8 slerp --> G9 Shepperd
+
+ D6 Lipschitz --> D7 Euler/RK4 order --> D8 symplectic/Verlet
+
+ F1 grid --> F2 P1 stiffness --> F3 weak form --> F4 load
+                                   |               |
+                                   v               v
+                               F5 Dirichlet --> F6 order 2
+                                   |
+                                   v
+                              F7 CSR --> F8 CG --> F9 convergence
+
+ M3 d^2=0 --> M6 Stokes --> M7 grad/curl/div  (same root as F3)
+\end{verbatim}
+
+\subsection{读法：三层}
+
+\begin{enumerate}[label=（\arabic*）]
+  \item \textbf{查漏}：翻到某分支，逐条看「常见误解」——能反驳自己直觉的，才说明真懂；
+  \item \textbf{补基础}：条目末的「前置」给出向上追溯的路径，追到 A 开头的条目为止；
+  \item \textbf{建直觉}：星号节「串讲」是跨分支的边，专门讲「为什么这两个看起来无关的东西是同一件事」。
+\end{enumerate}
+
+本份清单共 \textbf{97 条}知识点：已实现 \textbf{50 条}、框架 \textbf{28 条}、骨架 \textbf{3 条}、
+未建 \textbf{16 条}。这四类数字的差别比总数重要得多，含义见第 \ref{sec:audit} 节。

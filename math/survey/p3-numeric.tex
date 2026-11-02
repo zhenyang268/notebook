@@ -1,0 +1,273 @@
+\section{数值线性代数：分解是为了让「判据」有地方落}
+
+\begin{know}{N1}{部分主元的必要性}{已实现：linalg/solve.hpp}
+\field{是什么} 消元第 $k$ 步前，在当前列的第 $k$ 行以下选绝对值最大的元素换到对角位置，
+再做消元。换行信息记在 \texttt{piv} 里。
+
+\field{为什么需要} 不选主元时，主元可能是 $10^{-20}$，下一步 $1/10^{-20}=10^{20}$ 会把残差放大到
+完全不可用的量级——这\textbf{不是精度问题，是算法失效}。
+
+\field{关键结论} 选主元保证 $\abs{l_{ik}}\le1$（乘子不放大），从而 $L$ 的元素有界、
+后向误差 $\norm{E}\sim n\eps\norm{A}$。成立条件：无结构假设；对 SPD 矩阵可省（见 N7）。
+
+\field{判据} 主元判零用 $\mathrm{abs2}(p)\le\mathrm{tol}^{2}$，$\mathrm{tol}=\mathrm{DefaultTol}(n)=8n\eps$。
+
+\field{前置} A2。
+
+\field{常见误解} 以为选主元是为了「更准」。它首先是为了\textbf{不炸}；精度提升是副产品。
+\end{know}
+
+\begin{know}{N2}{LU 分解与乘子界}{已实现：linalg/solve.hpp}
+\field{是什么} $PA=LU$：$L$ 单位下三角（对角全 1），$U$ 上三角，$P$ 由行交换序列重放。
+消元式：$l_{ik}=u_{ik}/u_{kk}$，$u_{ij}\leftarrow u_{ij}-l_{ik}u_{kj}$（$j\ge k$）。
+
+\field{为什么需要} 一次分解、多次求解：同一 $A$ 换不同 $b$ 只需前代回代，代价从 $O(n^{3})$ 降到 $O(n^{2})$。
+
+\field{关键结论} 前代 $Ly=Pb$、回代 $Ux=y$；不显式求 $A^{-1}$（求逆的 flops 是解方程的数倍，精度还更差）。
+成立条件：$A$ 方阵、主元非奇异；$\abs{l_{ij}}\le1$ 由 N1 保证。
+
+\field{判据} 主元 $\abs{u_{kk}}>\mathrm{DefaultTol}(n)$，否则抛「输入合法但数值做不到」类异常。
+
+\field{前置} N1。
+
+\field{常见误解} 以为分解完直接调逆矩阵更方便。$A^{-1}$ 的每个元素都要解一次方程，
+而且残差更大——凡是只要 $x$，就别造 $A^{-1}$。
+\end{know}
+
+\begin{know}{N3}{Householder 反射}{已实现：linalg/qr.hpp}
+\field{是什么} 取 $v=x+\mathrm{sign}(x_1)\norm{x}e_1$，令 $H=I-2vv^{H}/(v^{H}v)$，则
+$Hx=-\mathrm{sign}(x_1)\norm{x}e_1$——一次反射把一个向量整体打到坐标轴上。
+
+\field{为什么需要} 它是 QR 的「整列消元」工具：一次反射消掉一列下面的所有元素，不改已算好的列。
+
+\field{关键结论} $H^{H}H=I$ 且 $H^{H}=H$（酉且 Hermitian，故 $H^{-1}=H$）。
+分母 $v^{H}v$ 必须用\textbf{修改后}的 $v$ 计算——用改前的 $\norm{x}^{2}$ 会让 $H$ 不再对合，
+消元目标也达不到。成立条件：$x\ne0$；$\norm{x}$ 大于阈值，否则跳过。
+
+\field{判据} 跳过条件 $\norm{x}\le \mathrm{DefaultTol}(m)$。
+
+\field{前置} L3、L4、L10。
+
+\field{常见误解} 以为反射会放大误差。酉变换的 2-范数恰为 1，它是「不放大」的；
+真正放大误差的是后续的消元除法。
+\end{know}
+
+\begin{know}{N4}{Givens 旋转}{已实现：linalg/qr.hpp}
+\field{是什么} $G=\begin{bmatrix}c&s\\-\overline{s}&c\end{bmatrix}$，$\abs{c}^{2}+\abs{s}^{2}=1$；
+取 $r=\mathrm{hypot}(\abs{f},\abs{g})$，$c=\abs{f}/r$，$s=(f/\abs{f})\cdot\overline{g}/r$，
+则 $G(f,g)^{\mathsf T}=((f/\abs{f})r,0)^{\mathsf T}$。
+
+\field{为什么需要} 一次只消一个元素，适合\textbf{稀疏}或「只需局部消元」的场合；
+反射适合稠密整列。
+
+\field{关键结论} 复数域里靠相位 $f/\abs{f}$ 补一个自由度，才能让 $G$ 保持酉且把 $g$ 精确消成 0。
+成立条件：$\abs{f}$、$\abs{g}$ 不同时为 0；用 \texttt{hypot} 防上溢。
+
+\field{判据} $\abs{g}^{2}\le\mathrm{tol}^{2}$ 时跳过（已足够小）。
+
+\field{前置} L3、L4。
+
+\field{常见误解} 以为 Givens 只是「2×2 的反射」。它是旋转（行列式为 1），不是反射（行列式 $-1$）；
+差别在复数域与相位处理上会现形。
+\end{know}
+
+\begin{know}{N5}{MGS 与 CGS：病态下才见分晓}{已实现：linalg/qr.hpp（MGS）}
+\field{是什么} 经典 Gram--Schmidt（CGS）先算出所有 $r_{ij}=q_i^{H}a_j$ 再一次性扣；
+修正版（MGS）每算一个系数就立刻从 $a_j$ 扣掉。
+
+\field{为什么需要} 它是最直观的正交化；但在病态矩阵上 CGS 的正交性会垮掉，必须知道为什么。
+
+\field{关键结论} MGS 的舍入误差约 $\eps\kappa(A)$，CGS 约 $\eps\kappa(A)^{2}$。
+源码记录：CGS 在病态下 $\norm{Q^{H}Q-I}$ 可到 $1\times10^{-8}$（double 下这已是灾难）。
+成立条件：$q_k$ 必须已归一（$\inner{q_k}{q_k}\equiv1$，分母被吸收）。
+
+\field{判据} $\norm{A-QR}_{\infty}$ 与 $\norm{Q^{H}Q-I_{n}}_{\infty}$ 同时小；
+秩亏列 $r_{jj}=0$ 时 $Q$ 的第 $j$ 列不唯一，不能用「逐列一致」当判据。
+
+\field{前置} L4、A4。
+
+\field{常见误解} 以为 MGS 与 CGS 只是「循环顺序不同、结果一样」。数学上等价，浮点上\textbf{精度差一个 $\kappa$ 量级}。
+\end{know}
+
+\begin{know}{N6}{thin QR 与最小二乘}{已实现（QR），最小二乘原文未给}
+\field{是什么} $A=QR$：$A$ 为 $m\times n$（$m\ge n$），$Q$ 为 $m\times n$ 且 $Q^{H}Q=I_n$，
+$R$ 为 $n\times n$ 上三角（thin QR）。
+
+\field{为什么需要} 它是\textbf{最小二乘}的标准路径：$\min\norm{Ax-b}_{2}$ 等价于解 $Rx=Q^{H}b$，
+因为正交变换不改变 2-范数。
+
+\field{关键结论} 最小二乘的数学链是
+\[
+\norm{Ax-b}^{2}=\norm{Q^{H}(Ax-b)}^{2}
+=\norm{Rx-Q^{H}b}^{2}+\norm{(I-QQ^{H})b}^{2},
+\]
+第二项与 $x$ 无关，故只需解上三角方程。成立条件：$A$ 列满秩（否则 $R$ 奇异，需换 QR 带列选主元或 SVD）。
+
+\field{判据} 原文未给——\texttt{qr.hpp} 的「三」段\textbf{没有写最小二乘}，这条属缺口（见第 \ref{sec:audit} 节）。
+$m<n$ 的情形库统一抛错，不做退化处理。
+
+\field{前置} N3。
+
+\field{常见误解} 以为 $Q$ 必须是 $m\times m$ 的方阵。thin QR 只取前 $n$ 列，
+这正是「经济型」的含义；补齐多余列只改变 $Q$，不改 $R$。
+\end{know}
+
+\begin{know}{N7}{Cholesky：对称正定的专用分解}{已实现：linalg/cholesky.hpp}
+\field{是什么} $A=LL^{H}$，$L$ 下三角且 $L(j,j)>0$（取正号即唯一）。
+逐列：$d=A(j,j)-\sum_{k<j}\abs{L(j,k)}^{2}$，$L(j,j)=\sqrt d$，
+$L(i,j)=\big(A(i,j)-\sum_{k<j}L(i,k)\overline{L(j,k)}\big)/L(j,j)$。
+
+\field{为什么需要} SPD 系统的标准解法：代价约 $n^{3}/3$（LU 是 $2n^{3}/3$），且\textbf{不需要选主元}——
+正定性保证主元严格为正。
+
+\field{关键结论} 唯一性来自「对角取正」这一条约定；若允许负号，$L$ 有 $2^{n}$ 种。
+成立条件：$A$ Hermitian 正定；只读下半三角，故非 Hermitian 输入不会报错（由调用方保证）。
+
+\field{判据} $\mathrm{real}(d)>\mathrm{DefaultTol}(n)$，写成 \texttt{!(d>tol)} 让 NaN 也落入失败分支。
+
+\field{前置} L4、A2。
+
+\field{常见误解} 以为「正定」可以用「所有对角元为正」来判。反例：$\begin{bmatrix}1&2\\2&1\end{bmatrix}$
+对角全正但不定；判据只有分解走通（N8）。
+\end{know}
+
+\begin{know}{N8}{SPD 判定 = 分解走通}{已实现：inverse.hpp、cholesky.hpp}
+\field{是什么} $A$ Hermitian 正定 $\iff$ 不选主元的 Cholesky 能完整走通。
+
+\field{为什么需要} 这条等价性让「判定」和「计算」合并成一步——不需要单独的判定算法，
+跑一遍分解就是判定。
+
+\field{关键结论} 双向等价：正定 $\Rightarrow$ 每步主元 $d>0$；反之若每步都走通，则构造出的 $L$ 满足 $LL^{H}=A$
+且主元为正 $\Rightarrow$ 正定。成立条件：$A$ 必须 Hermitian（否则「正定」本身无定义）。
+
+\field{判据} 主元 $\mathrm{real}(d)>\mathrm{DefaultTol}(n)$，失败即判非 SPD（够用，因为主元严格正时有正的下界）。
+
+\field{前置} N7。
+
+\field{常见误解} 以为 SPD 判定需要先算特征值。特征值判定正确但要 $O(n^{3})$ 且精度更差；
+分解判定是同一量级里最省的路线。
+\end{know}
+
+\begin{know}{N9}{结构化解与探测顺序}{已实现：linalg/inverse.hpp}
+\field{是什么} 按结构给出逆：对角 $(A^{-1})_{ii}=1/d_i$；正交 $A^{-1}=A^{H}$；
+SPD 用 $A=LL^{H}\Rightarrow A^{-1}=(L^{-1})^{H}L^{-1}$；一般用 $PA=LU\Rightarrow A^{-1}=U^{-1}L^{-1}P$；
+QR 用 $A^{-1}=R^{-1}Q^{H}$。
+
+\field{为什么需要} 结构化解又快又准（正交矩阵的逆零误差），比通用求解好得多；但前提是\textbf{判对结构}。
+
+\field{关键结论} 结构探测的集合关系：对角 $\subset$ 对称 $\subset$ 一般；SPD $\subset$ 对称。
+所以在检查顺序上\textbf{子类必须判在父类之前}，否则永远走通用路径。
+条件判据：对角 $\abs{a_{ij}}\le\mathrm{tol}\,(i\ne j)$；对称 $\abs{a_{ij}-\overline{a_{ji}}}\le\mathrm{tol}$；
+正交 $\norm{A^{H}A-I}\le\mathrm{tol}$；复数域必须用 $A^{H}$ 而不是 $A^{\mathsf T}$。
+
+\field{判据} 各路径的奇异判据统一：对角 $\abs{d_i}\le\mathrm{tol}$，LU $\abs{u_{kk}}\le\mathrm{tol}$，
+QR $\abs{R_{ii}}\le\mathrm{tol}$，SPD 由 N8 内部判。
+
+\field{前置} N2、N7、N8。
+
+\field{常见误解} 以为「对称矩阵的逆也对称」就能反推用了快路径。逆确实对称，
+但判定它是否对称用的容差是调用方给的——同一个矩阵在 $10^{-6}$ 与 $10^{-12}$ 下可能落到不同分支。
+\end{know}
+
+\begin{know}{N10}{矩阵指数：Padé 与 scaling \& squaring}{已实现：linalg/expm.hpp}
+\field{是什么} 两条路线：Taylor 级数截断；Padé $[13/13]$ 近似
+$\exp(A)\approx D^{-1}N$，其中 $N=\sum_{k=0}^{m}c_kA^{k}$、$D=\sum_k c_k(-A)^{k}$，
+$c_k=\frac{(2m-k)!\,m!}{(2m)!\,k!\,(m-k)!}$（递推 $c_k=c_{k-1}\frac{m-k+1}{k(2m-k+1)}$，$c_1=1/2$）。
+两者都配 scaling \& squaring：$\exp(A)=(\exp(A/2^{s}))^{2^{s}}$。
+
+\field{为什么需要} 矩阵指数是线性 ODE、旋转积分、马尔可夫半群的统一工具；
+它也是「逼近算法 + 误差地板」这一对概念的样板。
+
+\field{关键结论} 取 $s$ 使 $\norm{A/2^{s}}_{F}\le1/2$（Taylor）或 $\le\theta_{13}=5.3719\ldots$（Padé）。
+\textbf{精度地板}：$\exp$ 的条件数约 $e^{\norm{A}}/\sqrt{2\pi\norm{A}}\cdot\eps$，与算法无关——
+即「再怎么改算法，相对误差也下不去」。
+独立判据：$\det(\exp A)=\exp(\mathrm{tr}A)$；而 $\exp(A)\exp(-A)=I$ 在 $\norm{A}=100$ 时条件数可达 $7\times10^{86}$，
+不能当判据。
+
+\field{判据} Padé 与 Taylor 的相对差 $<10^{-8}$（实测 $5.3\times10^{-16}$ 至 $1.5\times10^{-13}$）；
+级数截断上界 $k\le30$。
+
+\field{前置} N2、A4。
+
+\field{常见误解} 以为「$\exp(A)$ 就是把每个元素取 $\exp$」。那是逐元素操作，不是矩阵指数；
+只有对角矩阵两者才重合。
+\end{know}
+
+\begin{know}{N11}{Jacobi 旋转求对称特征值}{已实现：linalg/eigen.hpp}
+\field{是什么} 对 $2\times2$ Hermitian 子块 $\begin{bmatrix}a&z\\\overline{z}&b\end{bmatrix}$，
+用酉旋转零化 $z$：$\tan2\theta=\frac{2\abs{z}}{a-b}$，$\theta=\frac12\mathrm{atan2}(2\abs{z},a-b)$；
+旋转后 $a'=\frac{a+b}{2}+\frac{D}{2}$，$b'=\frac{a+b}{2}-\frac{D}{2}$，$D=\mathrm{hypot}(a-b,2\abs{z})$。
+
+\field{为什么需要} 它是最稳的对称特征值算法：只做正交相似（L8），不破坏结构，收敛二次。
+
+\field{关键结论} 对角元用解析式而不写 $c^{2}a+s^{2}b+2cs\abs{z}$——后者多一次相消（A6）。
+$\theta$ 若取成 $\theta+\pi/2$ 会把两特征值对调，故公式与取法必须配套。
+收敛判据必须\textbf{相对}：$\mathrm{off}(A)\le\mathrm{tol}\norm{A}_{F}$，
+其中 $\mathrm{off}(A)^{2}=\norm{A}_{F}^{2}-\sum_i\abs{A_{ii}}^{2}$；绝对阈值在 $\norm{A}$ 大时永不收敛、
+小时过早停。成立条件：$A$ Hermitian；每轮 cyclic 扫全部 $i<j$（否则会填回已零化的元素）。
+
+\field{判据} 单元素跳过阈值 $\mathrm{tol}^{2}/n_d$，$n_d=n(n-1)$；最多 $kMaxSweep=100$ 轮，
+超限抛异常；迹不变可随时对拍。
+
+\field{前置} L6、L8、N3。
+
+\field{常见误解} 以为「零化一个元素就少一个非对角元」。旋转会把别处已零化的元素重新填成非零，
+所以必须扫完整轮并看整体 $\mathrm{off}$。
+\end{know}
+
+\begin{know}{N12}{为什么走 $A^{H}A$ 会把条件数平方}{已实现：linalg/svd.hpp（路线选择）}
+\field{是什么} 由于 $x^{H}A^{H}Ax=\norm{Ax}^{2}\ge0$，$B=A^{H}A$ 是 Hermitian 半正定，
+其特征值就是 $\sigma_i^{2}$；于是 SVD 可以退化为「对称特征值问题」。
+
+\field{为什么需要} 这是库当前 SVD 的实现路线——最省事、复用已有的 Jacobi；但代价必须说清。
+
+\field{关键结论} $\kappa(A^{H}A)=\kappa(A)^{2}$（这是 A4 的直接推论）。因此在 $B$ 上求特征值的相对误差
+$\sim\eps\kappa(B)=\eps\kappa(A)^{2}$，开方后 $\sigma$ 的相对误差 $\sim\sqrt{\eps}\,\kappa(A)$。
+源码给的例子：$\kappa(A)=10^{8}$ 时 $\sigma$ 相对误差约 $1\times10^{-8}$。成立条件：$\kappa$ 用 2-范数；
+重构 $\norm{USV^{H}-A}$ 仍是 $\eps$ 级（$\sigma$ 与 $1/\sigma$ 精确相消）。
+
+\field{判据} $\mathrm{tol\_sig}=\mathrm{DefaultTol}(r)\sigma_0$；补列时要求投影后 $\norm{w}^{2}>0.25$。
+
+\field{前置} A4、L7、N11。
+
+\field{常见误解} 以为「既然数学上等价，走 $A^{H}A$ 没损失」。等价性对精确算术成立；
+浮点上损失的不是 $\eps$ 而是 $\sqrt{\eps}$——这是路线选择问题，不是实现 bug。
+\end{know}
+
+\begin{know}{N13}{秩判定与阈值的尺度}{已实现：linalg/svd.hpp}
+\field{是什么} $\mathrm{rank}(A)=\#\{i:\sigma_i>\tau\sigma_0\}$，$\tau=\max(m,n)\eps$。
+
+\field{为什么需要} 秩是「这个矩阵的信息还剩多少」的量化；没有相对阈值，秩随尺度变化，
+判定毫无意义。
+
+\field{关键结论} 阈值必须\textbf{相对最大奇异值}，不能用 $\sigma_i>0$，也不能用固定常数。
+成立条件：$\sigma_0>0$（非零矩阵）。$8n\eps$ 型阈值适合判「唯一性/失败」，\textbf{不适合判秩}——
+源码记录过用 $8n\eps$ 判秩只对 $73/100$。
+
+\field{判据} $\tau=\max(m,n)\eps$；同时用 $\mathrm{DefaultTol}(r)\sigma_0$ 判「该不该继续算左奇异向量」。
+
+\field{前置} L7、A4。
+
+\field{常见误解} 以为「秩亏」是一个\textbf{是/否}的事实。数值上它是连续量：$\sigma_{\min}$ 从 $10^{-16}$ 连续变到 $10^{-2}$，
+秩只在给定阈值下才有定义。
+\end{know}
+
+\subsection*{串讲二：正交化三兄弟——同一条岭的三条路}
+
+Householder（N3）、Givens（N4）、MGS（N5）都在做「把向量组变正交」，差别是\textbf{每次处理多少}：
+
+\begin{center}
+\begin{tabular}{L{2.1cm}L{2.8cm}L{3.9cm}L{4.8cm}}
+\toprule
+方法 & 一次处理的量 & 代价 & 稳定性来源 \\
+\midrule
+Householder & 一整列 & $2n^{2}m-\frac23n^{3}$ 级 & 酉变换，2-范数不放大 \\
+Givens & 一列中的一个元素 & 约反射的 2--3 倍 & 同上，但单位旋转更细 \\
+MGS & 一个向量对前 $j-1$ 个方向 & 约 $2mn^{2}$ & 只靠「边算边扣」抑制误差，无酉性保证 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+三者的稳定的本质差别：前两个是\textbf{酉变换}（$H^{H}H=I$，$\norm{Hx}=\norm{x}$ 精确成立），
+MGS 只是一次次改写，误差按 $\eps\kappa(A)$ 增长而不是 $\eps\kappa^{2}(A)$。
+所以「稠密整列用反射、稀疏局部用旋转、图省事用 MGS 但要接受精度打折」是全部结论。
