@@ -19,9 +19,12 @@ notebook/
 │   ├── words/          L4 单词书（30 主题组 + 大纲补全，覆盖大纲 5530 词）
 │   ├── reviews/        复习状态表
 │   └── tools/          lint.py 结构校验 / review.py 到期计算
-├── projects/      ← 工程线（**服务面试**，21 个，OUTLINE + NOTES 两件套 + 可选双语）
-│   课程项目 14：jos csapp cs144 nand2tetris 6824 linux-api cpp-basics python-basics
-│                algorithm cs149 cs336 cs231n cmu11785 pku-cg
+├── projects/      ← 工程线（**服务面试**，22 个，OUTLINE + NOTES 两件套 + 可选双语）
+│   系统与网络 5：jos csapp cs144 nand2tetris 6824
+│   体系与编译器 3：cpu-microarchitecture asm-link-arch compiler（+ MINI-COMPILER.md）
+│   语言与 API 3：linux-api cpp-basics python-basics
+│   算法与计算 2：algorithm cs149
+│   AI 与图形 2：ai pku-cg
 │   能力方法论 7：perf-engineering testing database debug-toolchain
 │                system-design latent-issues algorithm-interview
 └── HANDOFF/       ← 交接包：规范、任务 prompt、派发器、验收脚本
@@ -42,7 +45,7 @@ notebook/
 1. **本仓是单一 git 仓**：`math/` `kaoyan/` `projects/` 共用同一个 `.git`，remote 沿用原 `11408-notebook`
    （`origin` = GitHub `zhenyang268/11408-notebook`，**该仓未创建**；`gitee` = `we_we_we/11408-notebook`）。
    （2026-11-01 之前 `kaoyan/` 曾是内嵌独立仓，已合并；**不要再找 `kaoyan/.git`**。）
-2. **工程线全部在 `projects/`**（2026-11-02 起 `kaoyan/projects/` 已并入）：21 个项目（14 课程 + 7 能力方法论），每个两件套 `OUTLINE.md`（在做什么 / 为什么这样做 / 章节大纲 / 不做什么 / **面试怎么讲**）+ `NOTES.md`（分章详细）。
+2. **工程线全部在 `projects/`**（2026-11-02 起 `kaoyan/projects/` 已并入）：22 个项目（15 课程/基础 + 7 能力方法论），每个两件套 `OUTLINE.md`（在做什么 / 为什么这样做 / 章节大纲 / 不做什么 / **面试怎么讲**）+ `NOTES.md`（分章详细）。
    `QUICK.md` 与 `DESIGN.md` 已废除，**不要再生**。
 3. **`math/bridges/` 是"跨篇串讲"**，不是新知识点。它的内容是篇与篇之间的连接，读法是"回头贯通"，不是"逐篇学"。
 
