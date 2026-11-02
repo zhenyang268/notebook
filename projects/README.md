@@ -45,7 +45,7 @@
 
 | 项目 | 一句话 | 面试主打 |
 |---|---|---|
-| `linux-api/` | APUE 那套系统调用：文件、进程、线程、信号、IPC、socket | fd 语义、fork/exec/wait、epoll、写时复制与缓冲 |
+| `linux-api/` | **16 章**：APUE 口径的 API + 每章配套 shell 命令 + 内核原理，重心在 CPU / 内存 / 网络 | `top` 380% 怎么判、VSS/RSS/PSS、缺页与 OOM、`ss -i` 看重传、epoll 边缘触发、TIME_WAIT 与端口耗尽 |
 | `cpp-basics/` | 对象模型、RAII、移动语义、模板、并发 | 虚函数表、拷贝/移动、智能指针、UB 与内存序 |
 | `python-basics/` | 数据模型、迭代协议、GIL、asyncio、GC | 可变性陷阱、生成器、GIL 与并发选型、引用计数 |
 

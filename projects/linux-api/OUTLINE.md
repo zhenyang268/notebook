@@ -1,95 +1,108 @@
-## 一、它在做什么
+## 一、它解决什么问题
 
-本项目做一个单机的「任务执行服务」：一个常驻后台的 agent 守护进程，加一个薄薄的命令行客户端。
+这项能力解决的两类事很具体：线上出问题时「看得见现象、说不出机理、定不了位」；面试里「能背 API 签名、说不出代价」。
 
-**输入**是一份纯文本配置（要跑哪些任务、任务之间的先后依赖、每个任务的超时与重试次数）和一批外部命令；**输出**是可被外部观察的三样东西——每个任务的最终状态（排队中／运行中／成功／失败／超时／被信号杀死）、一份按任务切分的日志文件、一份可随时查询的运行状态表。客户端既能同步等一个任务跑完拿到退出码，也能订阅事件流看进展。
+**场景一（内存口径）**：一台内存较大的机器上，某服务进程 RSS 报到几十 GB，告警触发扩容甚至带流量重启。实际大头是只读映射的共享库和 page cache，同口径的 PSS 只有个位数 GB，USS 更小。用错口径的代价是一次无谓的扩缩容，或者一次本可避免的重启。`pmap -x` 和 `/proc/PID/smaps` 的 `Pss` 字段能当场把结论翻过来。
 
-**验收只看外部行为，不看代码风格**：客户端提交任务后能拿到正确的退出码；agent 被 `SIGTERM` 时正在跑的任务被有序终止、日志完整落盘、自身退出码为 0；agent 被 `kill -9` 后重启，不留僵尸进程、不残留错误的锁、状态表能自愈；同一个任务不会被并发执行两次；两个客户端同时提交时日志行不交错；把 stdout 接成管道或文件，输出不丢不乱序；客户端半路断开，agent 不能卡死。
+**场景二（CPU 口径）**：多核机器上 `top` 显示 `%CPU` 为 300%，值班同学判断「CPU 不高」，实际是 3 个核满载；若这 3 个核正好承载网络软中断或关键线程，尾延迟早已劣化。`top -H` 加 `pidstat -u -t` 把进程级数字拆到线程级，配合 `taskset` 看亲和性，能区分「真算得多」还是「在自旋等锁」。
 
-换句话说，产出不是「一个能用的小工具」，而是一套用 APUE 那层 API 亲手搭出来的地基：fd、进程、信号、线程、IPC、socket 各管一块，并且互相咬合。
+**场景三（连接边界）**：短连接服务在几分钟内累积大量 TIME_WAIT，新连接开始报 `EADDRNOTAVAIL`；`ss -tan state time-wait` 配合 `netstat -s` 的 overflow 计数，能判断是主动关闭方过于集中，还是端口范围不够。
 
-## 二、为什么这样做（功能设计）
+面试侧的高频题与这些场景同源：fork 之后父子共享什么、mmap 与 read 的代价差在哪、epoll 边缘触发为什么必须配非阻塞 fd、EINTR 该不该重试、backlog 到底是谁在排队。答不出代价，就只是背过。
 
-**用 fork + exec 替掉 `system()` / `popen()`。** 这两个函数把「fork、exec、重定向、等待」糊成一句，退出信息被压缩成一个 int，信号屏蔽继承状态不可控。自己实现意味着要补上它们隐式替你做的那部分约定：子进程先 `setpgid` 进独立进程组（否则超时只能杀一个进程，杀不掉它派生的孙进程）；exec 前把继承来的 fd 全部关掉或预先设 `FD_CLOEXEC`；父进程用 `waitpid` 循环把 `WEXITSTATUS` / `WIFSIGNALED` 映射成统一状态（被信号杀记成 128+signo）；超时用定时器加 `kill(-pgid)` 兜底，而不是靠 sleep 轮询。
+## 二、为什么这样做（方法论设计）
 
-**日志写入路径不走标准 IO。** 原因是两条：`fork` 会复制用户态缓冲区，父子各刷一次就出现重复行；行缓冲/全缓冲随 `isatty` 变化，同一份代码在终端和重定向下行为不同。所以落盘只用 `write`/`writev`，缓冲区自己管，日志由单写者串行化（专门的写线程或主循环串行写），保证多任务并发时不交错。标准 IO 只留给客户端读配置和格式化给人看的输出，并且明确 `setvbuf` 与 `fflush` 的时机。
+**有口径才算数。** 内存数字必须带口径前缀：VSS / RSS / PSS / USS，四者不可互换，其中
+$$\mathrm{PSS}=\mathrm{USS}+\sum_i \frac{\mathrm{shared}_i}{n_i}$$
+即每块共享映射按其共享进程数均摊。CPU 必须说明基准：`top` 的 `%CPU` 以单核 100% 计，整机占比为 $\%CPU_{\text{整机}}=\dfrac{\%CPU}{100\times N_{\text{核}}}$。IO 必须说明是 buffered 还是 `O_DIRECT`、是否包含 `fsync`。网络必须说明测的是 RTT 还是应用层耗时。没有口径的数字不可跨机、跨版本比较。
 
-**信号不写在处理函数里干活。** 启动时把 `SIGCHLD`/`SIGTERM`/`SIGHUP` 全部 block，用 `sigwait` 在线程里收，或者 self-pipe：处理函数只往 pipe 写一个字节，读端挂进 epoll。这样信号变成一路 fd 事件，和 socket、任务输出管道共用同一条事件循环，不必为信号单独设计状态机，也不担心在处理函数里调非 async-signal-safe 的函数。另有一个必须写进代码的细节：`SIGCHLD` 会合并，收到一次通知要 `while(waitpid(-1,...,WNOHANG) > 0)` 把能收的全收完，绝不能假设「一个 SIGCHLD 对应一个子进程」。
+**看起来专业但无法证伪的做法。** 不加 `-f`/`-c`/`-T` 直接 `strace` 一把梭，然后说「系统调用慢」；只看 `perf top` 的热点函数名就断言「这里是瓶颈」；说「内存泄漏」却不区分 anon、file-backed、slab、fd 四类；说「网络慢」却不给重传率。共同特征是：没有对照组、没有判据、结论不可反驳。方法论上要求每条结论配一句「若结论为假，应该观察到什么」，观察不到就不写进报告。
 
-**并发模型是事件循环 + 线程池的混合。** 主线程跑 epoll 管所有 IO，线程池里的 worker 负责会阻塞的活（读任务输出、等子进程、写日志）。为什么不是每任务一进程：进程间共享状态必须额外 IPC，状态表立刻变成分布式一致性问题。为什么不是全线程：任务是外部命令，必须 fork/exec，而多线程进程里 fork 之后到 exec 之前只能调 async-signal-safe 函数，这条约束必须体现在代码结构上（exec 前不 malloc、不加锁、不碰 stdio）。
+**指标怎么定：主指标 + 佐证指标 + 判据。**
+- CPU：主看 `%CPU` 与 load average，佐证看 `vmstat` 的 `r` 列、上下文切换、cgroup throttling；判据是「单线程持续占满一核且 `voluntary_ctxt_switches` 不增长」→ 倾向自旋而非阻塞。
+- 内存：主看 USS/PSS 的时间趋势，佐证看 major page fault、`/proc/buddyinfo` 的高阶块、`/proc/meminfo` 的 `Dirty`/`Writeback`。
+- IO：主看 `iostat -x` 的 await/util，佐证看队列深度与脏页增速。
+- 网络：主看重传率与 accept 队列溢出。
 
-**IPC 按语义分工，不按顺手程度选。** 状态表用共享内存 + POSIX 命名信号量：零拷贝、可随机访问，代价是布局、初始化、跨进程可见性和残留清理全得自己管，所以头部要带魔数和版本号，启动路径要能检测并修复上次被 `kill -9` 留下的烂摊子。事件（开始/结束/超时）用消息队列或 FIFO：有消息边界、内核负责唤醒和背压，代价是消息大小上限和队列满时的阻塞行为要显式处理。控制面用 Unix domain socket 的 `SOCK_STREAM` 加自定义长度前缀分帧——这里刻意不用 `SOCK_SEQPACKET`，是因为「流上没有消息边界」这件事必须亲手处理一遍：一次 `read` 可能拿到半个请求，也可能两个请求粘在一起，需要一个显式的解析状态机。不用 TCP 是因为单机场景下 Unix socket 有文件权限、无端口冲突、无握手开销；不用现成队列中间件，是因为这门课要练的正是这些原语。
+判据要写成可执行形式，阈值按业务 SLO 定，不抄网上的魔数。
 
-**不可靠性从哪来、怎么压。** 来源很具体：短读写、`EINTR`、`EAGAIN`、`SIGCHLD` 合并、fork 复制缓冲、并发写交错、shm 与命名信号量的生命周期、僵尸、fd 泄漏。压法是统一封装：所有读写包成循环，`EINTR` 重试、`EAGAIN` 交回事件循环、短写继续写剩余部分；所有退出路径走同一个 cleanup；ID 分配与回收在一个临界区里完成。
+**边界与失效条件。** 结论限定在单机、已知内核版本、无 cgroup 干扰的前提下；容器里 `/proc` 口径会漂移，需改用 cgroup 自身计数器，方法要写明降级路径。采样类工具对短生命周期进程基本无效；`strace` 会放大被观测进程的延迟，只能看调用顺序与返回值，不能用来测性能。共享页多时 RSS 严重高估实际占用；PSS 需要扫 `smaps`，本身有 CPU 与延迟开销；抖动型故障用短采样看不见，需要连续采样加分位数。
 
-**为什么不用更简单的做法。** 一是一个全局大锁把所有并发退化成串行——能跑通，但客户端一多就互相拖死，且演示不出条件变量唤醒的意义。二是用 `mmap` 一块内存直接当队列不加同步——在单进程里看着能用，一旦 agent 与外部工具共享就必然撕裂。三是客户端和服务端共用一个日志文件靠 `O_APPEND` 保原子——单次小写入确实原子，但超过 `PIPE_BUF`/页大小的写入会交错，所以仍然要单写者。这些代价写清楚，是为了知道自己在哪一层省了事、又欠了什么账。
+**常见错误做法为什么错（要算代价）。** `kill -9` 不留现场 → 无法复盘，同类故障复发；跨机比较 `top` 的 `%CPU` → 核数与配额不同，结论可能反向；把 page cache 当泄漏 → 触发无谓重启与流量切换；把 `select` 换成 `epoll` 就认为能扛 → 没解决每连接状态机和数据拷贝，复杂度上升收益为零；不处理 `EINTR`、不设 `SA_RESTART` → 表现为低频偶发失败，线上排查成本极高。
 
 ## 三、章节大纲
 
-1. **文件 IO 与文件描述符语义**：`open`/`read`/`write`/`close`、`fcntl`、`dup`/`dup2`、`O_APPEND` 的原子性、fd 表与 fork 继承、偏移共享、`CLOEXEC`。验证：能观察到 dup 之后偏移共享、并发 `O_APPEND` 不覆盖；打通任务日志的 fd 复制与重定向。
-2. **标准 IO 与缓冲区**：`FILE*`、`setvbuf` 三种缓冲模式、`fflush`、`fileno`、`getline`、fork 前的缓冲复制陷阱。验证：同一个程序在终端与管道下输出顺序不同；复现并修复「fork 前未 flush 导致重复输出」。
-3. **文件、目录与链接**：`stat`/`lstat` 各字段与文件类型判定、`opendir`/`readdir`、硬链接与符号链接的区别、`readlink`、权限位与 umask。验证：写一个工作区扫描器，正确区分符号链接与其目标、遇循环链接不死循环、输出 inode 与链接数。
-4. **进程环境与程序启动**：`argv`/`environ`、环境变量操作、`exit` 与 `_exit` 与 `atexit`、`setjmp`/`longjmp`、`getrlimit`/`setrlimit`、进程组与会话、守护进程化的标准步骤。验证：agent 能正确守护化（`setsid`、重定向 0/1/2、`chdir`、`umask`），并能限制子任务可打开的 fd 数与 CPU 时间。
-5. **fork / exec / wait 与进程控制**：fork 返回值与写时复制、exec 家族与 PATH 查找、`waitpid` 状态宏、僵尸与孤儿、进程组与 `kill(-pgid)`、超时终止。验证：任务执行器跑通「成功／非零退出／被信号杀死／超时被杀」四种情形并给出正确状态。
-6. **信号**：`signal` 与 `sigaction` 的差别、信号集与屏蔽、可靠与不可靠信号、可重入与 async-signal-safe、`EINTR`、self-pipe、`sigwait`、`SIGCHLD` 的正确回收。验证：`SIGTERM` 优雅退出、`SIGHUP` 重载配置、`SIGCHLD` 批量回收不漏。
-7. **线程与同步原语**：`pthread_create`/`join`/`detach`、互斥量、条件变量、读写锁、屏障、线程安全与可重入、线程与 fork 的交互、每线程数据。验证：有界任务队列在压测下无丢失无死锁，线程池能优雅关闭。
-8. **IPC 一：管道、FIFO 与消息队列**：`pipe` 与 `PIPE_BUF` 原子写上限、父子管道、FIFO 的 open 阻塞语义、POSIX 消息队列的打开/发送/接收与优先级。验证：事件通道在 agent 与客户端之间可靠传递，客户端断开时 agent 不阻塞。
-9. **IPC 二：共享内存与信号量**：`mmap` 的 `MAP_SHARED`、`shm_open` + `ftruncate`、命名与无名信号量、互斥与计数用法、跨进程可见性。验证：状态表在两进程间读写一致，进程被 `kill -9` 后重启能检测并修复残留。
-10. **socket 与 IO 多路复用**：`socket`/`bind`/`listen`/`accept`、Unix domain 地址结构、`select`/`poll`/`epoll` 的差异、水平与边缘触发、非阻塞 connect、多路复用下的定时器管理。验证：单线程 epoll 服务端同时处理多客户端、任务输出管道与信号 fd，全程不忙轮询。
+**[CPU]**
+
+**第 1 章 进程与线程**：fork 的写时复制、exec 的替换语义、wait 回收与僵尸、clone 的共享开关；父子共享 fd 表还是 file 结构。能答「fork 后子进程改变量父进程看得见吗、fd 偏移共享吗」。命令：`ps`、`top`、`pstree`、`pidof`、`strace -f -e trace=clone`。
+
+**第 2 章 CPU 占用与调度**：nice 的影响面、亲和性与缓存局部性、实时策略与饥饿、被抢占的观测方式。能答「`%CPU` 300% 在 32 核机器上算不算高」。命令：`top -H`、`pidstat -u -t`、`taskset`、`chrt`、`perf stat`。
+
+**第 3 章 时间与定时**：单调时钟与墙钟的区别、定时器精度、忙等与阻塞的代价差。能答「为什么不能用 `gettimeofday` 做超时计时」。命令：`time`、`strace -T`、`/proc/timer_list`、`perf sched`。
+
+**[内存]**
+
+**第 4 章 虚拟内存与 mmap**：brk 与 mmap 的分配路径、`mprotect` 的页粒度、地址空间布局。能答「malloc 大块与小块的落点差异」。命令：`pmap -x`、`/proc/PID/maps`、`/proc/PID/smaps`。
+
+**第 5 章 内存占用口径**：VSS/RSS/PSS/USS 的定义与误用、缺页类型、共享页归属。能答「RSS 涨到几十 G 是不是泄漏」。命令：`free -m`、`vmstat`、`/proc/PID/statm`、`smem`。
+
+**第 6 章 内存故障定位**：OOM killer 的选择依据、泄漏与碎片的区分、回收路径。能答「dmesg 里 oom-kill 那一段该看哪几个字段」。命令：`dmesg -T`、`/proc/buddyinfo`、`/proc/zoneinfo`、`valgrind massif`。
+
+**[文件]**
+
+**第 7 章 文件 IO 与 fd 语义**：open 标志组合、偏移共享、`O_APPEND` 的原子性、EINTR 来源。能答「两个进程同时写同一文件如何保证不串」。命令：`lsof -p`、`/proc/PID/fd`、`ulimit -n`、`strace -e trace=openat`。
+
+**第 8 章 标准 IO 与缓冲**：stdio 三态缓冲、行缓冲在管道下退化为全缓冲的坑。能答「为什么重定向到文件后日志不刷新」。命令：`stdbuf`、`strace -e trace=write -c`、`wc -c`。
+
+**第 9 章 元数据与目录**：inode 与 dentry、硬链接与软链接的失效差异、`stat` 的三个时间。能答「`df` 有余量但写不进去是什么原因」。命令：`stat`、`df -i`、`du -sh`、`ls -li`、`find -inum`。
+
+**第 10 章 IO 栈与页缓存**：buffered 与 direct IO 的代价、`fsync` 的保证范围、写放大来源。能答「`fsync` 到底刷了什么、为什么不能替代 `fdatasync`」。命令：`iostat -x`、`iotop -o`、`/proc/meminfo` 的 `Cached`/`Dirty`、`perf trace`。
+
+**[网络]**
+
+**第 11 章 socket 与 TCP 生命周期**：从 listen 到 close 的状态迁移、每个状态下内核做了什么。能答「`CLOSE_WAIT` 堆积是谁的问题」。命令：`ss -tanp`、`/proc/net/tcp`、`netstat -s`。
+
+**第 12 章 IO 多路复用**：select/poll/epoll 的复杂度与拷贝差别、边缘触发的重试语义。能答「ET 为什么必须配非阻塞 fd」。命令：`ss -s`、`/proc/PID/fd` 中的 `eventpoll`、`strace -e trace=epoll_wait`。
+
+**第 13 章 链路与丢包诊断**：重传与乱序的区分、队列与缓冲膨胀、MTU 与分片。能答「重传率高但带宽不低说明什么」。命令：`ss -i`、`nstat`、`ip -s link`、`tcpdump -i any port`。
+
+**第 14 章 连接边界**：backlog 的有效值 $\text{backlog}_{\text{eff}}=\min(\text{listen backlog},\ \text{somaxconn})$、TIME_WAIT 归属、端口耗尽。能答「调大 backlog 为什么没效果」。命令：`ss -tan state time-wait`、`sysctl net.ipv4`、`netstat -s` 的 overflow 段。
+
+**[进程]**
+
+**第 15 章 信号与可重入**：屏蔽与未决、处理函数与主流程的竞态、async-signal-safe 的边界。能答「信号处理函数里为什么不能 `printf`」。命令：`kill -l`、`strace -e trace=signal`、`/proc/PID/status` 的 `SigQ`/`SigBlk`。
+
+**第 16 章 IPC**：管道、FIFO、共享内存、信号量、消息队列的取舍与生命周期归属。能答「共享内存为什么必须自带同步」。命令：`ipcs`、`ipcmk`、`ls -l /dev/shm`、`strace -e trace=shmget`。
 
 ## 四、不做什么
 
-- **不碰内核**：不写内核模块、不改内核、不写字符设备驱动，不涉及 eBPF。
-- **不做跨机**：不做 TCP 上的分布式调度、不做通用 RPC 框架、不做集群一致性；agent 只在一台机器上跑。
-- **不实现完整 shell**：不做管道、重定向、通配符展开、变量替换、作业控制；任务命令按 argv 数组或最简单的一次分割执行。
-- **不追求性能数字**：不要求吞吐与延迟指标，只要求不忙轮询、不漏 fd、不漏内存，能长时间稳定运行。
-- **不要求可移植**：明确只跑现代 Linux，允许用 epoll、eventfd、signalfd、`/proc`；不写 BSD / macOS 兼容层。
-- **属于实现自由度**：语言（以 C 为基准口径，C++ / Rust 可以，但不得借用其封装的进程、线程、IO 库）、配置格式、日志格式、错误码与诊断信息风格、共享内存的槽位布局、要不要额外加一个 TUI。这些怎么选都不影响验收。
-- **常见跑偏**：用 `system()` / `popen()` 绕过 fork-exec；用 `sleep` 轮询代替阻塞等待；在信号处理函数里 `printf`、`malloc` 或加锁；把 `EINTR` 一律当错误返回；fork 前不 `fflush`；把共享内存当普通内存直接改而不加信号量；用一把全局大锁把所有并发退化成串行还觉得挺对；把错误静默掉换取「跑得通」。
+- **不写 408 考点**：页表硬件细节、调度算法正确性证明、TCP 拥塞控制公式推导，属于考试层；这里只到「语义与代价」。
+- **不写语言与运行时**：C++ RAII、Go netpoller、JVM NIO 的内部实现，属于各语言层。
+- **不写内核源码走读**：`struct file` 逐字段、VFS 具体实现不做，只给行为契约与观测点。
+- **不给调优数值清单**：不写「把某 sysctl 改成某值」，只写「看哪个指标、往哪个方向调、调完看哪个计数器验证」。
+- **不写上层排障**：K8s、服务网格、数据库内核参数不在范围内。
+- **不做基准排名**：不给跨环境的「提升 N 倍」结论；同类工具的差异只讲机制，不讲名次。
 
 ## 五、面试怎么讲
 
-### 30 秒版本
+**30 秒版本（120–180 字）**
 
-「这个项目不是做业务，是按 APUE 的脉络把文件 IO、进程、信号、线程、IPC、socket 过一遍，重点不在功能，而在每个 API 的语义和边界：失败返回什么 errno、fork/exec 后 fd 怎么继承、write 半写和 EINTR 怎么办、信号处理函数里哪些调用是 async-signal-safe。卡点是并发竞态和错误路径，光看手册看不出来，得用 strace 对系统调用返回值、/proc 看 fd 和线程状态、helgrind 查数据竞争。所以我判断做对了的标准是：每一步行为都能用工具解释，而不是『跑通了』。」
+我的做法是把「现象 → 口径 → 判据 → 验证」这条链走完。内存问题不直接看 RSS，先用 `smaps` 分 PSS/USS 和 anon/file-backed，再看 major fault 与 `buddyinfo` 判断是泄漏还是碎片；CPU 问题用 `top -H` 和 `pidstat -u -t` 拆到线程，再用上下文切换区分自旋与阻塞。系统编程侧，每个 API 我说得出代价：fork 的写时复制、mmap 的缺页、epoll ET 要求非阻塞、EINTR 的由来。工具是手段，口径和判据才是结论。
 
-### 可能被追问的 8 个点
+**可能被追问的 7 个点**
 
-**1. 「open 返回的 fd 到底是什么？fork 之后父子进程的 fd 什么关系？」**
-- 真实考点：是不是把 fd 当成「文件句柄」在泛泛地谈，还是知道有三层结构。
-- 怎么答：fd 是 `task_struct → files_struct → fdtable` 里的数组下标；`open` 在内核建 `struct file`，fd 指向它。`fork` 复制 fd 表，父子两个 fd 指向**同一个 struct file**，所以共享 file offset 和 open flags（`O_APPEND` 之类）；但 fd flag（`FD_CLOEXEC`）是每个 fd 一份，fork 会复制、exec 时按它关闭。所以父子同时对同一 fd 调 `read` 是抢同一个偏移；要独立偏移就各自 open，或用 `pread`。`dup2` 同理，两个 fd 共享一个 file。
+1. **「fork 之后子进程改变量，父进程看得见吗？fd 呢？」** → 考点：COW 与 fd 表复制。答法：数据页 COW 不可见；fd 表是复制的，但指向同一 `file` 结构，共享偏移与状态标志。验证：`strace -f -e trace=clone` 看 `CLONE_FILES` 等标志，对比父子 `/proc/PID/fd` 的 inode。
+2. **「RSS 涨到几十 G，是不是泄漏？」** → 考点：口径。答法：先看 `smaps` 的 `Pss`/`Private_Dirty`，区分 anon 与 file-backed；判据是 USS 单调增长 + major fault 上升 + `valgrind massif` 快照对比，三者不齐不下结论。
+3. **「32 核机器上 `%CPU` 300% 算高吗？」** → 考点：基准与亲和性。答法：300% 等于 3 核满载；`top -H` 定位线程，`pidstat -u -t 1` 看线程级趋势，`taskset` 确认是否挤在少数核上，`perf stat` 看 IPC 判断是算得多还是在自旋。
+4. **「epoll 边缘触发为什么必须配非阻塞 fd？」** → 考点：ET 语义与重试。答法：ET 只在状态变化时通知一次，必须循环 `read` 到 `EAGAIN`，阻塞 fd 会卡在最后一次读；观测用 `strace -e trace=epoll_wait` 看单次返回事件数，`/proc/PID/fd` 确认 `eventpoll` 实例数。
+5. **「TIME_WAIT 多了要不要调参？」** → 考点：归属与生效范围。答法：先判断谁是主动关闭方、是否端口耗尽（看 `EADDRNOTAVAIL` 与 `netstat -s`），`ss -tan state time-wait` 按四元组统计；`tcp_tw_reuse` 只对主动发起连接的场景生效，具体行为按内核实现而定，不能当通用解。
+6. **「OOM killer 为什么杀了我的进程？」** → 考点：全局 OOM 与 cgroup OOM 的区分。答法：`dmesg -T` 看 oom-kill 段的 anon-rss/total-vm 与打分，`/proc/buddyinfo` 看高阶块是否耗尽，`/proc/zoneinfo` 看水位；容器场景先查 cgroup 的 memory 上限。
+7. **「信号处理函数里能做什么？」** → 考点：异步信号安全。答法：只能调 async-signal-safe 函数（`write`、`_exit` 一类），常规做法是置 `volatile sig_atomic_t` 标志由主循环处理；`/proc/PID/status` 的 `SigBlk`/`SigCgt`/`SigQ` 可核对屏蔽与未决状态。
+8. **「`write` 返回 `-1` 且 `errno == EINTR` 怎么办？」** → 考点：部分写与重试。答法：循环重试并处理已写字节数；`O_NONBLOCK` 下的 `EAGAIN` 与 `EINTR` 语义不同，不可混为一谈；用 `strace -e trace=write -c` 看调用次数分布佐证。
 
-**2. 「write 有可能写不完吗？你的循环怎么写？」**
-- 真实考点：部分写、EINTR、EAGAIN、SIGPIPE 四个失败路径是否都认。
-- 怎么答：返回值是实际写入字节数，可能小于 n。普通文件一般写满，pipe/socket 有 `PIPE_BUF`（Linux 4096）以内的原子性保证，超过就可能部分写、可能和别的写者交错。循环里：`ret < 0 && errno == EINTR` 就重试（handler 没设 `SA_RESTART` 时会被打断）；`EAGAIN/EWOULDBLOCK` 是非阻塞没空间，该等 `EPOLLOUT`，不要原地重试；对端已关闭会先收到 SIGPIPE（默认杀进程），要么忽略它并处理 `EPIPE`，要么用 `MSG_NOSIGNAL`。`write(fd, buf, 0)` 返回 0，别当错误。
+**别说什么**
 
-**3. 「printf 之后 fork，为什么输出会重复两遍？」**
-- 真实考点：stdio 用户态缓冲和系统调用的边界，`exit` 和 `_exit` 的区别。
-- 怎么答：`printf` 只写进 `FILE` 的缓冲区。stdout 接终端是行缓冲，重定向到文件变成全缓冲；`fork` 复制整个地址空间，缓冲区也跟着复制一份，父子各自退出时各 flush 一次，就成了两份。所以 fork 前 `fflush(stdout)`，或者干脆用 `write`。子进程该用 `_exit`：不 flush 继承来的缓冲，也不跑父进程注册的 `atexit` 函数。
-
-**4. 「信号处理函数里能做什么？为什么不能 printf？」**
-- 真实考点：async-signal-safe、可重入、竞态窗口。
-- 怎么答：handler 可能打断任意一条指令，包括 malloc/stdio 内部持锁的那一刻，在里面调 `printf`/`malloc` 可能死锁或破坏状态；只能用 man 7 signal-safety 列出的（`write`、`_exit`、`sem_post`、读写 `volatile sig_atomic_t` 等）。要输出就 `write(2, ...)`，或者 self-pipe：handler 里往 pipe 写一个字节，主循环用 poll/epoll 读，把异步事件变成同步事件。另外 `sigsuspend` 的作用是「改屏蔽字 + 挂起」原子完成，避免「刚判完条件、还没挂起」时信号已经到了的丢唤醒。
-
-**5. 「共享内存为什么必须配信号量？sem_wait 被信号打断怎么办？」**
-- 真实考点：知不知道共享内存只解决「映射」不解决「互斥」。
-- 怎么答：`mmap(MAP_SHARED|MAP_ANONYMOUS)` 给亲属进程，或 `shm_open + ftruncate + mmap` 给无关进程，它只把同一块物理页映射进多个地址空间，`i++` 仍是 load-modify-store，必须用信号量/文件锁/futex 保护。`sem_wait` 会被信号打断返回 -1/`EINTR`，要循环重试或改用 `sem_timedwait`。命名信号量在 `/dev/shm/sem.xxx`，是内核持久的：进程崩了计数不会自动恢复，所以谁 `sem_wait` 成功谁负责在清理路径上 `sem_post`。`sem_open` 带 `O_CREAT` 时初值只在第一次创建生效，重复 open 传的初值被忽略。
-
-**6. 「epoll 的 LT 和 ET 怎么选？ET 为什么必须配非阻塞？」**
-- 真实考点：就绪语义、漏读、多线程下的重复触发。
-- 怎么答：LT 是缓冲区还有数据就一直通知，可以写「每次读一次」的懒代码；ET 只在状态变化时通知一次，必须循环 `read` 到 `EAGAIN` 才不漏，所以 fd 必须 `O_NONBLOCK`，否则最后一次读会把整个事件循环阻塞住；`accept` 同理要 while 到 `EAGAIN`。多线程处理同一连接用 `EPOLLONESHOT`，保证同一时刻只有一个线程在动它，处理完 `EPOLL_CTL_MOD` 重新武装。另外 epoll 的开销是 O(就绪数)，select 受 `FD_SETSIZE=1024` 限制且每次要重填 fd_set——但连接数小的时候 select/poll 未必更慢，别下绝对结论。
-
-**7. 「硬链接和软链接的区别？unlink 之后文件什么时候真正消失？」**
-- 真实考点：目录项 vs inode，`st_nlink` 和打开引用的双重计数。
-- 怎么答：硬链接是目录项指向同一个 inode，`st_nlink` 加一，不能跨文件系统、不能给目录建（`. `和`..`除外）；软链接是独立 inode，内容是路径字符串，可跨 fs、可悬空，`lstat` 看 `S_ISLNK`，`open` 默认跟随、要 `O_NOFOLLOW` 才不跟随，`readlink` 读内容。`unlink` 只是删目录项、`st_nlink` 减一；inode 和磁盘块要等 `nlink == 0` **且**没有进程还开着它才释放——所以临时文件可以先 open 再 unlink，进程一死自动清。判断「是不是同一个文件」看 `st_dev + st_ino`，别拿路径比。
-
-**8. 「僵尸进程怎么来的？waitpid 怎么写才不漏？」**
-- 真实考点：SIGCHLD 不排队这件事有没有踩过。
-- 怎么答：子进程退出后内核保留退出状态直到父进程 wait，这期间是 Z 状态、占着 PID。收割要 `while ((pid = waitpid(-1, &st, WNOHANG)) > 0)`：返回 0 表示有子进程但都没退，返回 -1 且 `errno == ECHILD` 表示没子进程了，这两种要分开处理。标准信号不排队，多个子进程同时死可能只来一个 SIGCHLD，所以 handler 里必须循环 wait 到没有为止；更稳的做法是 `signalfd` 或 self-pipe 把 SIGCHLD 转成 fd 事件，和网络事件一起进 epoll。
-
-### 别说什么
-
-- **别说「这块是库帮我做的」把 stdio、pthread 当系统调用讲。** 一追问「printf 什么时候进内核」「pthread_mutex_lock 在竞争时做了什么」就露馅。库函数和系统调用的边界要自己划清楚。
-- **别报没测过的数字。** 「提升 3 倍」「支撑上万连接」这类话，说不清用什么工具、什么口径、在什么场景测的，就一个都别讲。宁可说「这条路径我会用 strace 看系统调用返回值来确认」。
-- **别把「跑通了」当「语义对了」。** fork 不 fflush 在终端上也能跑对，只有重定向到文件才暴露；不处理 EINTR 在本地也不会出错。要表达的是「我知道这条路径在什么条件下会坏、坏了会看到什么现象」。
-- **别背 API 清单。** 从 `sem_init` 的参数背到 `sem_destroy` 的意义不大，面试官要听的是它解决哪个竞态、失败时 errno 是什么、用错了会出什么现象。
+- 「我用 `strace` 看了下，就是这里慢」——没有对照组、没有量化，等于没结论。
+- 「内存泄漏，重启一下就好」——不区分 VSS/RSS/PSS 与 anon/file，重启只是把现场毁掉。
+- 「epoll 比 select 快很多倍」——不给连接数、活跃比例和拷贝口径，这个比较不成立。
+- 「把 backlog 调大就行了」——不看 accept 速率与 overflow 计数，调大只是把丢弃点往后挪。
