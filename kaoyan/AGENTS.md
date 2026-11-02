@@ -73,7 +73,7 @@ words/     L4 词汇：30 主题组（词表 + 短文）+ 大纲补全表 5530 �
 
 - 工程线已全部在仓根 `../projects/`（2026-11-02 并入），**本目录不再有 projects**。
 - 项目文档两件套 + 第五节 `## 五、面试怎么讲`，规约见 `../projects/README.md`。
-- `tools/lint.py` 检查：`exam/` 正文出现工程仓名（CS144 / CS149 / CSAPP / nand2tetris / 6.824 / jos / craft）
+- `tools/lint.py` 检查：`exam/` 正文出现工程仓名（CS149 / CSAPP / nand2tetris / 6.824 / jos / craft）
   → **提示级**（不阻断，供清理）；`projects/` 大段复制 `exam/` 正文 → 提示。
 
 ### 铁律 3：状态与内容分离
@@ -235,4 +235,4 @@ words/     L4 词汇：30 主题组（词表 + 短文）+ 大纲补全表 5530 �
 | 学习对话 | 讲解 / 问答 / 出题判卷 | 按 §四 归档到对应 KP 文件 |
 | 纸质刷题照片 | 图片 + 一行元信息（卷名年份·题号·限时与否） | 按 `LEARNING.md` §6B.3 判卷；**只把错题落盘**到对应 KP 文件的「易错点」；模考报告进 `temp.md` 标 `[模考]` |
 | 「今天复习什么」 | 口头指令 | 跑 `python3 tools/review.py`，输出到期清单，不写任何文件 |
-| 谈项目 | 提到 CS144 / CSAPP / raft 等 | 只写 `projects/`，不碰 `exam/` |
+| 谈项目 | 提到 CSAPP / nand2tetris / raft 等 | 只写 `projects/`，不碰 `exam/` |

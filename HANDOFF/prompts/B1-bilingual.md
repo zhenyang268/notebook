@@ -16,7 +16,7 @@
 
 每个项目一个 `<项目>/OUTLINE.bi.md`，**不覆盖原中文文件**。
 
-共 10 个：`kaoyan/projects/{csapp,cs144,6824,algorithm,nand2tetris}/` +
+共 9 个：`kaoyan/projects/{csapp,6824,algorithm,nand2tetris}/` +
 `projects/{cs231n,cs336,cs149,cmu11785,pku-cg}/`。
 
 ## 格式（严格）

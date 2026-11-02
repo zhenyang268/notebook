@@ -211,3 +211,21 @@ asm 缺 8，cpu 缺 8）。补跑单章块后 4 个项目章号全齐。
 `compiler/` 有第三个文件 `MINI-COMPILER.md`。两件套规则是为「一个项目一个主线」服务的，
 而这份文件回答的是另一个问题（自己造一遍编译器要做什么），与 LLVM 主线不重叠，
 所以作为显式例外写进 `projects/README.md`，`lint.py` 不把它算作 `DESIGN.md` 那类废文件。
+
+## 十一、手术（2026-11-03）：cs144 项目下线
+
+**判断**：手写 TCP 的投入产出比低于设计一台服务器——面试官不会让你实现协议栈，
+只会追问「你遇到过什么坑」；而那份 5 万字的文档里，「重传定时器 / 快速重传 / 零窗口探测 /
+ACK 歧义」全部命中 0 次，讲站比讲实现多。留着它只会挤占面试叙事的篇幅。
+
+| 动作 | 范围 |
+|---|---|
+| 删目录 | `projects/cs144/`（3 件套）、`learning-408/cs144/`（独立子仓，**已确认 0 未提交 / 0 未推送**，可从 `git@gitee.com:we_we_we/cs144.git` 克隆回来） |
+| 删引用 | `projects/README.md` 表行、根 `README.md` 计数、`kaoyan/AGENTS.md` 与 `LEARNING.md` 的仓名举例 |
+| 改口径 | `nand2tetris/NOTES.md`、`csapp/NOTES.md` 里 8 处「CS144」对比句改为中性说法（论证保留，不留悬空引用） |
+| 防复发 | `HANDOFF/prompts/P-projects.md`、`B1-bilingual.md`、`TASKS.md` 的项目清单删掉 cs144，`gates.py` 阈值 24 → 23 |
+| 主仓同步 | `README.md` / `AGENTS.md` / `docs/reference/{interview-map,baseline-levels}.md` / `docs/status/engineering-readiness.md` / `learning-408/README.md` 共 7 处 |
+
+**后遗症（要记住）**：删掉 cs144 之后，`baseline-levels.md` 的 `S-E5 网络程序` 失去了对应项目，
+已把该行改成「6824 / 自建 epoll 服务」——**这是把缺口写成待办，不是已经补上**。
+

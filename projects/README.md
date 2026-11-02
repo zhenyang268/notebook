@@ -23,13 +23,12 @@
 
 ---
 
-## 一、系统与网络（5）
+## 一、系统与网络（4）
 
 | 项目 | 一句话 | 面试主打 |
 |---|---|---|
 | `jos/` | 从引导写到用户进程的操作系统内核 | 页表与地址转换、陷入内核、COW、调度 |
 | `csapp/` | 数据表示到并发的整条链路 + 8 个 lab | IEEE 754、Cache、链接、malloc 实现 |
-| `cs144/` | 用 UDP 承载的用户态 TCP | 序号与 ACK、窗口、重传、连接状态机 |
 | `nand2tetris/` | 从与非门到俄罗斯方块 | 组合/时序电路、CPU 数据通路、汇编器 |
 | `6824/` | Raft 共识与多副本收敛 | 选举、日志复制、线性一致性、快照 |
 
@@ -102,6 +101,6 @@
 ```bash
 cd notebook
 python3 kaoyan/tools/lint.py                                  # 两件套齐、无 QUICK/DESIGN
-python3 .gen/w4/gates.py 4                                    # 24 个项目 + 真题 ≥9 年 + 词表
+python3 .gen/w4/gates.py 4                                    # 23 个项目 + 真题 ≥9 年 + 词表
 python3 HANDOFF/tools/verify.py kaoyan/exam/真题               # 真题年份结构
 ```
