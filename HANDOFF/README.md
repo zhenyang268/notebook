@@ -78,10 +78,10 @@ notebook/
 ## 三、怎么用这份交接
 
 ```bash
-# 每个任务一个 prompt 文件，直接粘给主 agent
-ls HANDOFF/prompts/
-
-# 派发时按 SCHEDULING.md 的规范跑，不要用前台同步调用
+# 施工已结束（2026-11-02 全量重做完成），prompts/ 已清空
+# 现在的用法：只跑验收，不派任务
+python3 HANDOFF/tools/verify.py kaoyan/quick kaoyan/note kaoyan/exam/408 kaoyan/exam/math1
+python3 kaoyan/tools/lint.py
 ```
 
 **并行度建议**：`MAXPAR=3` 是**单账号总额度**，多开主 agent 不会提速。
@@ -105,19 +105,15 @@ HANDOFF/
 ├── TASKS.md                   工作列表、迁移动作、验收脚本
 ├── EXECUTION.md               4 个阶段、多 agent 分工
 ├── tools/
-│   ├── pool.sh                可执行的派发器（幂等/限流/重试）
+│   ├── pool.sh                可执行的派发器（幂等/限流/重试，已验证）
 │   ├── verify.py              统一验收（文件/字数/结构/覆盖率）
 │   └── RULES-legacy.md        早期规范（内容并入 SCHEDULING.md）
-└── prompts/
-    ├── 00-migrate.md          结构迁移（先做）
-    ├── K0-syllabus.md         考纲强化（档位 + 真题落点）
-    ├── K-quick.md             9 份速通（三合一，408 分四科）
-    ├── E-exam.md              分章详细讲解
-    ├── N-note.md              考点 × 真题复合版（按考法去重）
-    ├── W-words.md             单词书 5500+
-    ├── P-projects.md          项目两件套
-    ├── B1-bilingual.md        项目大纲双语化
-    └── T-fetch-zhenti.md      续抓 408 真题
+└── STATUS.md                  交付记录：11 轮做了什么、踩了什么、还差什么
 ```
 
-**最短路径**：读 `00-CONTEXT.md` → 跑 `00-migrate` → 按 `EXECUTION.md` 分阶段派 prompt。
+**最短路径**：读 `STATUS.md` 看现在到哪了 → 跑 `verify.py` 看有没有退化 → 要改内容直接改正文，
+不要再派批量任务（生成式流水线已完成使命，见 `STATUS.md` §十一）。
+
+**已删除的 9 份 prompt**（`00-migrate` / `K0-syllabus` / `K-quick` / `E-exam` / `N-note` /
+`W-words` / `P-projects` / `B1-bilingual` / `T-fetch-zhenti`）：它们对应的层都已落地并通过闸门，
+留着只会让人误以为还要重跑一遍。需要复现时从 git 历史取（提交 `ef52eb7` 之前）。

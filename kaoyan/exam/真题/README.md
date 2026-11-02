@@ -51,7 +51,7 @@
 
 ## 续抓（还缺 2009–2015）
 
-流程见 `HANDOFF/prompts/T-fetch-zhenti.md`。要点：
+来源与坑见下表（原 `HANDOFF/prompts/T-fetch-zhenti.md` 已随施工结束删除，要点并入本节）。
 
 - 每年抓 **2 个来源**交叉核对（纯文本页 + PDF 各一份）
 - 抓完立刻标出缺图题
