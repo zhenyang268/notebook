@@ -95,6 +95,63 @@ def check_exam(kps):
     return n
 
 
+DRILL_408 = ["41-树与图手算.md", "42-算法设计（手写 C 代码）.md", "43-存储系统与地址划分.md",
+             "44-数据通路与流水线.md", "45-调度与死锁.md", "46-同步互斥与地址翻译.md",
+             "47-子网与 TCP 计算.md"]
+DRILL_MATH = ["01-极限与一元微分.md", "02-一元积分与定积分应用.md", "03-多元微分与重积分.md",
+              "04-曲线曲面积分与三大公式.md", "05-级数与微分方程.md", "06-线性代数综合.md",
+              "07-概率统计综合.md"]
+DRILL_TIERS = ("## 二、L1", "## 三、L2", "## 四、L3")
+DRILL_FIELDS = ("题干", "题眼", "卡在哪", "分步", "拿分骨架", "结果锚点", "变式")
+
+
+def check_drill(kps):
+    """drill/ 第六层：难度阶梯题库（2026-11-03 起）。
+
+    判据：408 七条题号线 + 数一七条题型线一个不少；每份三档齐、每档 ≥2 题；
+    每题六字段齐；不得出现四位年份（本层是原创变式题，出现年份即编造）。
+    """
+    d = ROOT / "drill"
+    if not d.exists():
+        err("[drill] 缺 drill/ 目录")
+        return 0
+    if not (d / "README.md").exists():
+        err("[drill] 缺 README.md")
+    n = 0
+    for sub, want in (("408", DRILL_408), ("math1", DRILL_MATH)):
+        got = sorted(p.name for p in (d / sub).glob("*.md"))
+        miss = [w for w in want if w not in got]
+        extra = [g for g in got if g not in want]
+        if miss:
+            err(f"[drill] {sub}/ 缺 {miss}")
+        if extra:
+            err(f"[drill] {sub}/ 多出白名单外的文件 {extra}")
+        for name in want:
+            p = d / sub / name
+            if not p.exists():
+                continue
+            n += 1
+            text = p.read_text(encoding="utf-8")
+            if re.search(r"(?:19|20)\d{2}\s*年", text):
+                err(f"[drill] 出现四位年份（本层是原创变式题）：{sub}/{name}")
+            for seg in ("## 一、", "## 五、") + DRILL_TIERS:
+                if seg not in text:
+                    err(f"[drill] 缺「{seg}」段：{sub}/{name}")
+            for tier in ("L1", "L2", "L3"):
+                qs = re.findall(rf"^### {tier}-\d+ ", text, re.M)
+                if len(qs) < 2:
+                    err(f"[drill] {tier} 少于 2 题（{len(qs)}）：{sub}/{name}")
+            for i, body in enumerate(re.split(r"^### ", text, flags=re.M)[1:], 1):
+                for f in DRILL_FIELDS:
+                    if f"**{f}**" not in body:
+                        err(f"[drill] 第 {i} 题缺 **{f}**：{sub}/{name}")
+                        break
+            for m in re.finditer(r"`((?:408|M1)-[A-Z]{2,3}-\d{2,8})`", text):
+                if m.group(1) not in kps:
+                    err(f"[drill] KP 不在 syllabus 中：{sub}/{name} -> {m.group(1)}")
+    return n
+
+
 def check_projects():
     """工程线全部在仓根的 `projects/`（2026-11-02 起，kaoyan/projects 已并入）。
 
@@ -220,6 +277,7 @@ def main():
     strict = "--strict" in sys.argv
     kps = collect_kps()
     n_exam = check_exam(kps)
+    n_drill = check_drill(kps)
     n_proj = check_projects()
     n_quick = check_quick()
     n_rev = check_reviews(kps)
@@ -227,7 +285,7 @@ def main():
     n_link = check_links()
     n_ref = check_kp_refs(kps)
 
-    print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　quick 文件：{n_quick}　"
+    print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
           f"projects 目录：{n_proj}　复习行：{n_rev}　主键表行：{n_tab}　"
           f"KP 引用：{n_ref}　失效路径：{n_link}")
     for w in warns:
