@@ -38,7 +38,7 @@
 它是个经过实测校准的工程常数，不是定理。
 \end{know}
 
-\begin{know}{A3}{前向误差与后向误差}{已实现（概念），但链路未展开}
+\begin{know}{A3}{前向误差与后向误差}{已实现（概念；链路未展开）：linalg/solve.hpp}
 \field{是什么} 前向误差 $\abs{\hat x-x}/\abs{x}$；后向误差是最小的 $\norm{E}/\norm{A}$，
 使 $(A+E)\hat x=b$ 精确成立。前者问「算得准不准」，后者问「算的是不是某个邻近问题的精确解」。
 
@@ -56,7 +56,7 @@
 残差 $10^{-16}$ 的解可以离真解差很远。
 \end{know}
 
-\begin{know}{A4}{条件数与误差放大}{部分已实现：linalg/svd.hpp 提及}
+\begin{know}{A4}{条件数与误差放大}{已实现（部分）：linalg/svd.hpp 提及}
 \field{是什么} $\kappa(A)=\norm{A}\norm{A^{-1}}$；在谱范数下 $\kappa=\sigma_{\max}/\sigma_{\min}$
 （对可逆矩阵）。它衡量「输入的小相对扰动最多被放大几倍」。
 
@@ -261,7 +261,7 @@ $\sum_i\sigma_i=\norm{A}_{*}$（核范数）、$\sigma_{\max}\sigma_{\min}=\abs{
 \field{常见误解} 以为「相似就保范数」。$G$ 不正交时 $\norm{G^{H}AG}$ 可以任意放大，迭代的收敛判据随之失效。
 \end{know}
 
-\begin{know}{L9}{行列式是体积，不是「接近 0 就奇异」}{库无 det 入口（原文未给）}
+\begin{know}{L9}{行列式是体积，不是「接近 0 就奇异」}{缺位：库无 det 入口}
 \field{是什么} $\det A$ 是有向体积缩放因子；方阵下 $\abs{\det A}=\prod_i\sigma_i$。
 
 \field{为什么需要} 判断坐标变换的 Jacobian 是否为零（拉回与积分换元要它），以及体积判据。

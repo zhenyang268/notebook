@@ -13,6 +13,7 @@
 框架 & 签名与注释已定、函数体全部 \texttt{throw}；注释即规格，公式可信，数值未验证 \\
 骨架 & 同上，但源码自述为「骨架」；公式仍是规格 \\
 未建 & 只在 \texttt{NOW.md} 里规划，文件不存在 \\
+缺位 & 库里既没有位置、也没有规划；必须在第 \ref{sec:audit} 节的缺口里登记 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -108,5 +109,9 @@
   \item \textbf{建直觉}：星号节「串讲」是跨分支的边，专门讲「为什么这两个看起来无关的东西是同一件事」。
 \end{enumerate}
 
-本份清单共 \textbf{97 条}知识点：已实现 \textbf{50 条}、框架 \textbf{28 条}、骨架 \textbf{3 条}、
-未建 \textbf{16 条}。这四类数字的差别比总数重要得多，含义见第 \ref{sec:audit} 节。
+本份清单共 \textbf{97 条}知识点：已实现 \textbf{49 条}、框架 \textbf{28 条}、骨架 \textbf{3 条}、
+未建 \textbf{16 条}、缺位 \textbf{1 条}。这五类数字的差别比总数重要得多，含义见第 \ref{sec:audit} 节。
+
+状态词是\textbf{白名单五值}、可脚本核对（\texttt{math/survey/verify.py} 的 V2）：
+其中「未建」指只在 \texttt{NOW.md} 里规划、「缺位」指库里既无位置也无规划。
+两个词不许混用，混了计数就对不上。

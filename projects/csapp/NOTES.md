@@ -117,22 +117,24 @@
 
 ### 2.5 五条实践线怎么互相借力（本仓真实存在的项目地图）
 
-> 2026-10-22 体检确认：`exam/408/` 下现在有五份项目指南，各自独立、互不复述（真源约定见 `LEARNING.md` §〇）。CSAPP 在这张图里的位置：
+> 工程线全部在 `projects/`（`kaoyan/projects/` 已于 2026-11-02 并入），各项目独立、互不复述。CSAPP 在这张图里的位置：
 
 | 项目 | 一句话 | 与 CSAPP 的关系 |
 |---|---|---|
-| **nand2tetris** | 从 NAND 门自底向上造一台计算机 | 给 Ch2/Ch4 提供「硬件底座」直觉：CSAPP 从**位**开始，它从**门**开始 |
+| **riscv-core** | 自己写 RV32I 核：译码 → 流水线 → 乱序，配 difftest 与 STA | 给 Ch2/Ch4 提供「执行底座」直觉：CSAPP 从**指令**开始，它从**电路与时序**开始 |
+| **cpu-microarchitecture** | 五级流水线到乱序的因果链 + 性能归因 | Ch4/Ch6 的「同一条因果，换成测量口径」：那边答"为什么慢"，这边答"怎么证明" |
 | **CSAPP**（本文件） | 系统程序员视角：位 → 汇编 → CPU → cache → 进程 → 虚拟内存 → 网络 | **是其他所有线的公共语言**，先学它再看别的都顺 |
 | **jos** | 往 x86 内核里写一个 OS | Ch8/Ch9 的「内核版」：shlab 在用户态做的事（fork/回收/页），jos 在内核态做 |
 | **CS149** | SIMD / 多核 / CUDA 性能编程 | §3 主线二（局部性）在并行世界的延伸 |
 
 **借力方向（按需加载对应指南，别在这里展开）**：
 
-- 学 cachelab 时若对「为什么存在 cache」没有硬件感 → 去 `NAND2TETRIS.md` 的 CPU 部分；
-- 学 shlab 时想看「内核态怎么做同一件事」→ 去 jos 的笔记（实践仓 `learning-408/jos`）；
-- 学 proxylab 的 HTTP 时 → 传输层/应用层讲义（`net/05-01`…`net/05-05`）已归档，直接衔接。
+- 学 cachelab 时若对「为什么存在 cache」没有硬件感 → 去 `cpu/riscv-core/NOTES.md` 的 S5（结构/策略/接口三层）；
+- 对「为什么这条指令要停一拍」想看到电路级证据 → 去 `cpu/riscv-core/NOTES.md` 的 S3（转发与 load-use）；
+- 学 shlab 时想看「内核态怎么做同一件事」→ 去 `os/jos/`；
+- 学 proxylab 的 HTTP 时 → 传输层/应用层讲义（`kaoyan/exam/408/net/`）已归档，直接衔接。
 
-**跨项目总原则**：五条线共用同一套 ipynb 归档体系（本仓 15 个 ipynb，2026-10-22 全部 JSON 校验通过），追加时遵守 `AGENTS.md` 的只追加纪律即可。
+**跨项目总原则**：五条线共用同一套写法——先给结论，再给一条可复查的判据；引用任何代码前先确认分支与版本，不把一处代码当成全部事实。
 
 ---
 
@@ -650,7 +652,7 @@ unsigned floatPower2(int x) {
 
 #### 7.1.7 验收
 
-> **机器验证记录（2026-10-22，本地 Python）**：本节 13 个解法已按"32 位补码 + 算术右移"语义做过性质测试 —— 整数 9 题各 2 万组随机输入、`howManyBits` 2 万组 + 9 个边界值、`floatScale2`/`floatFloat2Int` 各 20 万组随机位模式、`floatPower2` 覆盖 `x ∈ [-160, 139]` 全区间，**零失败**。一个值得记住的插曲：验证脚本第一版在 `conditional`/`logicalNeg` 上报了假错 —— 因为 Python 的 `>>` 是**逻辑**右移，而这两题的正确性恰恰依赖 C 的**算术**右移（题目明确保证）。这两题也因此在纯逻辑右移的机器上无解。
+> **机器验证记录（本地 Python）**：本节 13 个解法已按"32 位补码 + 算术右移"语义做过性质测试 —— 整数 9 题各 2 万组随机输入、`howManyBits` 2 万组 + 9 个边界值、`floatScale2`/`floatFloat2Int` 各 20 万组随机位模式、`floatPower2` 覆盖 `x ∈ [-160, 139]` 全区间，**零失败**。一个值得记住的插曲：验证脚本第一版在 `conditional`/`logicalNeg` 上报了假错 —— 因为 Python 的 `>>` 是**逻辑**右移，而这两题的正确性恰恰依赖 C 的**算术**右移（题目明确保证）。这两题也因此在纯逻辑右移的机器上无解。
 
 ```bash
 make btest          # 或者 make
@@ -1857,169 +1859,5 @@ CS:APP 是 C/C++ 后端、系统、嵌入式、基础架构、游戏引擎岗的
 > CSAPP 这八个 lab，对 408 的价值**不在代码，而在它把"补码 / Cache / 分配算法 / 进程回收"这些考点变成了你亲手调过的东西**。
 > 冲刺期只做 Tier 1 四个（datalab / cachelab / malloclab / shlab），你就把组成的数据表示、存储的 Cache、OS 的内存与进程四块最难的选择/大题直觉全立起来了。
 > 而同一批 lab，在初试之后会自动变成你的复试弹药与面试故事（§8）——**一次投入，三个战场：初试、复试、春招**。
-
----
-
-## 迁移归档：来自旧 ipynb 的工程笔记（2026-10-28）
-
-## CSAPP datalab：位运算的五件武器（408·数据表示）
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.1（实践仓 `learning-408/csapp/datalab/bits.c`）
-datalab 只允许 `! ~ & ^ | + << >>`（无 `-`、`*`、`if`、`?:`），常量只能 0–255，int 为 32 位补码、`>>` 是算术右移。13 道题全靠五件武器拼：
-1. **条件掩码**：`mask = !!x << 31 >> 31`（x≠0 → 全 1；x=0 → 全 0），于是 `if` 变成 `(mask & y) | (~mask & z)`
-2. **取负 / 减法**：`-x` 写 `~x + 1`；`x - y` 写 `x + ~y + 1`
-3. **取符号位**：`x >> 31`（非负 → 0，负 → -1）
-4. **判相等**：`!(a ^ b)`
-5. **拼大常量**：`m = 0xAA; m |= m << 8; m |= m << 16;` → 0xAAAAAAAA
-
-**408 对应**：原/反/补/移码、溢出判断、移位、IEEE 754 —— 组成原理选择题年年考，也是大题浮点计算的地基。
-**边界**：datalab 的 `dlc`/`btest` 是 Linux x86-64 ELF，macOS 上跑不了，只能读/写代码。
-
----
-
-## IEEE 754 的平滑衔接：为什么非规格化的 E 取 1 - Bias
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.1.5
-单精度布局：`s(1) | exp(8) | frac(23)`，Bias = 127。
-- 规格化（`exp != 0`）：`E = exp - 127`，`M = 1.frac`
-- 非规格化（`exp == 0`）：`E = 1 - 127 = -126`，`M = 0.frac`
-- `exp == 0xFF`：`frac == 0` 为 ±∞，否则 NaN
-
-**为什么是 `1 - Bias` 而不是 `-Bias`**（算证据，自己验一遍）：
-- 最小规格化数：`exp=1, frac=0` → `1.0 × 2^(1-127) = 2^-126`
-- 最大非规格化数：`exp=0, frac=0x7FFFFF` → `0.111…1₂ × 2^-126 = 2^-126 - 2^-149`
-- 二者相差恰好一个最小步长 `2^-149`，**中间不留缝** → 逐级下溢（gradual underflow）才成立
-
-**三个必须背的边界**：最小规格化 `0x00800000`、最大非规格化 `0x00400000`、最小非规格化 `0x00000001`；`floatPower2` 里 `x > 127` → +∞（`0xFF << 23`，不能写 0x7F800000，常量超限），`x < -149` → 0。
-
----
-
-## CSAPP cachelab：把 s/E/b 换算成具体的数（1 KB 直接映射）
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.5（实践仓 `learning-408/csapp/cachelab/`）
-Part B 评分 cache：`s = 5, E = 1, b = 5` →
-- 组数 `S = 2^5 = 32`；相联度 `E = 1`（**直接映射**，冲突不命中的根源）
-- 块大小 `B = 2^5 = 32` 字节 = **8 个 int**
-- 总容量 `32 × 1 × 32 = 1024` 字节 = 1 KB（而 32×32 的 int 矩阵是 4 KB，装不下）
-
-地址切分（写错一位全盘皆输）：
-`tag = addr >> (s + b)`；`set_idx = (addr >> b) & ((1 << s) - 1)`
-
-**模拟器要点**：`M` 是一次读 + 一次写（命中计 2 次 hit，未命中计 1 miss + 1 hit）；trace 里的 `I` 行要跳过；LRU 用时间戳，且**命中也要更新时间戳**。
-
----
-
-## 分块（blocking）与冲突不命中：32×32 如何从 1183 降到 300 以下
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.5.3–7.5.5
-**暴力转置为什么 1183 次 miss**：A 顺序访问 → 每 8 个 int 1 次 miss（约 128）；B 按列访问、步长 128 B → 组索引只落在 8 个组上；更要命的是 A 与 B 基址相差 4096 B = cache 容量的整数倍，**`A[i][j]` 与 `B[i][j]` 映射到同一组**，互相驱逐 → B 侧几乎每次都 miss。
-
-**8×8 分块为什么有效**：① 工作集降到 16 个块，装得下；② 用 8 个局部变量一次读满 A 的一整行（8 int = 恰好一块），读入后立刻用完；③ B 的 8 次写落在 8 个不同组，不互相驱逐。残留问题只有**对角线块**（A/B 争同一组），单独处理即可。
-
-**64×64 为什么 8×8 失效**（最有价值的一段推导）：一行 64 int = 256 B，组索引 = `(i*8 + j/8) mod 32`，**i 每加 4 组索引就绕回同一个值** → 8×8 块里 A 的第 5 行会把第 1 行挤掉，分块内部自己打架。解法是 8×8 外层 + 内部 4×4 的**两步搬运**：利用「`B[j+k][i..i+7]` 是同一个 32 B 块的两半」，把 A 的右上**先暂存到 B 的右上**（免费），第二阶段再搬到 B 的左下。
-
-**408 对应**：Cache 三种映射、替换算法、**命中率手算**、局部性与分块 —— 组成原理大题重镇。
-
----
-
-## CSAPP malloclab：块布局、四情况合并与 408 的动态分区分配
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.7（实践仓 `learning-408/csapp/malloclab/mm.c`，目前仍是官方 mm-naive 骨架）
-块布局（64 位，8 字节对齐）：`header(8: size|alloc) | payload | footer(8: size|a)`；`size` 低 3 位因对齐恒为 0，最低位挪作 alloc 标志；**最小块 32 B**（header+footer+两个指针）；`mem_sbrk` 只增不减。
-
-**四情况合并**（`mm_free` 时立即做）：前空/后空组合成 4 个分支，靠前块 footer 与后块 header 的 alloc 位判断；合并后必须保证**堆里不存在两个相邻空闲块**。
-
-**408 对应（几乎同一张图）**：first-fit / next-fit / best-fit ↔ **首次适应 / 邻近适应 / 最佳适应 / 最坏适应**（必考）；合并 ↔ 紧凑与碎片整理；对齐浪费 ↔ 内部碎片；利用率 U < 1 ↔ 外部碎片。
-
----
-
-## 分配器的三级演进与评分公式：不许走极端
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.7.4–7.7.8
-三级演进：① **隐式空闲链表**（扫所有块）≈ Perf 50–52；② **显式空闲链表**（空闲块里放 pred/succ，只扫空闲块，LIFO 插表头）≈ mid-80s；③ **分离空闲链表**（按大小类分 10–14 个桶，近似 best-fit 且定位 O(1)）→ 冲高分。
-
-评分（官方 3e）：正确性 20 + 性能 35 + 风格 10，
-`P = w*U + (1-w)*min(1, T/T_libc)`，`w = 0.6`
-U:`P = 0.6·U + 0.4·min(1, T/T_libc)`
-
-两个指标各最多贡献 w 与 1-w，**官方明说不许走极端** —— 这条公式本身就是「先定可测量指标，再谈优化」的范例。
-
-**工程纪律**：指针算术全封进宏（`HDRP/FTRP/NEXT_BLKP/PREV_BLKP/GET_SIZE/GET_ALLOC`）；**先写 `mm_checkheap`（不变量清单）再写实现**；先过前 9 个 trace（只有 malloc/free），再动后 2 个（含 realloc）。
-
----
-
-## 栈帧与返回地址：缓冲区溢出为什么能劫持控制流
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.3（实践仓 `learning-408/csapp/target1/`，attacklab 靶子，cookie `0x59b997fa`）
-`getbuf` 的栈帧自高向低：**返回地址**（回到 test）→ 保存的 %rbp → `buf[...]`。`Gets` 无边界检查，写满 `BUFFER_SIZE` 后继续写就会覆盖返回地址；`ret` 把它弹进 `%rip` → **控制流被数据劫持**。
-
-**三级防御与被绕方式**（选择题可能问「哪种防御挡哪类攻击」）：
-- **栈随机化 ASLR**：猜不到注入代码地址 → 绕法是用栈上相对位置 / 改用 ROP
-- **栈不可执行 NX**：注入的字节码直接段错误 → 绕法是 **ROP**（用程序里现成的 `ret` 结尾小片段当积木，用栈上一串地址串起来）
-- **金丝雀 canary**：返回地址前放随机值校验 → 本 lab 靶子没开
-
-**408 对应**：栈帧布局、`call/ret` 对栈的作用、函数调用的机器级表示（必考）；ROP 的构造不考。
-
----
-
-## 三种机器级形态：跳转表 / 递归 / 链表（bomblab 反推）
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.2（已有产出 `learning-408/csapp/bomb/solutions`，phase1–6 + secret）
-408 不考逆向，但考「给一段 GCC x86-64 汇编问它在干什么」。三种形态要一眼认出：
-- **跳转表**：`jmp *0x402470(,%rax,8)` + 一段连续 8 字节地址区 → `switch`；**表要按小端读**
-- **递归**：函数体内 `call` 自身 + 栈上保存参数/局部变量
-- **链表遍历**：`mov 0x8(%rbx), %rax`（偏移 8 = next 指针）、`mov (%rax), %eax`（偏移 0 = val）
-
-**参数约定**：`%rdi %rsi %rdx %rcx %r8 %r9` 传前 6 个整型/指针参数，第 7 个起走栈，返回值在 `%rax`。
-
-**三种寻址**：`(%rbx)` 取值；`0x8(%rbx)` 取结构体字段；`(%rax,%rbx,4)` 基址+变址×比例 = 数组下标（比例因子 = 元素大小）。
-
----
-
-## 一条指令 = 一组控制信号：iaddq 在 SEQ 里只改两处
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.4（实践仓 `learning-408/csapp/archlab/`，本地 PDF 是 Y86-64 + iaddq 的 3e 版本）
-`iaddq V, rB`：`R[rB] <- R[rB] + V` **并设置条件码**。它存在的理由：Y86-64 的 `addq` 只能加寄存器、`irmovq` 不能做加法，`rB += 8` 原本要两条指令 —— 这就是 CISC/RISC 之争的缩影（408 必考对比）。
-
-**与 `irmovq` 的差别只有两处**（其余信号全同）：
-| 信号 | iaddq | irmovq |
-|---|---|---|
-| `srcB` | `rB`（要读寄存器） | `RNONE` |
-| `set_cc` | `1` | `0` |
-
-其余：`need_regids = 1`、`srcA = RNONE`、`aluA = valB`、`aluB = valC`、`dstE = rB`。
-
-**408 对应**：数据通路与控制信号、指令周期、流水线冒险 —— 考点重要，但 Y86 是玩具 ISA，本 lab 只做 Part A（汇编）+ Part B（iaddq）建立直觉，**Part C 的 CPE 优化是无底洞，放弃**。
-
----
-
-## CSAPP shlab：异步回收的三个坑（信号不排队 / 竞争 / waitfg）
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.6（实践仓 `learning-408/csapp/shlab/tsh.c`，目前是官方 starter）
-**坑 1 · 信号不排队**：SIGCHLD 不排队，5 个子进程同时死可能只递送一次 → handler 里必须 `while (waitpid(-1, &st, WNOHANG | WUNTRACED) > 0)`，只 waitpid 一次会留下僵尸。
-
-**坑 2 · fork 与 addjob 的竞争**：子进程可能在父进程 `addjob` 之前就退出并触发 handler 的 `deletejob`（删了一个还没加进去的 job）。解法：`fork` **前** `sigprocmask(SIG_BLOCK, SIGCHLD)`，`addjob` 后解除；且**子进程继承了阻塞掩码**，必须在 `execve` 前恢复。
-
-**坑 3 · waitfg 不能再 waitpid 阻塞**：SIGCHLD 已被 handler 收走，`waitfg` 应循环 `sigsuspend(&empty)` 直到 jobs 表里没有该前台 job。
-
-**另两条**：`setpgid(0,0)` 让子进程独立成组，`kill(-pid, sig)`（**负 pid = 发给进程组**）才能把 Ctrl-C/Ctrl-Z 转给整个前台作业；handler 里改了 `errno` 要还原。
-
-**408 对应**：fork 返回两次、exec 后地址空间替换（pid 不变）、`wait/waitpid` 与 WNOHANG、僵尸进程、进程组与信号。
-
----
-
-## HTTP 代理：请求行为什么要重写，四个头为什么必须补
-
-> 2026-10-22 · 来源：CSAPP 项目复习（`projects/csapp/NOTES.md`） §7.8（实践仓 `learning-408/csapp/proxylab/proxy.c`，目前是 14 行空壳）
-客户端发给代理的是**绝对 URL**：`GET http://host[:port]/path HTTP/1.1`；代理转发给服务器时要改成**相对路径** + 补头：
-`GET /path HTTP/1.0` + `Host: host` + `User-Agent: …` + `Connection: close` + `Proxy-Connection: close` + 空行
-
-**为什么用 HTTP/1.0 + `Connection: close`**：让「连接关闭」等于「响应结束」，省掉解析 `Content-Length` / chunked 的麻烦 —— 这是本 lab 简化协议的关键设计决策。
-
-**工程三坑**：① 不能用 `csapp.c` 里的**大写封装**（`Open_clientfd` 等出错就 `exit` 掉整个进程），代理是长跑进程，必须自己检查返回值并只关当前连接；② I/O 必须用 RIO 处理短读；③ 必须 `Signal(SIGPIPE, SIG_IGN)`，否则客户端断开后再写会被杀死。
-
-**并发**：每连接一线程 + `pthread_detach`；`connfd` **不能传 `&connfd`**（主循环会覆盖它），要传值或每次 Malloc 一份。
-
-**408 对应**：HTTP 报文格式、状态码、**Web 缓存与代理服务器**（真考点）；socket 编程不考。
 
 ---

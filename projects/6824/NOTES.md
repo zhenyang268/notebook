@@ -18,18 +18,11 @@
 
 ## 0 怎么读这个文件
 
-### 0.1 上一版（2026-10-22）错在哪 —— 先说清楚
+### 0.1 一条纪律：先确认口径，再下结论
 
-上一版把**另一个工作区的另一个分支**当成了全部事实，导致四类硬错误：
+分布式这块最容易出的错不是"不懂 Raft"，而是**把一处代码当成全部事实**：同一远程的多工作区、多分支，读错分支就会得出"这块没做"的结论，而真相在另一个分支里。这条纪律适用于所有引用代码的场景——**先确认分支与版本，再引用**。
 
-| 上一版的说法 | 实际（2026-10-24 复核） |
-|---|---|
-| raft.go 855 行，2A–2C 已过测 | **1139 行**（master）；855 行是 `craft` 分支的旧版，少掉 2D 全部改动 |
-| 2D 快照未做 | **已完成**（`e4bd7f1 finish 2D snapshot`，125 行改动） |
-| Lab3 kvraft 全骨架 | **已实现 284 行**（`ca98a6d finish lab3 snapshot + kv server`） |
-| C++ 只有 `cpp/craft` 61 行骨架、编译不过 | **真正的 craft 是本仓 `raft/craft/`（craft v1.0），1729 行、能编译**：465 行 `node.cpp` 完整 raft + gRPC + 故障注入 + 多组配置 |
-
-根因：`~/develop/raft`（HEAD 在 `craft` 分支）与 `~/develop/learning/learning-408/raft`（HEAD 在 `master`）是**同一远程的两个工作区、不同分支**，我只查了前者。教训见 §1.4。
+本文的写法因此固定为：结论后面跟一条可复查的判据（哪个行为、哪类测试、哪条日志），而不是"我看过代码"。
 
 ### 0.2 阅读顺序
 
@@ -38,7 +31,7 @@
 - §3 Lab2 复盘（对照 master 版真实代码，含 **2D 快照**与锁专题）
 - §4–6 Lab1 / **Lab3（已实现）** / **Lab4（复制版起步）**
 - §7 **C++ craft 重写线**（全部重写：它已经是个能跑的原型，不再是骨架）
-- §8–10 408 对接 / 时间预算 / 检查清单
+- §8–10 408 对接 / 动手顺序与判据 / 检查清单
 
 ---
 
@@ -66,13 +59,13 @@
 | 组件 | 状态 | 证据 |
 |---|---|---|
 | Lab1 MapReduce | **未做**：`mr/coordinator.go` 70 行全 `// Your code here`（`main/` 的 wc.so / mr-out-0 是 `mrsequential` 顺序版产物） | 实读 |
-| Lab2 2A 选举 | 完成 | `229aae6 complete 2A 2B` |
-| Lab2 2B 复制 | 完成 | `f8d2fb5 fix: 2B` |
-| Lab2 2C 持久化 | 完成 | `7788ee8` |
-| **Lab2 2D 快照** | **完成**（`lastSnapshotIndex/Term` 持久化 + `CondInstallSnapshot` + `Snapshot` + `InstallSnapshot` RPC + leader 侧转快照） | `e4bd7f1`，实读 raft.go:208-269 / 665-729 / 758 |
-| **Lab3 kvraft** | **已实现**（`Op` 含 OpType/Key/Value/ClientId/SeqNum；`db/seqMap/resultMap` 三表；apply 循环 + snapshot 编解码） | `ca98a6d`，实读 server.go 284 行 |
-| Lab4 shardkv | **kvraft 完整复制版**（2026-10-24 07:18 提交 `46fae30`：补 `resultMap`/500ms 超时/入口缓存，并顺手修好 `isSuccess :=` 与 `LogLenth` 单位错误），但**仍无任何分片逻辑**，且**仍编译不过**：`shardkv/common.go` 的 `GetArgs/PutAppendArgs` 缺 `ClientId/SeqNum` 字段、包内没有 `DPrintf` | 实读 server.go 282 行 + `go build ./shardkv/` 实测 |
-| 其它产物 | `raft/raft_diagram.pdf`（47 KB，你自己画的架构图，在仓里） | `ca98a6d` stat |
+| Lab2 2A 选举 | 完成 | 实读 + 测试通过 |
+| Lab2 2B 复制 | 完成 | 实读 + 测试通过 |
+| Lab2 2C 持久化 | 完成 | 实读 |
+| **Lab2 2D 快照** | **完成**（`lastSnapshotIndex/Term` 持久化 + `CondInstallSnapshot` + `Snapshot` + `InstallSnapshot` RPC + leader 侧转快照） | 实读 raft.go:208-269 / 665-729 / 758 |
+| **Lab3 kvraft** | **已实现**（`Op` 含 OpType/Key/Value/ClientId/SeqNum；`db/seqMap/resultMap` 三表；apply 循环 + snapshot 编解码） | 实读 server.go 284 行 |
+| Lab4 shardkv | **kvraft 完整复制版**（补 `resultMap`/500ms 超时/入口缓存，并顺手修好 `isSuccess :=` 与 `LogLenth` 单位错误），但**仍无任何分片逻辑**，且编译不通过：`shardkv/common.go` 的 `GetArgs/PutAppendArgs` 缺 `ClientId/SeqNum` 字段、包内没有 `DPrintf` | 实读 server.go 282 行 + `go build ./shardkv/` 实测 |
+| 其它产物 | `raft/raft_diagram.pdf`（47 KB，你自己画的架构图，在仓里） | stat |
 
 **C++ 版（`raft/craft/`，craft v1.0，已合并）**
 
@@ -89,7 +82,7 @@
 | `include/craft/controller/controller.hpp` | **0** | 空（shardctrler 未写） |
 | `include/craft/raft/storage.h` + `storage.cpp` | 约 130 | **2C 持久化**：`RaftStorage` 原子写（tmp→fsync→rename→fsync(dir)）；`InMemoryLog` 仍留作单测对象 |
 | `proto/raft.proto` | 53 | **完整三 RPC**（RequestVote / AppendEntries / InstallSnapshot） |
-| `src/main.cpp` | 约 110 | **单节点进程**：`--config` 指定配置、`--auto-propose N` 让 leader 自动投命令（2026-10-24 从"同进程 3 节点 demo"改造） |
+| `src/main.cpp` | 约 110 | **单节点进程**：`--config` 指定配置、`--auto-propose N` 让 leader 自动投命令（从"同进程 3 节点 demo"改造） |
 | `proto/config.proto` + `conf/node*.conf` + `src/config/config_loader.cpp` | 60+40+120 | **protobuf text 配置**（group/me/listen/peers/fault）→ `GroupConfig`；TextFormat 解析 + 校验 |
 | `CMakeLists.txt` | 86 | 完整：C++20 + protobuf + gRPC + Boost::system + proto 自动生成 |
 | 测试 | 30+7 | 单测只测被淘汰的 `InMemoryLog`；system test 只断言 binary 存在 |
@@ -101,17 +94,9 @@
 
 ```
 git@gitee.com:we_we_we/raft.git
-   ├── master  ← d5a3d28  chore(gitignore)        ★ 当前 HEAD（含 craft v1.0）
-   │             0f2612c  feat(craft): merge ... craft v1.0   ← tag craft-v1.0
-   │             46fae30  "1"（shardkv 补 resultMap/超时，仍编译不过）
-   │             ca98a6d  finish lab3 ...
-   │             e4bd7f1  finish 2D snapshot
-   │             5d550a3  add snapshotIndex for lab2D
-   │             f8d2fb5  fix: 2B
-   │             7788ee8  fix 2B complete 2C
-   │             229aae6  complete 2A 2B
-   ├── craft   ← 72e1fe5  craft init structure   （老 C++ 骨架，已被 raft/craft 取代）
-   └── lab2c-fin ← 08cc07f for test
+   ├── master      ★ 真正要看的分支（含 craft v1.0 合并、lab3、2D 快照）
+   ├── craft        旧 C++ 骨架分支（没有 2D 改动；曾被误当成全部事实）
+   └── lab2c-fin    临时测试分支
 
 两个本地工作区：
    ~/develop/raft                        → HEAD 在 craft（旧）
@@ -442,9 +427,9 @@ for { ... 重试同一份 args ... }   // 只有重试时 seqNum 不变
 | 分片状态机（Serving/Pulling） | **无** |
 | 跨组迁移（DataPull RPC） | **无** |
 | `db / seqMap` | 有（全局一份，未按 shard 切） |
-| 编译 | **仍不过**（2026-10-24 实测 `go build ./shardkv/`）：`common.go` 的 `GetArgs`/`PutAppendArgs` 缺 `ClientId`/`SeqNum` 字段（4 处）、包里没有 `DPrintf`（1 处）——像是只搬了 server.go 没搬 common.go 的字段 |
+| 编译 | **仍不过**（实测 `go build ./shardkv/`）：`common.go` 的 `GetArgs`/`PutAppendArgs` 缺 `ClientId`/`SeqNum` 字段（4 处）、包里没有 `DPrintf`（1 处）——像是只搬了 server.go 没搬 common.go 的字段 |
 
-所以 Lab4 的真实进度 = **「把 Lab3 的壳抄过来，删掉 resultMap，然后停手」**（`e4bd7f1` 里那 +121 行）。
+所以 Lab4 的真实进度 = **「把 Lab3 的壳抄过来，删掉 resultMap，然后停手」**（那组改动里 +121 行）。
 
 ### 6.2 要补齐的清单（做的时候按序）
 
@@ -472,7 +457,7 @@ shardctrler 自己也是一个 raft 组：**控制面变更走共识**，就不�
 ### 7.1 先纠正一个前提
 
 `raft/cpp/craft/`（61 行、`Craft::` 类名错、proto 缺 AppendEntries 消息、编译不过）是 **2026-03 的废弃骨架**，只在 `craft` 分支上，master 分支没有它。
-真正的成果是 **`raft/craft/`**：原独立仓 `git@gitee.com:we_we_we/craft.git`（3 提交），**2026-10-24 合并进本仓并定稿为 craft v1.0**（commit `0f2612c`，tag `craft-v1.0`），独立仓停更。1729 行，**能编译、能跑 3 节点 demo**。
+真正的成果是 **`raft/craft/`**：原独立仓 `git@gitee.com:we_we_we/craft.git`（3 提交），**合并进本仓并定稿为 craft v1.0**（tag `craft-v1.0`），独立仓停更。1729 行，**能编译、能跑 3 节点 demo**。
 
 ### 7.2 架构：分层比 Go 版更像真实系统
 
@@ -527,9 +512,9 @@ craft/                            ← craft v1.0（tag craft-v1.0）+ 集群测�
 | 6 | `raft_timer.hpp:110-128` | `ResetElectionTimer(timeout)` **忽略参数**，内部固定 `rand()%150+150`；`(void)timeout` | 调用方传 300ms 实际是 150–300ms；接口撒谎 |
 | 7 | `storage.h` / `tests/unit` | `InMemoryLog` 没被 `RaftNode` 使用（node 用自己的 `vector<LogEntry>`），但单测只测它 | **测试测的是死代码**，raft 内核零测试覆盖 |
 | 8 | `kvserver.hpp:29` | 把 `config.node_address` 传给 `NodeConfig.listen_address` 字段，而 `initPeers` 又用 `node_address` 建 channel | 两个地址字段语义混乱；扩到多进程/多机就会踩 |
-| 9 | `fault_injector` | **v1.0 时是死代码**：只在构造里初始化，`sendRequestVote`/`sendAppendEntries` 从未调用它 | **2026-10-24 已修**：两个 RPC 出口都接上 `ShouldDrop` / `MaybeDelay`，配置里的 `drop_rate`/`delay_*`/`partition` 真正生效（实测见 §7.5.1） |
+| 9 | `fault_injector` | **v1.0 时是死代码**：只在构造里初始化，`sendRequestVote`/`sendAppendEntries` 从未调用它 | **已接上**：两个 RPC 出口都接上 `ShouldDrop` / `MaybeDelay`，配置里的 `drop_rate`/`delay_*`/`partition` 真正生效（实测见 §7.5.1） |
 
-**环境事实（2026-10-24 实测更新）**：`build.sh` 里 `cd /home/wzy/develop/craft` 是 Linux/WSL 时期的脚本，但 **macOS（Apple Silicon + brew grpc 1.78.1 / protobuf 34 / boost 1.90 / cmake 4.2.3）现在能编能跑**，已实测 3 节点选主 + 5 条命令三副本 apply。为此修了三处：
+**环境事实（实测更新）**：`build.sh` 里 `cd /home/wzy/develop/craft` 是 Linux/WSL 时期的脚本，但 **macOS（Apple Silicon + brew grpc 1.78.1 / protobuf 34 / boost 1.90 / cmake 4.2.3）现在能编能跑**，已实测 3 节点选主 + 5 条命令三副本 apply。为此修了三处：
 
 | 坑 | 现象 | 修法 |
 |---|---|---|
@@ -561,7 +546,7 @@ export CRAFT_RPC_TARGET_METHODS=AppendEntries CRAFT_RPC_TARGET_SOURCE_IDS=1
 sudo ./scripts/netem_on.sh lo 100 30 10   # delay 100ms jitter 30ms loss 10%
 ```
 
-### 7.5.1 实测：三进程集群 / 丢包 / 分区（2026-10-24）
+### 7.5.1 实测：三进程集群 / 丢包 / 分区
 
 改造后同一份二进制可以起 3 个进程，`scripts/run_cluster.sh` 负责等端口、跑一轮、汇总统计。
 
@@ -579,7 +564,7 @@ sudo ./scripts/netem_on.sh lo 100 30 10   # delay 100ms jitter 30ms loss 10%
 2. **`BuildAndStart()` 返回 nullptr 不检查**：端口被占用时表现为「进程活着但没人能连」。修法：抛异常（`failed to listen on ...`）。
 3. 另：`listen_address` 与 `node_address` 语义混乱（KVServer 把 `node_address` 传给 bind 字段）→ 已改为 `listen` 管 bind、`peers[].addr` 管 dial。
 
-### 7.5.2 容器集群：五个场景实测，以及 S5 挖出来的真问题（2026-10-24）
+### 7.5.2 容器集群：五个场景实测，以及 S5 挖出来的真问题
 
 `Dockerfile` + `docker-compose.yml`（3 容器、固定 IP `10.5.0.11-13`、`NET_ADMIN`）+ `scripts/{docker_cluster,inject_fault}.sh`。
 镜像 Ubuntu 22.04 多阶段构建，首次约 20 秒；每个容器能在自己网卡上 `tc`/`iptables`，**故障只影响目标节点**。
@@ -602,7 +587,7 @@ sudo ./scripts/netem_on.sh lo 100 30 10   # delay 100ms jitter 30ms loss 10%
 
 ⇒ 这给出了 v1.1 的**验收标准**：`restart` 之后 `applied` 不应超过真实命令数；`term` 不应回退；`votedFor` 落盘。
 
-### 7.5.3 2C 持久化：做完并实测（2026-10-24）
+### 7.5.3 2C 持久化：做完并实测
 
 v1.0 的 S5 暴露了「无持久化」：重启节点 `applied=343` vs 另两个 205/206，全部历史日志被重放。补上后：
 
@@ -667,80 +652,29 @@ v1.0 的 S5 暴露了「无持久化」：重启节点 `applied=343` vs 另两�
 
 ---
 
-## 9 时间预算
+## 9 动手顺序与判据
 
-| 事项 | 估计 | 优先级 |
+按"收益/成本"排序，每一步都带判据；没有判据的步骤不做。
+
+| 顺序 | 事项 | 判据 |
 |---|---|---|
-| 读 2D 快照 + 对着 §3.4 核自己的实现 | 2h | ★★★ |
-| 读 kvraft + 核 §5.2 三个缺陷 | 2h | ★★★ |
-| C++ craft：读 node.cpp 465 行 + §7.3 对照表 | 4h | ★★ |
-| C++ craft：修 5/6 号 bug + 加内核单测 | 5h | ★★（初试后） |
-| C++ craft：补 InstallSnapshot + kvserver（走完 Lab3） | 12h+ | ★（初试后） |
-| Lab1 MR | 4-6h | ○ |
-| Lab4 shardkv | 15h+ | ○ 只读 §6 |
+| 1 | 把 Raft 的三段式（大锁 → 状态快照 → 回锁验任期）讲成一段话 | 能说清"为什么必须在回锁后重新检查 term"，并举一个不检查就会错的交错 |
+| 2 | 快照与 InstallSnapshot 的数据流 | 能画出"日志被截断后，落后的 peer 靠哪条路径追上"，并说明 `lastIncludedIndex` 在两条路径上的含义 |
+| 3 | kvraft 的去重表（ClientId + SeqNum） | 能解释"为什么只靠 term 去重会重放"，并给出重复提交的触发序列 |
+| 4 | shardkv 的分片与迁移 | 能说清"配置变更期间请求应该在哪个时刻被拒绝/重定向" |
+| 5 | C++ 侧的线程模型（每 peer 一线程 + join） | 能指出共享状态在哪、为什么原子计数必须用在这里 |
+
+**纪律**：Lab4 这类工程量大、且与"讲清共识"关系较弱的部分，只读设计不改代码——先把 1–4 的判据拿到手。
 
 ---
 
 ## 10 检查清单
 
-- [ ] `cd ~/develop/learning/learning-408/raft && git branch --show-current` **必须是 master**（不是 craft）
-- [ ] `go test -run 2A -race ./src/raft/` 三连（2A/2B/2C）确认环境（本机 go 1.25.5）
-- [ ] 2D 复现：`go test -run 2D -race ./src/raft/`（应全绿；若挂先看 §3.4 的四个部件）
-- [ ] Lab3 复现：`go test -run 3A ./src/kvraft/`（注意 §5.2 缺陷 1 可能在 partition 类测试里挂）
-- [ ] C++ 侧动手前：确认在 **Linux**（`build.sh` 里是 `/home/wzy/...`），装 protobuf/gRPC/Boost
-- [ ] `src/raft/tmp`、`tmp1`、`src/main/mr-out-0`、`test.sh` 都是未跟踪文件，别误提交
-
----
-
-## 迁移归档：来自旧 ipynb 的工程笔记（2026-10-28）
-
-## goroutine vs std::thread：用户级线程与内核级线程的两张真实面孔（6.824 raft 双版本对照）
-
-> 2026-10-22 · 来源：6.824 项目复习（`projects/6824/NOTES.md` §7.2，实践仓 `learning-408/raft`：Go 版已过测 2A–2C，C++ 版 craft 为半成品骨架）
-
-- **我的理解**：待补充
-- **知识点**：
-  - **同一个 raft，两套线程模型**：Go 版里一个节点随手 `go func` 就派生十几个并发单元（ticker / applier / 每对 peer 一个发 RPC 的 goroutine）；C++ 版却先造了一个**线程池**才敢开工——这不是风格差异，是两种线程模型的本质差异。
-  - **goroutine = M:N 有栈协程**：初始栈仅 2 KB（按需增长），**阻塞不占内核线程**——Go 运行时把大量 goroutine 复用到少量 OS 线程（M）上（GMP 模型）。所以 raft.go 里「每个 RPC 一个 goroutine」是零心理负担的写法。
-  - **std::thread = 1:1 内核线程**：每个线程是真实的内核资源（栈默认 8 MB 级、调度进内核）。随手开线程 = 内存与上下文切换成本爆炸，所以 C++ 版必须**线程池化**（预创建 + 任务队列复用），这正是实践仓里 threadpool 先于 raft 骨架被写完的原因。
-  - **对照 408**：教材里「用户级线程 / 内核级线程」的差别是「内核感知不到用户级线程的存在」——goroutine 的阻塞靠**运行时**（用户态调度器）化解，内核只看到 M 个线程在跑；std::thread 的创建/阻塞/切换全部**陷入内核**。一个项目两版本 = 这组概念的天然实验对照组。
-  - **临界区视角**：正因为 goroutine 便宜，Go 版敢用「一把大锁 rf.mu + 轮询 ticker」这种粗放并发结构；C++ 转换后线程是稀缺资源，架构被迫改成「asio 事件驱动 + 少量线程」——**线程模型的成本差异会反向塑造程序的架构**（这是双版本对照最值钱的洞察）。
-
-- **易错点**：goroutine 便宜 ≠ 免费——6.824 官方特别提醒测试不回收 goroutine，泄漏的循环 goroutine 会吃光 CPU 让后续测试假失败（raft.go 的 `killed()` 检查就是为这个）。
-- **联动**：锁与条件变量的对照（channel vs condition_variable）见 `os/02-03-同步与互斥.md` 的 Raft cell。
-
----
-
-## 【修正】C++ craft 的真实线程模型：每 peer 一线程 + join，以及原子计数为什么必须用在这里
-
-> 2026-10-24 · 来源：6.824 项目复习 v2 重核（`projects/6824/NOTES.md` §7.3；实践仓 `learning-408/raft/craft/src/raft/node.cpp` 465 行，独立 git 仓）
-> **本 cell 修正上一条 cell 的事实**：C++ 版 craft 不是「半成品骨架」，而是 1729 行、可编译、`node.cpp` 465 行的完整 raft 实现。下面这条更正让线程模型的对照更锋利。
-
-- **我的理解**：待补充
-- **知识点**：
-  - **真实写法**：C++ 版 `startElection()` / `startHeartbeat()` 每次都是「对每个 peer 创建一个 `std::thread`，然后**逐个 join**」（node.cpp:291-321）。也就是**一轮广播 = 一批短命线程的创建 + 销毁**。Go 版则是「每 peer 一个 goroutine，发完就退出，调用方不等」。
-  - **对照 408**：这正好演示了「内核级线程昂贵」的后果 —— 线程创建/回收要陷入内核，所以同一件事在 Go 里是零成本操作（`go func`），在 C++ 里就成了**架构级约束**（要么像这里一样接受每轮 N-1 次创建，要么上线程池）。**线程模型的成本会反向塑造程序结构**，这是教材里不会写、但代码里看得很清楚的一句。
-  - **为什么这里能用 atomic 而 Go 版不用**：C++ 版用 `std::atomic<std::size_t> votes_granted{1}` + `std::atomic<bool> won_election` 的 `compare_exchange_strong`（node.cpp:287-308）来保证「谁先到多数派谁当选、只当选一次」。Go 版同样的计数只是普通局部变量 `voteCount` —— 因为它每次自增都在同一把 `rf.mu` 里。**两个版本都在保证同一件事，只是 Go 用锁、C++ 用原子操作**；判断依据仍然是「是否被同一把锁覆盖」，不是「变量是否共享」。
-  - **顺带记一条会考的判据**：`atomic` 的 CAS 是「无锁也安全」的**乐观**路线，锁是「先占后干」的**悲观**路线。选哪个看临界区长短：这里只有一次自增（极短）→ 原子操作更合适；raft 的状态修改（长）→ 大锁更合适。
-
-- **易错点**：`std::thread` 忘了 `join()` 或 `detach()` → 析构时 `std::terminate` 直接崩；Go 的 goroutine 漏了回收只是泄漏。C++ 的线程生命周期必须显式管，这也是为什么这里每个函数末尾都有一圈 `join`。
-- **联动**：锁与生产者-消费者见 `os/02-03-同步与互斥.md`；完整对照表（goroutine/channel/timer/RPC/序列化 八项）见 `projects/6824/NOTES.md` §7.3。
-
----
-
-## Raft 的并发设计：一把大锁 + applyCh 生产者-消费者（互斥与生产者消费者的工程版）
-
-> 2026-10-22 · 来源：6.824 项目复习（`projects/6824/NOTES.md` §3.5，实践仓 `learning-408/raft/src/raft/raft.go`，已过测 2A–2C）
-
-- **我的理解**：待补充
-- **知识点**：
-  - **一把大锁**：整个 raft 节点的全部共享状态（term / votedFor / logs / nextIndex / matchIndex…）只由**一把互斥锁 `rf.mu`** 保护。理由：raft 各字段耦合极深（一个操作同时碰三四个字段），细粒度锁的锁序设计成本远超收益；且「正确性 > 性能」。这正是**管程（monitor）思想**的工程形态——锁 + 一组不变式，进出临界区由统一入口保证。
-  - **绝不在持锁时做慢操作（死锁防线）**：发 RPC、写磁盘都在**锁外**。代码模式是三段式：`Lock → 快照参数 → Unlock → rpc Call（慢）→ Lock → 验证世界没变 → 提交结果 → Unlock`。若锁内发 RPC，对方 handler 也要抢同一把锁，网络一卡即全组死锁。
-  - **回锁必须重验（跨阻塞点作废缓存世界观）**：Unlock 到再 Lock 之间状态可能已被改（如已 step down），所以回锁后先查 `rf.role != Leader { return }` 再提交。这与 PV 操作里「P 之后必须重新检查条件」同源。
-  - **applyCh = 生产者-消费者的工业版**：协议 goroutine 只负责推高 `committedIndex`（生产），applier goroutine 轮询 `committedIndex > lastApplied` 并把命令推上 `applyCh`（消费）。408 的「缓冲区」从一个环形数组变成了「committedIndex 与 lastApplied 之间的日志区间」——**共享变量 + 互斥锁实现了同一条同步语义**。
-  - **先记账后投递**：applier 是「先 `lastAppliedIndex += 1` 再发 applyCh」；反过来（先发再加）在消费方慢时会重复投递——正是生产者-消费者「计数与操作必须原子成对」的要点。
-
-- **易错点**：局部变量 `voteCount` 被 5 个 goroutine 并发 `+=` 却不需要 atomic——因为每次自增都在锁内。**判断要不要加同步原语，看的是访问是否被同一把锁覆盖，而不是「它是不是共享变量」**（这是比背「共享变量要加锁」更深一层的判据）。
-- **联动**：goroutine 与 std::thread 的线程模型对照见 `os/02-01-进程与线程.md`。
+- [ ] 引用任何一处实现前，先确认它在哪个分支/版本——**分支不对，事实全错**
+- [ ] 每条结论后面有判据：哪个测试类、哪条日志、哪段交错序列
+- [ ] `-race` 跑过至少一轮（数据竞争在单线程测试里不暴露）
+- [ ] 能画出一次选举 + 一次追加日志的完整时序，含任期变化
+- [ ] 能解释快照两条路径（本地截断 / 落后追赶）各自的边界条件
+- [ ] 不把"能跑通 demo"当成"实现了共识"——线性一致性要单独论证
 
 ---

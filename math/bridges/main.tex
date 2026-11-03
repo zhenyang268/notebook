@@ -6,8 +6,10 @@
 %     (README.md 原话: 不是新知识点, 是篇与篇之间的连接)。
 %     这也是"为什么只拆专题三、不拆专题一/二"的答案。
 %   · 会持续追加: 每学到新的衔接点就加一篇, 单册便于增量维护与单独打印。
-%   · 拆分前提已验证: 四篇不含任何 \ref/\eqref, 也没有 equation/align/\tag,
+%   · 拆分前提已验证: 各篇不含任何 \ref/\eqref, 也没有 equation/align/\tag,
 %     公式全为无编号 \[ \], 因此独立编译不会出现 ?? 与编号漂移。
+%   · 2026-11-03: 加了 br0_skeleton(骨架) —— 分篇依据从「话题」改成「结构动作 S1–S6」,
+%     篇目不再按写作顺序排, 按骨架顺序排。规约见 README.md。
 %
 % 编译（在 bridges/ 下执行）:
 %   latexmk -pdfxe -interaction=nonstopmode main.tex
@@ -30,6 +32,11 @@
 \geometry{margin=2.5cm}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
 
+% 便利宏（2026-11-03 加，与 survey/main.tex 同名同义；原四篇仍用手写定界符，不受影响）
+\newcommand{\eps}{\varepsilon}
+\newcommand{\abs}[1]{\left\lvert #1\right\rvert}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+
 \pagestyle{fancy}
 \fancyhead[L]{现代数学物理与计算机图形学 · 专题三 跨篇串讲}
 \fancyhead[R]{\thepage}
@@ -44,6 +51,9 @@
 \maketitle
 \tableofcontents
 \newpage
+
+% BR0 是纲：六节点骨架 + 覆盖矩阵 + S5/S6 正文。先读它，再读 BR1–BR4。
+\input{br0_skeleton}
 
 % 四篇彼此独立，可单抽。
 \input{br1_slerp_geodesic}

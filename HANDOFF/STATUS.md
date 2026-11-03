@@ -229,3 +229,211 @@ ACK 歧义」全部命中 0 次，讲站比讲实现多。留着它只会挤占�
 **后遗症（要记住）**：删掉 cs144 之后，`baseline-levels.md` 的 `S-E5 网络程序` 失去了对应项目，
 已把该行改成「6824 / 自建 epoll 服务」——**这是把缺口写成待办，不是已经补上**。
 
+## 十二、手术（2026-11-03）：nand2tetris 下线 → riscv-core 上线
+
+**判断**：nand2tetris 的价值集中在「抽象层次完整」这一件事，而它的判定口径是教学式的（`.cmp` 逐信号比对），
+且 ISA 与架构把流水线、Cache、中断、MMU 全部封在门外——想深入微架构，它到 ch5 就到顶，再往上不是加内容而是换架构。
+能给出**纳秒与平方微米**反馈的是开源工具链（Verilator / Spike / Yosys / OpenSTA / sky130），
+所以把「造核」独立成项目，与「读核 + 归因」的 `cpu-microarchitecture/` 并列。
+
+| 动作 | 范围 |
+|---|---|
+| 删目录 | `projects/nand2tetris/`（3 件套；其中 `OUTLINE.bi.md` 只译完 §1、§2 中途截断，属残稿） |
+| 新增目录 | `projects/riscv-core/`：`OUTLINE.md`（五段，含 §五 面试怎么讲）+ `NOTES.md`（S0–S11 每步四段 + 4 个附录） |
+| 改口径 | `projects/README.md` 表行与分组计数（系统与网络 4→3、体系与编译器 3→4）、根 `README.md` 结构图、`csapp/NOTES.md` §2.5 项目地图（nand2tetris→riscv-core，顺带修掉 `NAND2TETRIS.md` 与 `learning-408/jos` 两处失效路径）、`pku-cg/NOTES.md` 一处悬空引用 |
+| 修生成缺陷 | `asm-link-arch/OUTLINE.md`：§三 第 3 章断句、缺第 4–10 章、缺整个 §四；`cpu-microarchitecture/NOTES.md`：第 4、7 章只有「要解决的问题 + 机制」，缺最小例子与面试问法；两份 NOTES 均章节错序（第 8 章排在第 10 章之后） |
+| 分工写清 | `cpu-microarchitecture/` 顶部与 §四 加指针——**读核与归因**在这边，**造核（RTL / difftest / STA）**在 `riscv-core/`；`riscv-core` 反向指向 `cpu-microarchitecture`（归因口径）与 `asm-link-arch`（调用约定与 ABI） |
+| 归档清理 | `kaoyan/_archive/{modules,ipynb}/` 删除（32 份、~1.3 MB），`cells/` 与 ipynb-era 协议文档保留；`bi` 补回 6 |
+| 闸门 | `lint.py` 0 错 0 提示；`gates.py 4` 通过，项目数仍 23（下线 1 + 上线 1），`bi: 6` |
+
+**后遗症（要记住）**：
+
+- **归档已清理（同日晚）**：删 `kaoyan/_archive/modules/`（17 份：7 份课程项目指南 + `NAND2TETRIS` + 已下线的 `CS144` + `数据结构/操作系统/进程/网络` + 2 份讲义 + `Math1` 2 份），内容分别由 `projects/` 与 `kaoyan/exam/` 承接；
+  删 `kaoyan/_archive/ipynb/`（15 份、88 个 cell、零输出），其内容与 `cells/` 的 88 份 md **一一对应**（ipynb 是 JSON 源壳，cells 是可读版）。
+  归档从 ~1.9 MB 降到 604 KB。**保留 `cells/`**：它的标题在当前 `exam/` 里的重合率只有约 20%，是 exam 未收纳的原始对话记录，不是重复。
+- `gates.py` 的 `bi` 从 5 回到 6：已补 `projects/riscv-core/OUTLINE.bi.md`（完整五段，含 §5 面试口径，19 KB）。
+- `kaoyan/CHANGELOG.md` 的「归档流水（原文）」里仍提到已删的 `modules/408/*.md`。那是**历史记录，按原文保留**，不回改、不再同步。
+- 若以后想引用 nand2tetris 的 408 对照表/反查表，从 `git show` 的历史里取那份 102 KB 旧稿，**不要**在 `projects/` 里重建工程线文档。
+
+## 十三、分组（2026-11-03）：`cpu/` 收拢四条线 + 编译器补 GPU/DSL 一章
+
+**判断**：体系结构与编译器在面试里是**互相追问**的关系——「你说这个 pass 让循环快了，那生成的指令在流水线上为什么没卡住」「你说这个核 IPC 高，ABI 的栈对齐跟它有什么关系」。四份文档散在顶层时，没有人为这条叙事负责。分组**不合并文档**（四份判据不同：`objdump` 可复现 / difftest 零分歧 / STA 无违例 / IR diff，合在一起会互相稀释），而是加一层路由：`cpu/OUTLINE.md` 讲四条线怎么串成一条叙事，`cpu/NOTES.md` 给两条路径与章节↔步骤映射。
+
+| 动作 | 范围 |
+|---|---|
+| 建分组 | `projects/cpu/`：`OUTLINE.md`（五段齐全）+ `NOTES.md`（路径手册：公共词汇口径 / 章节↔步骤映射 / 60 分与 80 分清单 / 7 条误配 / 6 条跨线追问） |
+| 移入 | `asm-link-arch`、`cpu-microarchitecture`、`riscv-core`、`compiler` 四个目录整体移入 `cpu/`（未用 `git mv`，见后遗症） |
+| 路径 60 分 | `asm-link-arch` 第 4/5/6/10 章 + `cpu-microarchitecture` 第 1–4/9 章 + `riscv-core` S0–S3 + `compiler` 第 3/5 章。判据：8 分钟不看稿讲完整条链；每个结论带一条可证伪判据；riscv-tests 全过 |
+| 路径 80 分 | 之上加：`cpu-microarchitecture` 第 5–8/10 章 + `riscv-core` S4–S9（含 difftest 与 STA）+ `asm-link-arch` 第 7/8/9 章 + `compiler` 第 6/7/9/11 章。判据：一张四数表 + 一条 IPC 曲线 + 一份 STA 报告 + 一次「我原本以为 A、实测是 B」 |
+| 编译器补充 | `compiler/NOTES.md` 新增**第 11 章**：四段分层表（图/算子 → tile/循环 → 线程/显存 → 机器码）、三类半核心变换（融合 / tiling 与布局 / 流水线化 / 自动调优）、Triton（block 模型 + `num_warps`/`num_stages`）、TVM（schedule 原语 + 自动调优 + BYOC）、XLA（整图融合与 layout）、MLIR（dialect 渐进下降）、`torch.compile`（Dynamo + Inductor）作为图 DSL 与 kernel DSL 共存的实例，四个判据（数值 / 相对基准 / 可移植性 / 编译与调优时间） |
+| 大纲补充 | `compiler/OUTLINE.md`：§三 加第 11 章；§四 把「不写 MLIR」改成三条有边界的排除（不教写 dialect、不做 kernel 手调优、不推搜索算法细节）；§五 加两个追问（Triton vs CUDA、schedule vs pass） |
+| 修缺陷 | `compiler/NOTES.md` 章节错序（`1,2,3,4,5,7,9,10,6,8`）按序号重排为 1–11 |
+| 闸门改造 | `gates.py`：两件套检查**递归一层**（分组目录自身 + 组内子项目都查）、项目数改数顶层（阈值 23 → 20）、`bi` 改递归计数 |
+| 改口径 | 根 `README.md` 结构图与「23 个项目」表述 → 「20 顶层 + cpu/ 下 4 个」；`projects/README.md` §二 改为分组表、验收注释、新增约定第 6 条「分组只做路由」；`csapp/NOTES.md` 两处补 `cpu/` 前缀 |
+| 闸门结果 | `lint.py` 0 错 0 提示；`gates.py 4` 通过：`projects: 20`、`bi: 6` |
+
+**后遗症（要记住）**：
+
+- 第十二节里的路径（`projects/riscv-core/`、`asm-link-arch/OUTLINE.md` 等）现在都多了一层 `cpu/` 前缀。那是当轮记录，**不回改**。
+- 顶层从 23 降到 20 是分组造成，**不是删项目**：两件套单元实际是 24（23 + 分组总纲）。
+- 这批移动没走 `git mv`，`git status` 会显示成 `D` + `??`。提交前用 `git add -A`，让 git 按相似度自行判定 rename，别逐个确认。
+- `gates.py` 的 `projects` 字段从此只表示**顶层目录数**；看子项目是否齐全要看 `fail` 列表有没有 `xxx/ 缺 OUTLINE.md`。
+
+## 十四、分组（2026-11-03）：其余目录按「有关系才放一起」收成四组
+
+**判断**：`cpu/` 建好之后，剩下的 16 个顶层目录里有一半是天然成对的（用户态/内核态、语言/运行时、设计/写/查/测、题库/实现），散着放会让路径没人负责；另一半（`csapp` `6824` `cs149` `database` `ai` `pku-cg` `discrete-math`）各占一个独立方向，**硬凑只会让判据互相稀释，所以单列**。
+
+| 分组 | 组内 | 共同问题 | 判据差异（不合并文档的理由） |
+|---|---|---|---|
+| `os/` 1+2 | `linux-api` `jos` | 同一台机器的两侧 | 用户态：十分钟内用命令解释症状；内核态：lab 真调通 |
+| `langs/` 1+3 | `cpp-basics` `python-basics` `cuda` | 这段代码为什么慢/为什么错 | 编译器假设 / 运行时行为 / 硬件在等什么 |
+| `algo/` 1+2 | `algorithm` `algorithm-interview` | 边界与证明 | 能复现崩溃并定位 / 五分钟识别题型 |
+| `eng/` 1+5 | `testing` `debug-toolchain` `perf-engineering` `system-design` `latent-issues` | 把"我觉得"换成"我测到" | 测试是否变红 / 能否最小复现 / 指标是否带方差 / 量级估算 / 触发条件与观测手段 |
+
+| 动作 | 范围 |
+|---|---|
+| 新建 | `projects/{os,langs,algo,eng}/`，各自 `OUTLINE.md`（五段 + 组内关系 + 推荐顺序与判据）+ `NOTES.md`（路径手册：判据口径表、命令与最小可交付、误配、跨项目追问） |
+| 移入 | `jos linux-api` → `os/`；`cpp-basics python-basics cuda` → `langs/`；`perf-engineering debug-toolchain testing system-design latent-issues` → `eng/`；`algorithm algorithm-interview` → `algo/` |
+| 单列保留 | `csapp`（公共语言）`6824`（分布式）`cs149`（并行课程）`database`（系统知识块）`ai`（模型）`pku-cg`（图形）`discrete-math`（数学基础）——README §六 写明了不分组理由 |
+| 闸门改造 | `gates.py`：判据改成**两件套单元总数 ≥ 28**（23 叶子 + 5 分组），并同时报 `top`；`lint.py` 无需改（只查顶层目录的两件套） |
+| 改口径 | 根 `README.md` 结构图与「23 个项目」表述 → 「5 分组 + 7 单列 = 28 单元」；`projects/README.md` 全线改为分组结构（§一 os、§三 langs、§四 algo、§五 eng、§六 单列），验收注释同步 |
+| 修引用 | `cpu/riscv-core/{OUTLINE.md,OUTLINE.bi.md}` 4 处 `jos/` → `os/jos/`；`cpu/asm-link-arch/OUTLINE.md` → `os/jos/` 与 `os/linux-api/`；`cpu/{OUTLINE.md,compiler/OUTLINE.md}` 的 `cuda/` → `langs/cuda/`；`csapp/NOTES.md` 的 `jos/` → `os/jos/` |
+| 顺带修 | `algo/algorithm/NOTES.md` 开头删掉指向已删归档的「原 `数据结构.md` §1」、去掉 commit hash 与拉取时间（违反「不写代码仓状态」） |
+| 闸门结果 | `lint.py` 0 错 0 提示；`gates.py 4` 通过：`projects: 28`、`top: 12`、`bi: 6` |
+
+**后遗症（要记住）**：
+
+- 十二、十三两节里的路径（`projects/riscv-core/`、`jos/`、`cuda/` 等）现已多一层分组前缀，**不回改**。
+- `algo/algorithm/NOTES.md` 仍是**口径最大的遗留**：正文里还留着逐文件行数、日期、复现命令等仓状态描述。它在本轮只做了开头清理，整体重写成「结构判据 + 工具用法」还没做。
+- `gates.py` 的 `projects` 字段现在是**两件套单元总数**（含分组目录），`top` 才是顶层目录数。看结构是否完整仍以 `fail` 列表为准。
+
+## 十五、口径清理（2026-11-03）：`algo/algorithm` 重写 + 全线去仓状态
+
+**判断**：`projects/` 的第一条约定是"不写代码仓状态"，但四份文档还留着旧时代的写法——`algo/algorithm/NOTES.md` 是一份"代码仓体检报告"（与它自己的 `OUTLINE.md` 讲的根本不是同一个项目），`6824`/`csapp`/`cs149` 末尾挂着从 ipynb 迁来的归档段，`6824` 通篇是分支/提交/进度的复盘。
+
+| 动作 | 范围 |
+|---|---|
+| 重写 | `algo/algorithm/NOTES.md` **整篇重写**，与 `OUTLINE.md` 对齐：八章（实验台 / 渐进度量 / 分治 / 贪心 / DP / 图表示与遍历 / 带权图 / 策略选择复盘），每章四段。旧的九条 bug 记录剥离状态后抽成**附录 A 反例库**（触发输入 → 症状 → 根因 → 考点），实算数字抽成**附录 B 可复查数值** |
+| 去重 | 删 `csapp` / `cs149` / `6824` 末尾的「迁移归档：来自旧 ipynb 的工程笔记」段——内容与 `kaoyan/_archive/cells/` **逐条对应**（抽查标题完全一致），归档已保留，不重复存 |
+| 改口径 | `6824`：§0.1「上一版错在哪」→「一条纪律：先确认口径，再下结论」；§9 时间预算（含 h 估计与「初试后」）→「动手顺序与判据」；§10 检查清单（git branch / 未跟踪文件）→ 判据清单；清除全部提交哈希与日期；分支拓扑图去掉哈希改为「哪个分支才是事实」 |
+| 其他 | `csapp`：删「本仓 15 个 ipynb」说法（ipynb 已删）、验证记录去日期；`cs149` §1.3 标题去日期；`pku-cg` 七处「机器复核 2026-10-22」与「检索日」去日期 |
+| 闸门 | `lint.py` 0 错；`gates.py 4` 通过（28 单元 / top 12 / bi 6） |
+
+**过程事故（记下来，别再犯）**：第一版清理脚本用了 `re.sub(r' +', ' ', s)` 想"顺手收拾空格"，结果把 `6824/NOTES.md` 全文的连续空格压扁，**ASCII 分支图和所有代码块缩进全毁**；靠 `git checkout --` 还原后重做，第二次脚本只删哈希与日期、不碰空白。
+**教训：批量改写脚本只能删目标 token，永远不要做全局空白归一化。**
+
+**仍未完成（需要整篇重写，不是补丁能解决）**：
+
+- `6824/NOTES.md` 的 §1.3「本地仓体检」、§3 Lab2 复盘、§5 kvraft、§7 C++ craft 仍是**代码审查报告**形态（含"状态"列、行数、"未做/已实现"）。哈希与日期已清，但"进度叙事"还在。
+- `cs149/NOTES.md` §1 有同类结构（本地代码现状）。
+- 这两份要彻底合规，得按"结构判据 + 最小例子 + 面试问法"重写，与 `riscv-core` 的写法对齐。
+
+## 十六、扩充（2026-11-03）：`os/` 加横向对比与设备层，`linux-api` 补平台差异
+
+**判断**：`os/` 原来只有"用户态/内核态"两侧，缺两块：一是**为什么不同**（JOS/xv6/Linux 的差异根子在 CPU 架构，不在风格），二是**硬件怎么接进来**（驱动）。加上"以 Linux 为主但想知道 macOS/Windows 差在哪"的需求，`os/` 从 1+2 扩到 **1+4**。
+
+| 动作 | 范围 |
+|---|---|
+| 新增 `os/kernel-compare/` | `OUTLINE.md`（五段）+ `NOTES.md`（10 章四段 + 3 张速查表）：三种出发点 → CPU 起点（分段/页表级数/`CR3` vs `satp` vs 长模式）→ 陷入路径（`int 0x30`+TSS / `ecall`+`sscratch`+trampoline / `syscall`+`swapgs`）→ 进程结构体（`Env`/`proc`/`task_struct`，字段即世界观）→ 地址空间（`UPAGES`/`UVPT`、trampoline、`mm_struct`+VMA）→ 调度同步阶梯 → **系统调用 API 对照表**（创建/等待/内存/IPC/文件/错误约定/用户指针校验）→ 文件与设备组织 → 为什么 Linux 必须长成这样（ABI/可移植/驱动生态/SMP）→ 反向借鉴（FUSE/io_uring/DPDK/eBPF） |
+| 新增 `os/drivers/` | `OUTLINE.md` + `NOTES.md`（8 章四段 + 对照表）：四种交互（PIO/MMIO/中断/DMA）→ **ATA PIO 读扇区**（端口表、`BSY/DRDY/DRQ`、LBA28、400ns 四次读、`insl`、超时）→ **块缓存与磁盘布局**（哈希+LRU+引用计数、`bread/bget/brelse`、superblock/bitmap/inode、10 直接+1024 间接≈4MB）→ 用户态 FS 与 `spawn`（`FSREQ_*`、页映射零拷贝、ELF 装载与 `.bss` 清零）→ **e1000 MMIO 与描述符环**（寄存器组、`tx_desc`/`rx_desc` 16 字节、`TDH/TDT` 所有权）→ 中断与收包（先拷走再归还、`RDT` 语义、环满丢包）→ **Linux 五层配套**（设备模型与 `probe`/`devres`、DMA API、中断上下半部、`bio`+`blk-mq`+页缓存、`net_device`+NAPI+`sk_buff`）→ 判据与注入测试 |
+| 补 `linux-api` | `NOTES.md` 末尾新增**附录 A**：macOS/Windows 速查表（进程创建、线程、句柄、事件通知、内存、动态库、权限、可观测、时钟、二进制格式）+ **四条最容易误用的点**（`fork` 不普适、`/proc` 专有、就绪 vs 完成通知、OOM 行为三种答案）；`OUTLINE.md` §三 挂钩、§四 划界「不做平台主线」 |
+| 修生成缺陷 | `linux-api/NOTES.md`：章节错序（第 6 章排在第 16 章之后）已重排；**第 16 章 IPC 正文截断**已补完（五种机制的语义/生命周期表 + 两段最小例子 + 3 个追问）；`jos/NOTES.md`：**第 8 章文件系统截断**已补完（`Fd`/`FSREQ_MAP`/用户态取舍 + 3 个追问），并加指向 `drivers/` 的指针；第 10 章加指向 `kernel-compare/` 的指针 |
+| 口径同步 | `os/OUTLINE.md`：组内表 2→4 行、两条新取舍（为什么对比单独成篇、为什么驱动单独成篇）、阶段 5/6、§四 划界、30 秒版本改成四层；`os/NOTES.md`：两张新映射行、第二条口径铁律（比较必须带约束）、第五/六段路径；`projects/README.md` os 组 1+4；根 `README.md` 结构图与「30 个两件套单元」 |
+| 闸门 | `gates.py` 阈值 28 → 30（25 叶子 + 5 分组）；`lint.py` 0 错；`gates.py 4` 通过：`projects 30` / `top 12` / `bi 6` |
+
+**后遗症（要记住）**：
+
+- `kernel-compare` 与 `jos/NOTES.md` 第 10 章有重叠：第 10 章已压缩为骨架并加指针，**改内容以 `kernel-compare` 为准**。
+- `drivers/NOTES.md` 的代码片段是 JOS 口径伪代码（不可直接编译），与 `jos/` 的写法一致；真实驱动代码不在本仓。
+- 平台差异只在 `linux-api` 附录 A，**不进主线**：以 Linux 为开发环境，macOS/Windows 只用于避免误判。
+
+## 十三、六份 `OUTLINE.bi.md` 加译文与生词表（2026-11-03）
+
+**用途**：这六份英文文档同时当「英译中练习材料」用——先自己译，再对照下方的现成译文。
+
+**版式**（脚本固定，模型不写结构）：
+
+- 英文原段原样保留，紧随其后一行 `> 译：……`（引用块）；原文里的引用块则把译文接在同一块内，行数一一对应；
+- 列表项（有序/无序）的译文缩进 3 格放在条目内部，编号不重复；
+- 每节末 `**生词**` 表：`单词 | 词性 | 释义 | 文中搭配`，本节去重、上限 16 条；
+- 术语首次出现写「中文（English）」，代码标识符一律不译。
+
+**规模**：6 份 / 164 个译文单元 / 56 个生成块 / 约 1.8 万汉字。
+
+**做法**：`.gen/w5/`（gitignore），`split.py`（切单元 + 切块，≤3 单元且 ≤3500 字节）→ `pool.sh`
+（`bl text chat` 后台派发，`MAXPAR=3`，deepseek-v4.1-flash-1017）→ `check_block.py`（结构化校验）
+→ `assemble.py`（按原文快照拼装）→ `gate.py`。
+
+**为什么不让模型直接重写整篇**：那样英文会被悄悄改写（缩写、丢句）。这里模型只返回
+`{"id","zh","terms"}`，英文正文由 `assemble.py` 从 `src/` 快照逐行搬运，**物理上不可能被改动**；
+`gate.py` 再核一遍「原文每个非空行都还在、计数不少于原文」。
+
+**踩到的坑（已写成判定）**：
+
+1. 短标签段（`**Common deviations**:`，2 个词）被「译文过短」规则误杀 → 阈值改为
+   `2 if en_words<=4 else max(8, 0.45*en_words)`；
+2. 术语密集段落（`AVX2/NEON`、`std::thread` 满篇）被「以英文为主（疑似未译）」误杀 →
+   判断前先剥掉行内代码与括号内容，只数括号外的拉丁字母；
+3. 模型会把列表编号、引用符号回显进译文（`译：1. …`、`译 > …`）→ `assemble.py` 里清掉，
+   引用块的多行译文按 `>` 拆回多行。
+
+**复跑**：`cd .gen/w5 && python3 split.py && bash pool.sh pump && python3 assemble.py && python3 gate.py`。
+`gate.py` 的 PASS 判据是：译文条数 = 单元数、英文原文零丢行、标题数量不变、生词表每行 4 列且词出自原文。
+
+## 十七、拆分（2026-11-03）：`pku-cg/` → `cg/` 分组（1 + 5）
+
+**判断**：`projects/pku-cg/` 一个目录 98 KB，把四件不同的事堆在一份 `NOTES.md` 里——图形学知识块 34 KB、
+引擎 5 KB、流星蝴蝶剑案例 + 联网 34 KB、求职与执行方案 15 KB。面试问「图形学」和问「游戏联网」
+不是同一批问题，**判据也不同**；堆在一起读者得自己找边界，也说不清"这一段到底过了没有"。
+按判据拆成 `cg/` 分组（路由）+ 五个子项目。
+
+| 动作 | 范围 |
+|---|---|
+| 归档 | `projects/pku-cg/` → `.gen/archive/pku-cg-2026-11-03/`（含刚做完的 `OUTLINE.bi.md`） |
+| 新增分组 | `projects/cg/`：`OUTLINE.md`（子项目表 + 拆五份的理由 + 阶段判据）、`NOTES.md`（路径手册 §0–§4：五段路线、跨项目追问、常见误配、求职视角） |
+| 新增子项目 | `cg/rasterizer/`（10 章，判据=渲染正确性）`cg/raytrace/`（8 章，交叉验证）`cg/geometry-anim/`（8 章，可手算）`cg/engine/`（10 章，帧预算）`cg/game/`（10 章，手感与联网） |
+| 口径同步 | `projects/README.md`：新增 §六 cg 分组、单列 7 → 6、验收注释 30 → 35；根 `README.md`：结构图 + 「6 分组 + 6 单列 = 35 单元」；`gates.py` 阈值 30 → 35（29 叶子 + 6 分组） |
+| 闸门 | `.gen/w6/gate.py` PASS；`lint.py` 0 错 0 提示；`gates.py 4` 通过（`projects 35` / `top 12`） |
+
+**规模**：30 个生成块 / 46 章 / 约 10 万汉字（`rasterizer 1.86 万`、`engine 2.44 万`、`game 2.31 万`、
+`raytrace 1.78 万`、`geometry-anim 1.59 万`，分组两件套 2256 + 4197 字）。
+
+**做法**：`.gen/w6/`（gitignore）：`spec.py`（章节骨架 + **章号→旧稿片段**映射）→ `prep.py`（切块 ≤2 章、
+素材按段落边界截断）→ `pool.sh`（后台派发 `bl text chat`，`MAXPAR=3`，deepseek-v4.1-flash-1017）
+→ `check_chunk.py`（章号齐 / 四段齐 / 每章 ≥900 字 / 禁完成断言）→ `assemble.py`（**文件头由脚本写**，
+不让模型写，避免六个项目头部口径漂移）→ `gate.py`（章数、四段、字数、禁用表述、分组不复制正文）。
+
+**踩到的坑（已写成机制）**：
+
+1. `pump` 只认已存在的 `state/*.status`，块还没建状态文件时 `pending=0` → 被误判「全部结束」提前退出。
+   `prep.py` 现在预建 pending（w4/w5 的脚本同样有这个隐患，靠 `build.py` 顺手建掉了）。
+2. 素材按**字节**截断会把标题切一半（`### 2.3 光栅化与消隐�`）→ 改成按段落边界截断，宁可少一段。
+3. deepseek 用纯文本模式跑时正文可能为空（`--output json` 里 `content` 是有的，`reasoning_content` 也在）→
+   一律用 `--output json` 再解开信封取 `content`，不要靠 stdout 直读。
+
+**已知未尽**：
+
+- 六份新 `OUTLINE.md` **还没有 `OUTLINE.bi.md`**（旧的 bi 随 `pku-cg/` 归档），`gates.py` 的 `bi` 由 6 降到 5。
+  要补得先出英文版，再走 `.gen/w5` 的翻译流程（`split.py` 的 glob 目前只扫顶层，深度 2 要改）。
+- `cg/rasterizer/OUTLINE.md` 3818 字，超了 `2400–3400` 的规格上限，未裁剪。
+- 边界仍需盯：GPU 图形管线（光栅化硬件实现）归 `cg/engine` 讲，`langs/cuda` 只管网并行编程，
+  两边不要互相复制。
+
+## 十八、扩充（2026-11-03）：`os/security/` 边界与对抗（ROP / 外挂 / 反作弊）
+
+**判断**：安全这一块的知识天然双用途，散着写会变成教程；把它单独成篇、并把边界写在最前面，才能既讲清机制又不越线。定位是**跨边界的因果链**——一处内存错误 → 一类原语（读/写/调用/跳转）→ 一次权限跨越 → 被哪个缓解机制抬高成本。
+
+| 动作 | 范围 |
+|---|---|
+| 新增 `os/security/` | `OUTLINE.md`（五段）+ `NOTES.md`（10 章四段 + 原语→能力对照表）：攻击面地图与三类边界 → 内存破坏四形态 → 控制流劫持三台阶（返回地址/函数指针/vtable）→ **ROP**（gadget、栈布局、ret2libc·ret2plt·ret2syscall、栈迁移、ret2csu、SROP、16 字节对齐）→ **缓解机制"假设—违反"表**（NX/ASLR/PIE/canary/RELRO/FORTIFY/CFI/CET/堆加固/SMEP·SMAP/KASLR/KPTI）→ 用户态到内核（`ioctl` 入口、改凭据骨架、三道加固怎么打断）→ 侧信道（Spectre/Meltdown/Rowhammer，只讲机制）→ **外挂四层能力谱系**（读/写/调/藏 + 各自可检测面）→ 反作弊与防御（完整性、内核驱动、行为统计；Linux 侧 `seccomp`/LSM/eBPF/`ptrace_scope`）→ 判据与实验（`checksec`/`readelf -lW`/`/proc/pid/maps`、fuzz、缓解验证表） |
+| 写清边界 | `OUTLINE.md` §二 取舍四 与 §四 各一条：只讲机制与判据，**不给 shellcode/偏移/payload，不针对商业游戏或反作弊给绕过步骤**，实验限自写程序或公开 CTF；`projects/README.md` 的 os 表下方也写明 |
+| 口径同步 | `os/OUTLINE.md`：组内表 4→5 行、取舍六（为什么安全单独成篇）、阶段 7、§四 划界、顺序改为"用户态→内核态→对比→设备层→安全（要先知道边界在哪）"；`os/NOTES.md`：新增"边界"映射行 + 第七段路径与纪律 |
+| 与并发改动对齐 | 本轮期间另一处改动把 `pku-cg/` 拆成了 `cg/` 分组（1+5）并把闸门改成 35 单元；本轮的 `os/security` 使单元数到 **36**。已同步 `gates.py` 阈值（35→36，29→30 叶子）、根 `README.md`（36 单元、os 1+5）、`projects/README.md`（os 表补行并修掉插入时多出的空行导致表格断开、验收注释改 36） |
+| 闸门 | `lint.py` 0 错 0 提示；`gates.py 4` 通过：`projects 36` / `top 12` / `bi 5` |
+
+**后遗症（要记住）**：
+
+- `security/` 与 `jos/` 第 4 章（陷入）、`kernel-compare/` 第 3 章（陷入路径）有交叉：**机制以那两处为准**，安全篇只借用"边界"这个视角。
+- 侧信道只到机制层，不写具体芯片的测量实验；`cpu/cpu-microarchitecture/` 的乱序与缓存章节是它的上游。
+- 外挂部分仅到"能力分层 + 可检测面"，任何具体手法、驱动细节、产品对抗都不写——**这是刻意留白，不是遗漏**。
+

@@ -1,0 +1,204 @@
+%==============================================================
+% br0_skeleton.tex —— BR0. 骨架：六个动作
+%==============================================================
+% 定位（2026-11-03）: 本册的**纲**。它不是第七篇串讲，而是给 BR1–BR4 指定位置。
+% 分篇依据从「话题」改成「结构动作」，理由见 README.md §0。
+% 规则: 每一条陈述必须是 A ≅ B；写不成的退回主篇或 survey。
+% 篇幅克制: S1–S4 的正文在 BR1–BR4/S1–S4 已有, 本篇只给指针;
+%           S5、S6 原本没有独立篇目, 本篇给正文(骨架级: ≅ 清单 + 判据, 不重推导)。
+%==============================================================
+
+\section{BR0. 骨架：六个动作}
+\label{sec:br0}
+
+\begin{center}
+\small
+\begin{tabular}{L{2.4cm}L{11.4cm}}
+\toprule
+\textbf{本篇 $\cong$} & \textbf{一句话} \\
+\midrule
+表示 $\cong$ 换坐标 & 对象不变，数组变（S1）\\
+线性化 $\cong$ 取切空间 & 在一点假装线性（S2）\\
+谱 $\cong$ 对角化 & 选一个让算子不耦合的基（S3）\\
+流 $\cong$ 单参数群 & 走一步与走到底之差（S4）\\
+约束 $\cong$ 投影 & 最近点就是正交投影（S5）\\
+离散 $\cong$ 子空间逼近 & 连续对象换成有限自由度再放回去（S6）\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BR0.1 为什么按动作分、不按话题分}
+
+旧版四篇是按\textbf{话题}分的（旋转、傅里叶、PDE、概率）。按话题分有一个结构性缺陷：
+\textbf{话题是开集}，每来一个新领域就要新增一篇，而新篇与旧篇之间没有咬合 —— 于是「散」不是写作问题，是分篇依据的问题。
+
+结构动作是\textbf{闭集}：任何领域里的数学，只要被写下来，做的不外乎换坐标、取线性化、对角化、沿流走、投影、取极限这六件事之一。所以按动作分篇，篇数有上限，而新领域只能落进已有节点，或者证明节点不够。
+
+\textbf{判据}：新增一篇的正当理由是「某个真问题归不进六个节点」；不是「这个话题有意思」。
+反例：BR3 现在横跨 S1–S6 全部 —— 它不是一篇并列串讲，是骨架的纵向走一遍。读它之前该先读本篇。
+
+\subsection{BR0.2 六节点与各自的判据}
+
+\begin{center}
+\small
+\begin{tabular}{L{2.1cm}L{2.1cm}L{5.2cm}L{4.4cm}}
+\toprule
+\textbf{节点} & \textbf{动作} & \textbf{一句话} & \textbf{判据（判不出就不是结构）} \\
+\midrule
+S1 & 表示 & 换基、换坐标：对象不变，数组变 & 换基后不变量（谱、迹、内积、体积元）逐项相等 \\
+S2 & 线性化 & 在一点假装线性：曲面 $\to$ 切空间 & 残差随 $\eps$ 减半降 4 倍（$O(\eps^{2})$）\\
+S3 & 谱 & 选一个让算子不耦合的基 & 截断 $N$ 项的残差按 $\abs{\lambda_N}$ 衰减 \\
+S4 & 流 & 沿向量场走：走一步 $\ne$ 走到底 & $\Phi_{t+s}=\Phi_t\circ\Phi_s$ 成立；$h$ 减半误差降 $2^{p}$ \\
+S5 & 约束与投影 & 允许集合不是子空间时，先投影再走 & 残差与允许方向的内积为 $0$（机器精度）\\
+S6 & 离散与极限 & 有限自由度逼近连续对象 & $h$ 减半误差降 $2^{p}$，$p=$ 子空间多项式次数 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{六个判据的共同点}：它们都是\emph{可算的等式或比值}，不是「理解了没有」。
+这是本册与主篇分工的界线：主篇负责让判据成立，本册负责指出\textbf{同一个判据在不同领域里换了什么名字}。
+
+\begin{center}
+\small
+\begin{tabular}{L{2.1cm}L{5.6cm}L{5.2cm}}
+\toprule
+\textbf{节点} & \textbf{已有正文} & \textbf{兼在} \\
+\midrule
+S1 表示 & BR3 §BR3.3（张量三视角、变换律） & BR1（$S^{3}$ 与 $SO(3)$ 双覆盖）、BR4 §BR4.5 \\
+S2 线性化 & BR1 §BR1.5（$\exp$ 是线性化的逆） & BR3 §BR3.4（李代数 $=T_eG$）\\
+S3 谱 & BR2 全篇 & BR3 §BR3.4 末（球谐 $=$ 不可约表示）、BR4 §BR4.4 \\
+S4 流 & BR3 §BR3.1 & BR1（测地线 $=$ 单参数子群）、BR2 §BR2.8（热核 $=$ 半群）\\
+S5 约束与投影 & \textbf{本篇 §BR0.3（新）} & BR4 §BR4.3（条件期望 $=L^{2}$ 投影）\\
+S6 离散与极限 & \textbf{本篇 §BR0.4（新）} & BR3 §BR3.2（弱形式，一段）\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+S5、S6 之前没有独立篇目 —— 而 \texttt{NOW.md} 本期十件里七件落在它们上面。
+这就是「体系缺一块」的可核对形式：不是感觉，是空格。
+
+\subsection{BR0.3 S5：约束与投影}
+
+\textbf{统一陈述}：给定允许集合 $C$（通常是子空间、仿射子空间或流形），
+「在 $C$ 里选最好的」$=$ 「先把不许的方向扔掉，再在 $C$ 里自由地做」。
+扔掉的动作就是正交投影 $P_C$；而 $C$ 定义得对不对，只看一条：
+\[
+\bigl\langle\, x-P_C x,\; c\,\bigr\rangle=0\qquad \forall c\in C .
+\]
+\textbf{这一条判据同时是八种算法的身份证明}：
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Hodge 分解 $\cong$ 投影}：$L^{2}=d(\Lambda^{k-1})\oplus\delta(\Lambda^{k+1})\oplus\mathcal{H}^{k}$，
+        即「无旋 $+$ 无散 $+$ 调和」。不可压条件 $\nabla\cdot u=0$ 不是方程，是\textbf{选了一个子空间}；
+        压力 $p$ 是把动量方程投影到无散子空间时冒出来的 Lagrange 乘子。
+        判据：$\langle Pu,\nabla q\rangle=0$ 对一切 $q$ 成立。
+  \item \textbf{条件期望 $\cong$ $L^{2}$ 投影}：$\mathbb{E}[X\mid\mathcal{G}]$ 是 $X$ 在 $L^{2}(\Omega,\mathcal{G},P)$ 上的正交投影。
+        判据：$\langle X-\mathbb{E}[X\mid\mathcal{G}],\ \mathbf{1}_A\rangle=0$，$\forall A\in\mathcal{G}$。
+        与第 1 条同构：\textbf{「已知信息」就是一个子空间}，条件化就是投影到它上面。
+  \item \textbf{最小二乘 $\cong$ 投影到列空间}：残差 $r=b-Ax$ 必须与 $\mathrm{range}(A)$ 正交，
+        于是得到正规方程 $A^{H}r=0$。判据：$\norm{A^{H}(b-Ax)}\le \mathrm{tol}\cdot\norm{A^{H}b}$。
+        QR 与 SVD 只是算这个投影的两种稳定方式。
+  \item \textbf{CG $\cong$ Krylov 子空间上的 Galerkin 投影}：第 $k$ 步在 $x_0+\mathcal{K}_k(A,r_0)$ 里取
+        使 $\norm{e_k}_A$ 最小的点，等价于 $r_k\perp\mathcal{K}_k$。
+        判据：$\langle r_k,r_j\rangle=0$（$j<k$）逐对成立；精确算术下 $r_n=0$。
+        \textbf{所以 CG 不是「迭代技巧」，是 S5 的一个实例} —— 这条把它接进了骨架，
+        也解释了 $\mathrm{NOW.md}$ 第 4 条为什么只需 \texttt{apply}：投影只要「乘一下」。
+  \item \textbf{正交化 $\cong$ 逐次投影到正交补}：Gram--Schmidt 的每一步都是
+        $q_j=\bigl(I-\sum_{i<j}q_iq_i^{H}\bigr)v_j$ 再归一化。
+        判据：$\norm{Q^{H}Q-I}\le 8n\eps$；失去正交性（MGS 无重正交）就是这个投影算错了。
+  \item \textbf{Dirichlet 边界 $\cong$ 仿射约束}：解被限制在 $\{u:u|_{\partial\Omega}=g\}$ 这个\emph{仿射}子空间里。
+        「行/列清零 $+$ 对角置 1」是它的显式投影，好处是\textbf{保对称}（CG 才成立）；
+        用罚因子是软约束，残差留平行分量，永远差一个偏差 —— 这就是「为什么清零而不是加大罚数」。
+        判据：边界节点值等于 $g$ 到机器精度，且 $A(i,j)=A(j,i)$ 逐项精确相等。
+  \item \textbf{单位化四元数 $\ne$ 投影到 $SO(3)$}：$q/\norm{q}$ 是投影到 $S^{3}$，而 $SO(3)=S^{3}/\{\pm1\}$，
+        所以「插值后归一化」与 slerp 走的是两条路：前者投影，后者测地线（BR1）。
+        \textbf{投影 $\ne$ 测地线}，这是本节点唯一要防的误用。
+  \item \textbf{保结构格式 $\cong$ 约束在等能面上（弱）}：辛格式不保持能量点值，只保持「能量有界」，
+        即轨道被约束在等能面附近的一个环壳里。判据：长时能量振荡且有界；非辛格式单调漂移。
+\end{enumerate}
+
+\textbf{一句话}：看到「约束」两个字，先问「允许集合是什么，投影是哪一个」；
+回答不了，就还是在用罚因子猜。
+
+\subsection{BR0.4 S6：离散与极限}
+
+\textbf{统一陈述}：连续问题 $u\in V$ 变成 $u_h\in V_h\subset V$，方程不再逐点成立，只要求
+「在 $V_h$ 的每个方向上都投影相等」：
+\[
+a(u_h,v_h)=\langle f,v_h\rangle\qquad\forall v_h\in V_h .
+\]
+这就是 Galerkin —— \textbf{它本身就是 S5 的一次投影}，只是投到了有限维子空间。
+误差由 Céa 引理一分为二：$\norm{u-u_h}_V\le\frac{M}{\alpha}\inf_{v\in V_h}\norm{u-v}_V$
+（左边是离散误差，右边是\textbf{逼近误差}乘一个稳定性常数）。S6 的全部内容就是这两项。
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{弱形式 $\cong$ 内积投影}：$-u''=f$ $\Rightarrow$ $\int u'v'=\int fv$，二阶导降为一阶。
+        判据：$u_h$ 的残差在 $V_h$ 上正交，即 $\langle -u_h''-f,\varphi_i\rangle=0$ 逐基函数成立。
+  \item \textbf{装配 $\cong$ 同一个双线性形式换一组基}：单元刚度
+        $K_e=\frac1h\begin{pmatrix}1&-1\\-1&1\end{pmatrix}$ 是 $a(\cdot,\cdot)$ 限制在 $\{\varphi_i\}$ 上的矩阵。
+        判据（三条同时）：$A$ 逐项对称、未加边界时内部行和为 $0$（常数在核里）、
+        1D 手算表逐项对拍 $\bigl(n=3,h=\tfrac12\Rightarrow (1/h)[[1,-1,0],[-1,2,-1],[0,-1,1]]\bigr)$。
+  \item \textbf{1D P1 节点精确 $\cong$ 离散解恰好落在插值空间里}：$u=x(1-x)$、$f=2$ 时 $u_h$ 在节点上等于 $u$，
+        到机器精度。这不是「精度高」，是 $u$ 二次、$f$ 常数使 $V_h$ 精确容纳了真解的那一半；
+        \textbf{2D 不能套这条}（一般 $u_h\ne u$）。这是 \texttt{NOW.md} 第 3 条的「最狠判据」的数学理由。
+  \item \textbf{收敛阶 $\cong$ 逼近阶}：$\norm{u-u_h}\le Ch^{p}$，$p=\min(k+1,\ s)$，
+        $k$ 是单元多项式次数、$s$ 是真解的光滑度。判据：三次 $h$ 减半的误差比值落 $[3.8,4.2]$（$p=2$），
+        且 $h$ 已进入渐近区 —— 否则比值乱跳，这是「阶」最常被误用的地方。
+  \item \textbf{稀疏性 $\cong$ 局部性}：$\varphi_i$ 与 $\varphi_j$ 只在支撑相交时耦合，
+        于是 $A$ 的非零结构 $=$ 网格的邻接图。判据：$\mathrm{nnz}=O(N)$ 而非 $O(N^{2})$（2D 三角剖分约 $7N$）。
+        CSR 因此不是存储技巧，是这条局部性的必然结果 —— 它\textbf{没有数学增量}，故不进本册正文。
+  \item \textbf{迭代数 $\cong$ 谱的分布}：CG 迭代数 $\lesssim\frac12\sqrt{\kappa}\log\frac2\eps$，
+        而 $A$ 是 $-\Delta$ 的离散化，$\kappa(A)=O(h^{-2})$。合起来：\textbf{迭代数} $O(1/h)$。
+        这一条同时解释了 \texttt{NOW.md} 第 4 条「\texttt{iters} 只记录、不设阈值」：
+        它由 $\kappa$ 决定，不由实现质量决定。
+  \item \textbf{采样与混叠 $\cong$ 同一件事的频域版}：截断最高频 $=$ 投影到带限子空间（$\cong$ S5）；
+        采样率不够则是\textbf{投影到了错的子空间}（不是正交投影），表现为高频折叠成低频。
+        判据：折叠频率（$\bmod f_s$）处的谱峰位置。
+  \item \textbf{稳定性 $\cong$ 时间方向的谱半径}：显式格式要求一步算子的谱半径 $\le 1+O(\Delta t)$，
+        于是 $\Delta t\le Ch^{2}$（扩散）或 $Ch$（对流，CFL）。
+        判据：$\Delta t$ 越过阈值时解发散，能量单调上升而不是有界振荡。
+  \item \textbf{舍入与离散的两条曲线}：$h\to0$ 时离散误差按 $h^{p}$ 降，但 $\kappa=O(h^{-2})$
+        使舍入被放大，总误差在双对数图上出现\textbf{平台或谷底}。
+        判据：收敛阶测试的三个点必须都在谷底左侧，否则测出来的不是 $p$。
+  \item \textbf{恒等式 $\ne$ 收敛}：$d^{2}=0$、Hodge 对合 $**\omega=(-1)^{k(n-k)}\omega$、
+        Stokes 用三次多项式 $+$ 张量积 Simpson 求积，都是\textbf{离散误差为零}的特例，
+        所以判据可以写到 $10^{-13}$ 而不涉及 $h$。
+        分清「恒等式」与「收敛」是本节点最省时间的一条经验。
+\end{enumerate}
+
+\subsection{BR0.5 工程出口覆盖（随 \texttt{NOW.md} 版本重写）}
+
+\begin{center}
+\small
+\begin{tabular}{L{4.4cm}L{1.8cm}L{6.6cm}}
+\toprule
+\texttt{NOW.md} 条目 & 节点 & 落点 \\
+\midrule
+1 \texttt{grid.hpp} 结构化网格 & S6 & 本篇 §BR0.4 第 4、5 条 \\
+2 \texttt{sparse.hpp} CSR & S6 & 第 5 条；\textbf{无数学增量}，只登记 \\
+3 \texttt{assemble.hpp} P1 $+$ Dirichlet & S6 $+$ S5 & §BR0.4 第 1–3 条、§BR0.3 第 6 条 \\
+4 \texttt{cg.hpp} & S5 $+$ S3 & §BR0.3 第 4 条、§BR0.4 第 6 条 \\
+5 \texttt{npy.hpp} 落盘 & — & \textbf{无数学}，不进本册 \\
+6 \texttt{math/} 四件填实现 & S3 & BR2 全篇（\texttt{fourier}、\texttt{series}、\texttt{special}、\texttt{prob}）\\
+7 \texttt{Tensor} & S1 & BR3 §BR3.3 \\
+8 \texttt{ode.hpp} & S4 $+$ S2 & BR3 §BR3.1（判据对照待补）\\
+9 \texttt{forms.hpp} 微分形式 & S1 $+$ S5 & BR3 §BR3.3 末、§BR3.6；§BR0.4 第 10 条 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{这张表的用法}：\texttt{NOW.md} 整篇重写时重跑一次，本期每件都必须有节点；
+没有节点的条目要么「无数学」（写明），要么说明骨架缺一块（走 README §5 的 B4）。
+
+\subsection{BR0.6 骨架什么时候算错}
+
+三条自否证条件，任一触发就说明这套骨架要改，而不是这一篇要补：
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item 某节点的判据凑不出来（例如 S1 说「换基不变」，却找不到一个可算的不变量）$\Rightarrow$ 该节点是装饰，删；
+  \item 某个真问题（含 \texttt{NOW.md} 条目）无法归入六节点 $\Rightarrow$ 缺第七个，先登记再决定；
+  \item 两个节点合并后 $\cong$ 清单不变 $\Rightarrow$ 它们本来是一个动作，合并。
+\end{enumerate}
+
+\textbf{当前状态}：S1–S4 有正文且有判据；S5、S6 在本篇有骨架级正文（$\cong$ 清单 $+$ 判据），
+但\textbf{还没有一篇把它们与 BR1–BR4 横向缝起来的完整串讲} —— 这是本册下一步唯一的结构性缺口。

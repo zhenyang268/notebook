@@ -1,0 +1,111 @@
+## 一、它解决什么问题
+
+这项能力解决的两类事很具体：线上出问题时「看得见现象、说不出机理、定不了位」；面试里「能背 API 签名、说不出代价」。
+
+**场景一（内存口径）**：一台内存较大的机器上，某服务进程 RSS 报到几十 GB，告警触发扩容甚至带流量重启。实际大头是只读映射的共享库和 page cache，同口径的 PSS 只有个位数 GB，USS 更小。用错口径的代价是一次无谓的扩缩容，或者一次本可避免的重启。`pmap -x` 和 `/proc/PID/smaps` 的 `Pss` 字段能当场把结论翻过来。
+
+**场景二（CPU 口径）**：多核机器上 `top` 显示 `%CPU` 为 300%，值班同学判断「CPU 不高」，实际是 3 个核满载；若这 3 个核正好承载网络软中断或关键线程，尾延迟早已劣化。`top -H` 加 `pidstat -u -t` 把进程级数字拆到线程级，配合 `taskset` 看亲和性，能区分「真算得多」还是「在自旋等锁」。
+
+**场景三（连接边界）**：短连接服务在几分钟内累积大量 TIME_WAIT，新连接开始报 `EADDRNOTAVAIL`；`ss -tan state time-wait` 配合 `netstat -s` 的 overflow 计数，能判断是主动关闭方过于集中，还是端口范围不够。
+
+面试侧的高频题与这些场景同源：fork 之后父子共享什么、mmap 与 read 的代价差在哪、epoll 边缘触发为什么必须配非阻塞 fd、EINTR 该不该重试、backlog 到底是谁在排队。答不出代价，就只是背过。
+
+## 二、为什么这样做（方法论设计）
+
+**有口径才算数。** 内存数字必须带口径前缀：VSS / RSS / PSS / USS，四者不可互换，其中
+$$\mathrm{PSS}=\mathrm{USS}+\sum_i \frac{\mathrm{shared}_i}{n_i}$$
+即每块共享映射按其共享进程数均摊。CPU 必须说明基准：`top` 的 `%CPU` 以单核 100% 计，整机占比为 $\%CPU_{\text{整机}}=\dfrac{\%CPU}{100\times N_{\text{核}}}$。IO 必须说明是 buffered 还是 `O_DIRECT`、是否包含 `fsync`。网络必须说明测的是 RTT 还是应用层耗时。没有口径的数字不可跨机、跨版本比较。
+
+**看起来专业但无法证伪的做法。** 不加 `-f`/`-c`/`-T` 直接 `strace` 一把梭，然后说「系统调用慢」；只看 `perf top` 的热点函数名就断言「这里是瓶颈」；说「内存泄漏」却不区分 anon、file-backed、slab、fd 四类；说「网络慢」却不给重传率。共同特征是：没有对照组、没有判据、结论不可反驳。方法论上要求每条结论配一句「若结论为假，应该观察到什么」，观察不到就不写进报告。
+
+**指标怎么定：主指标 + 佐证指标 + 判据。**
+- CPU：主看 `%CPU` 与 load average，佐证看 `vmstat` 的 `r` 列、上下文切换、cgroup throttling；判据是「单线程持续占满一核且 `voluntary_ctxt_switches` 不增长」→ 倾向自旋而非阻塞。
+- 内存：主看 USS/PSS 的时间趋势，佐证看 major page fault、`/proc/buddyinfo` 的高阶块、`/proc/meminfo` 的 `Dirty`/`Writeback`。
+- IO：主看 `iostat -x` 的 await/util，佐证看队列深度与脏页增速。
+- 网络：主看重传率与 accept 队列溢出。
+
+判据要写成可执行形式，阈值按业务 SLO 定，不抄网上的魔数。
+
+**边界与失效条件。** 结论限定在单机、已知内核版本、无 cgroup 干扰的前提下；容器里 `/proc` 口径会漂移，需改用 cgroup 自身计数器，方法要写明降级路径。采样类工具对短生命周期进程基本无效；`strace` 会放大被观测进程的延迟，只能看调用顺序与返回值，不能用来测性能。共享页多时 RSS 严重高估实际占用；PSS 需要扫 `smaps`，本身有 CPU 与延迟开销；抖动型故障用短采样看不见，需要连续采样加分位数。
+
+**常见错误做法为什么错（要算代价）。** `kill -9` 不留现场 → 无法复盘，同类故障复发；跨机比较 `top` 的 `%CPU` → 核数与配额不同，结论可能反向；把 page cache 当泄漏 → 触发无谓重启与流量切换；把 `select` 换成 `epoll` 就认为能扛 → 没解决每连接状态机和数据拷贝，复杂度上升收益为零；不处理 `EINTR`、不设 `SA_RESTART` → 表现为低频偶发失败，线上排查成本极高。
+
+## 三、章节大纲
+
+**[CPU]**
+
+**第 1 章 进程与线程**：fork 的写时复制、exec 的替换语义、wait 回收与僵尸、clone 的共享开关；父子共享 fd 表还是 file 结构。能答「fork 后子进程改变量父进程看得见吗、fd 偏移共享吗」。命令：`ps`、`top`、`pstree`、`pidof`、`strace -f -e trace=clone`。
+
+**第 2 章 CPU 占用与调度**：nice 的影响面、亲和性与缓存局部性、实时策略与饥饿、被抢占的观测方式。能答「`%CPU` 300% 在 32 核机器上算不算高」。命令：`top -H`、`pidstat -u -t`、`taskset`、`chrt`、`perf stat`。
+
+**第 3 章 时间与定时**：单调时钟与墙钟的区别、定时器精度、忙等与阻塞的代价差。能答「为什么不能用 `gettimeofday` 做超时计时」。命令：`time`、`strace -T`、`/proc/timer_list`、`perf sched`。
+
+**[内存]**
+
+**第 4 章 虚拟内存与 mmap**：brk 与 mmap 的分配路径、`mprotect` 的页粒度、地址空间布局。能答「malloc 大块与小块的落点差异」。命令：`pmap -x`、`/proc/PID/maps`、`/proc/PID/smaps`。
+
+**第 5 章 内存占用口径**：VSS/RSS/PSS/USS 的定义与误用、缺页类型、共享页归属。能答「RSS 涨到几十 G 是不是泄漏」。命令：`free -m`、`vmstat`、`/proc/PID/statm`、`smem`。
+
+**第 6 章 内存故障定位**：OOM killer 的选择依据、泄漏与碎片的区分、回收路径。能答「dmesg 里 oom-kill 那一段该看哪几个字段」。命令：`dmesg -T`、`/proc/buddyinfo`、`/proc/zoneinfo`、`valgrind massif`。
+
+**[文件]**
+
+**第 7 章 文件 IO 与 fd 语义**：open 标志组合、偏移共享、`O_APPEND` 的原子性、EINTR 来源。能答「两个进程同时写同一文件如何保证不串」。命令：`lsof -p`、`/proc/PID/fd`、`ulimit -n`、`strace -e trace=openat`。
+
+**第 8 章 标准 IO 与缓冲**：stdio 三态缓冲、行缓冲在管道下退化为全缓冲的坑。能答「为什么重定向到文件后日志不刷新」。命令：`stdbuf`、`strace -e trace=write -c`、`wc -c`。
+
+**第 9 章 元数据与目录**：inode 与 dentry、硬链接与软链接的失效差异、`stat` 的三个时间。能答「`df` 有余量但写不进去是什么原因」。命令：`stat`、`df -i`、`du -sh`、`ls -li`、`find -inum`。
+
+**第 10 章 IO 栈与页缓存**：buffered 与 direct IO 的代价、`fsync` 的保证范围、写放大来源。能答「`fsync` 到底刷了什么、为什么不能替代 `fdatasync`」。命令：`iostat -x`、`iotop -o`、`/proc/meminfo` 的 `Cached`/`Dirty`、`perf trace`。
+
+**[网络]**
+
+**第 11 章 socket 与 TCP 生命周期**：从 listen 到 close 的状态迁移、每个状态下内核做了什么。能答「`CLOSE_WAIT` 堆积是谁的问题」。命令：`ss -tanp`、`/proc/net/tcp`、`netstat -s`。
+
+**第 12 章 IO 多路复用**：select/poll/epoll 的复杂度与拷贝差别、边缘触发的重试语义。能答「ET 为什么必须配非阻塞 fd」。命令：`ss -s`、`/proc/PID/fd` 中的 `eventpoll`、`strace -e trace=epoll_wait`。
+
+**第 13 章 链路与丢包诊断**：重传与乱序的区分、队列与缓冲膨胀、MTU 与分片。能答「重传率高但带宽不低说明什么」。命令：`ss -i`、`nstat`、`ip -s link`、`tcpdump -i any port`。
+
+**第 14 章 连接边界**：backlog 的有效值 $\text{backlog}_{\text{eff}}=\min(\text{listen backlog},\ \text{somaxconn})$、TIME_WAIT 归属、端口耗尽。能答「调大 backlog 为什么没效果」。命令：`ss -tan state time-wait`、`sysctl net.ipv4`、`netstat -s` 的 overflow 段。
+
+**[进程]**
+
+**第 15 章 信号与可重入**：屏蔽与未决、处理函数与主流程的竞态、async-signal-safe 的边界。能答「信号处理函数里为什么不能 `printf`」。命令：`kill -l`、`strace -e trace=signal`、`/proc/PID/status` 的 `SigQ`/`SigBlk`。
+
+**第 16 章 IPC**：管道、FIFO、共享内存、信号量、消息队列的取舍与生命周期归属。能答「共享内存为什么必须自带同步」。命令：`ipcs`、`ipcmk`、`ls -l /dev/shm`、`strace -e trace=shmget`。
+
+**附录 A 与 macOS / Windows 的差异速查**（不占章）：进程创建模型（`fork`/`posix_spawn`/`CreateProcess`）、事件通知模型（就绪 vs 完成：`epoll`/`kqueue`/IOCP）、内存压力行为（OOM killer / 压缩内存 / 提交即占用）、可观测接口（`/proc` 专有 vs ETW）。只列会造成误判的差异。
+
+## 四、不做什么
+
+- **不写 408 考点**：页表硬件细节、调度算法正确性证明、TCP 拥塞控制公式推导，属于考试层；这里只到「语义与代价」。
+- **不写语言与运行时**：C++ RAII、Go netpoller、JVM NIO 的内部实现，属于各语言层。
+- **不写内核源码走读**：`struct file` 逐字段、VFS 具体实现不做，只给行为契约与观测点。
+- **不给调优数值清单**：不写「把某 sysctl 改成某值」，只写「看哪个指标、往哪个方向调、调完看哪个计数器验证」。
+- **不写上层排障**：K8s、服务网格、数据库内核参数不在范围内。
+- **不做基准排名**：不给跨环境的「提升 N 倍」结论；同类工具的差异只讲机制，不讲名次。
+- **不做 macOS / Windows 主线**：只在 `NOTES.md` 附录 A 列"会让人误判的四条差异"（`fork` 不可普适、`/proc` 专有、就绪 vs 完成通知、OOM 行为不同），不写平台教程、不写移植指南。
+
+## 五、面试怎么讲
+
+**30 秒版本（120–180 字）**
+
+我的做法是把「现象 → 口径 → 判据 → 验证」这条链走完。内存问题不直接看 RSS，先用 `smaps` 分 PSS/USS 和 anon/file-backed，再看 major fault 与 `buddyinfo` 判断是泄漏还是碎片；CPU 问题用 `top -H` 和 `pidstat -u -t` 拆到线程，再用上下文切换区分自旋与阻塞。系统编程侧，每个 API 我说得出代价：fork 的写时复制、mmap 的缺页、epoll ET 要求非阻塞、EINTR 的由来。工具是手段，口径和判据才是结论。
+
+**可能被追问的 7 个点**
+
+1. **「fork 之后子进程改变量，父进程看得见吗？fd 呢？」** → 考点：COW 与 fd 表复制。答法：数据页 COW 不可见；fd 表是复制的，但指向同一 `file` 结构，共享偏移与状态标志。验证：`strace -f -e trace=clone` 看 `CLONE_FILES` 等标志，对比父子 `/proc/PID/fd` 的 inode。
+2. **「RSS 涨到几十 G，是不是泄漏？」** → 考点：口径。答法：先看 `smaps` 的 `Pss`/`Private_Dirty`，区分 anon 与 file-backed；判据是 USS 单调增长 + major fault 上升 + `valgrind massif` 快照对比，三者不齐不下结论。
+3. **「32 核机器上 `%CPU` 300% 算高吗？」** → 考点：基准与亲和性。答法：300% 等于 3 核满载；`top -H` 定位线程，`pidstat -u -t 1` 看线程级趋势，`taskset` 确认是否挤在少数核上，`perf stat` 看 IPC 判断是算得多还是在自旋。
+4. **「epoll 边缘触发为什么必须配非阻塞 fd？」** → 考点：ET 语义与重试。答法：ET 只在状态变化时通知一次，必须循环 `read` 到 `EAGAIN`，阻塞 fd 会卡在最后一次读；观测用 `strace -e trace=epoll_wait` 看单次返回事件数，`/proc/PID/fd` 确认 `eventpoll` 实例数。
+5. **「TIME_WAIT 多了要不要调参？」** → 考点：归属与生效范围。答法：先判断谁是主动关闭方、是否端口耗尽（看 `EADDRNOTAVAIL` 与 `netstat -s`），`ss -tan state time-wait` 按四元组统计；`tcp_tw_reuse` 只对主动发起连接的场景生效，具体行为按内核实现而定，不能当通用解。
+6. **「OOM killer 为什么杀了我的进程？」** → 考点：全局 OOM 与 cgroup OOM 的区分。答法：`dmesg -T` 看 oom-kill 段的 anon-rss/total-vm 与打分，`/proc/buddyinfo` 看高阶块是否耗尽，`/proc/zoneinfo` 看水位；容器场景先查 cgroup 的 memory 上限。
+7. **「信号处理函数里能做什么？」** → 考点：异步信号安全。答法：只能调 async-signal-safe 函数（`write`、`_exit` 一类），常规做法是置 `volatile sig_atomic_t` 标志由主循环处理；`/proc/PID/status` 的 `SigBlk`/`SigCgt`/`SigQ` 可核对屏蔽与未决状态。
+8. **「`write` 返回 `-1` 且 `errno == EINTR` 怎么办？」** → 考点：部分写与重试。答法：循环重试并处理已写字节数；`O_NONBLOCK` 下的 `EAGAIN` 与 `EINTR` 语义不同，不可混为一谈；用 `strace -e trace=write -c` 看调用次数分布佐证。
+
+**别说什么**
+
+- 「我用 `strace` 看了下，就是这里慢」——没有对照组、没有量化，等于没结论。
+- 「内存泄漏，重启一下就好」——不区分 VSS/RSS/PSS 与 anon/file，重启只是把现场毁掉。
+- 「epoll 比 select 快很多倍」——不给连接数、活跃比例和拷贝口径，这个比较不成立。
+- 「把 backlog 调大就行了」——不看 accept 速率与 overflow 计数，调大只是把丢弃点往后挪。
