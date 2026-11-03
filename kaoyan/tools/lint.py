@@ -273,6 +273,50 @@ def check_links():
     return len(set(bad))
 
 
+def check_stats():
+    """STATS.md 是否为最新（数量唯一真源，2026-11-04 起）。
+
+    起因：KP 数曾在四个文档里写成 183 / 184 / 197，「项目数」写成 24 / 10 / 九个。
+    现在数量只在 STATS.md 一处，本函数保证它不会过期。
+    """
+    import subprocess
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "stats.py"), "--check"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        err((r.stdout or r.stderr).strip())
+    return 1
+
+
+def check_landing():
+    """syllabus/408.md 的真题落点行必须与真题库一致（2026-11-04 起由 tools/landing.py 生成）。
+
+    原先手写「（2021–2024）」，实际库里有 2016–2024 九年——少报 5 年、且每加一年都要改 25 处。
+    """
+    import subprocess
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "landing.py"), "--check"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        err((r.stdout or r.stderr).strip())
+    return 1
+
+
+def check_zhenti_format():
+    """9 年真题必须是 `### N. 标题`、每年 40 题——2021–2023 曾是段落式 `**N.**`，
+    导致大纲里只有 4 个章节、按题号检索不到。"""
+    d = ROOT / "exam" / "真题"
+    n = 0
+    for p in sorted(d.glob("20*.md")):
+        if not re.match(r"20\d\d$", p.stem):
+            continue
+        t = p.read_text(encoding="utf-8")
+        heads = len(re.findall(r"^### \d+\. ", t, re.M))
+        legacy = len(re.findall(r"^\*\*\d+\.\*\*", t, re.M))
+        if heads != 40 or legacy:
+            err(f"[真题] {p.name}：`### N.` {heads} 条、旧式 `**N.**` {legacy} 条（应为 40 / 0）")
+        n += 1
+    return n
+
+
 def main():
     strict = "--strict" in sys.argv
     kps = collect_kps()
@@ -284,10 +328,13 @@ def main():
     n_tab = check_syllabus_tables()
     n_link = check_links()
     n_ref = check_kp_refs(kps)
+    check_stats()
+    n_zt = check_zhenti_format()
+    check_landing()
 
     print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
           f"projects 目录：{n_proj}　复习行：{n_rev}　主键表行：{n_tab}　"
-          f"KP 引用：{n_ref}　失效路径：{n_link}")
+          f"KP 引用：{n_ref}　失效路径：{n_link}　真题 {n_zt} 年")
     for w in warns:
         print(f"  ⚠ {w}")
     for e in errors:
