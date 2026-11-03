@@ -20,6 +20,13 @@ slerp $\cong$ 球面测地线 & 等速参数化就是测地线，不是插值技
 \noindent\textbf{落点}：\texttt{G4}--\texttt{G6}（四元数代数 / 双覆盖 / 插值）、\texttt{D8}（辛结构：等速参数下的守恒量）
 %==============================================================
 
+\noindent\small\textbf{这里默认你已经会}：向量内积、范数与归一化，会算 $\arccos\langle p,q\rangle$；
+解 $2\times2$ 线性方程组；分部积分，以及「约束下取驻值」（Lagrange 乘子的思想）；
+会解 $\ddot x=-x$ 这种简谐振子。\\
+\textbf{不要求会}：微分几何、李群 —— Christoffel 符号、Jacobi 方程、holonomy
+在文中只是点名，不参与本篇任何一步推导。\normalsize
+\smallskip
+
 本篇的目标不是讲清 slerp 怎么实现，而是把它放回几何：
 \textbf{slerp 不是插值技巧，它是球面测地线的等速参数化}。
 一旦看清这一点，大圆、指数映射、单参数子群、对极奇点会同时到位。
