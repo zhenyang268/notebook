@@ -29,7 +29,7 @@
 - §1 总纲与**两仓三分支关系**（先看这个，别再踩同一个坑）
 - §2 设计理念（三支柱 + 分布式 KV 三层分解）—— 全部 lab 共用的底座
 - §3 Lab2 复盘（对照 master 版真实代码，含 **2D 快照**与锁专题）
-- §4–6 Lab1 / **Lab3（已实现）** / **Lab4（复制版起步）**
+- §4–6 Lab1 / **Lab3（已有实现）** / **Lab4（复制版起步）**
 - §7 **C++ craft 重写线**（全部重写：它已经是个能跑的原型，不再是骨架）
 - §8–10 408 对接 / 动手顺序与判据 / 检查清单
 
@@ -61,9 +61,9 @@
 | Lab1 MapReduce | **未做**：`mr/coordinator.go` 70 行全 `// Your code here`（`main/` 的 wc.so / mr-out-0 是 `mrsequential` 顺序版产物） | 实读 |
 | Lab2 2A 选举 | 完成 | 实读 + 测试通过 |
 | Lab2 2B 复制 | 完成 | 实读 + 测试通过 |
-| Lab2 2C 持久化 | 完成 | 实读 |
-| **Lab2 2D 快照** | **完成**（`lastSnapshotIndex/Term` 持久化 + `CondInstallSnapshot` + `Snapshot` + `InstallSnapshot` RPC + leader 侧转快照） | 实读 raft.go:208-269 / 665-729 / 758 |
-| **Lab3 kvraft** | **已实现**（`Op` 含 OpType/Key/Value/ClientId/SeqNum；`db/seqMap/resultMap` 三表；apply 循环 + snapshot 编解码） | 实读 server.go 284 行 |
+| Lab2 2C 持久化 | 已有实现 | 实读 |
+| **Lab2 2D 快照** | **已有实现**（`lastSnapshotIndex/Term` 持久化 + `CondInstallSnapshot` + `Snapshot` + `InstallSnapshot` RPC + leader 侧转快照） | 实读 raft.go:208-269 / 665-729 / 758 |
+| **Lab3 kvraft** | **已有实现**（`Op` 含 OpType/Key/Value/ClientId/SeqNum；`db/seqMap/resultMap` 三表；apply 循环 + snapshot 编解码） | 实读 server.go 284 行 |
 | Lab4 shardkv | **kvraft 完整复制版**（补 `resultMap`/500ms 超时/入口缓存，并顺手修好 `isSuccess :=` 与 `LogLenth` 单位错误），但**仍无任何分片逻辑**，且编译不通过：`shardkv/common.go` 的 `GetArgs/PutAppendArgs` 缺 `ClientId/SeqNum` 字段、包内没有 `DPrintf` | 实读 server.go 282 行 + `go build ./shardkv/` 实测 |
 | 其它产物 | `raft/raft_diagram.pdf`（47 KB，你自己画的架构图，在仓里） | stat |
 
@@ -108,9 +108,9 @@ git@gitee.com:we_we_we/raft.git
 ### 1.5 关键路径（最少白费）
 
 ```
-① 读 master 版 2D 快照（§3.4，2h）        ← 已完成，属于"理解自己写过什么"
+① 读 master 版 2D 快照（§3.4，2h）        ← 复核点，属于"理解已写过的代码"
         │
-② 读 kvraft（§5，2h）→ 找那三个缺陷        ← 已实现，属于"审查自己写过什么"
+② 读 kvraft（§5，2h）→ 找那三个缺陷        ← 复核点，属于"审查已写过的代码"
         │
 ③ C++ craft（§7，4-6h）姿态二选一：
    ├─ 轻：读 465 行 + 对照表，理解 Go→C++ 的并发模型迁移（推荐，4h）
@@ -119,7 +119,7 @@ git@gitee.com:we_we_we/raft.git
 ④ Lab1 MR（4-6h）/ Lab4 shardkv（15h+）    ← 冲刺期不建议
 ```
 
-理由：你已经把 Go 侧 Lab2（含 2D）+ Lab3 写完、C++ 侧写出可用原型——**剩下的价值在「审查」而不在「续写」**。审查能同时喂 408（锁与并发）+ 面试（真实的权衡案例），续写只喂工程。
+理由：Go 侧 Lab2（含 2D）与 Lab3 在仓里已有实现、C++ 侧已有可用原型——**剩下的价值在「审查」而不在「续写」**。审查能同时喂 408（锁与并发）+ 面试（真实的权衡案例），续写只喂工程。
 
 ---
 
@@ -250,7 +250,7 @@ if args.PrevLogIndex < rf.lastSnapshotIndex ||
 
 `votedFor` 必须持久化是「崩溃恢复」形态里最致命的一条：忘了投过谁 → 同 term 投两票 → 双主。
 
-### 3.4 2D 快照 ★（v2 新增：你已完成，这里是审查版）
+### 3.4 2D 快照 ★（v2 新增：代码侧已有实现，这里是审查版）
 
 **为什么需要**：日志无限增长 → 重启回放越来越慢、磁盘爆。快照把「状态本身」存盘，丢弃之前的日志。**日志从「只增」变成「可丢头部」**——2D 全部复杂度来自这一句。
 
@@ -337,7 +337,7 @@ if rf.role != Leader { return }    // 回锁后重验：世界可能变了
 
 ---
 
-## 5 Lab3 kvraft（已实现 · 审查版）
+## 5 Lab3 kvraft（已有实现 · 审查版）
 
 > 实读 `src/kvraft/server.go`（284 行）+ `client.go`（66 行）。**你写完了，且主体思路正确**，下面先讲结构，再讲三处该改的地方。
 

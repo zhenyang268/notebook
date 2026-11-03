@@ -1,6 +1,23 @@
 %==============================================================
 \section{BR1. 从四元数 slerp 到大圆测地线}
 \label{sec:br1}
+
+\begin{center}
+\small
+\begin{tabular}{L{3.4cm}L{10.4cm}}
+\toprule
+\textbf{本篇 $\cong$} & \textbf{一句话} \\
+\midrule
+slerp $\cong$ 球面测地线 & 等速参数化就是测地线，不是插值技巧 \\
+指数映射 $\cong$ 单参数子群 & $\exp(tv)$ 是 $v$ 生成的流 \\
+四元数乘 $\cong$ $S^3$ 的群结构 & 单位四元数是 $SO(3)$ 的双重覆盖 \\
+大圆 $\cong$ 等距浸入 & 球面上「直」的曲线 \\
+对极奇点 $\cong$ 指数映射非单射 & $q$ 与 $-q$ 是同一旋转，插值方向不唯一 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{落点}：\texttt{G4}--\texttt{G6}（四元数代数 / 双覆盖 / 插值）、\texttt{D8}（辛结构：等速参数下的守恒量）
 %==============================================================
 
 本篇的目标不是讲清 slerp 怎么实现，而是把它放回几何：

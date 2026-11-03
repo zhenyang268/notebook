@@ -170,6 +170,37 @@ def check_projects():
         for dead in ("QUICK.md", "DESIGN.md"):
             if (sub / dead).exists():
                 err(f"[projects] {sub.name}/ 仍有已废除的 {dead}")
+        # OUTLINE 五段固定（2026-11-04 加：eng/latent-issues 曾缺「四、不做什么」且章节大纲被截断）
+        o = sub / "OUTLINE.md"
+        if o.exists():
+            ot = o.read_text(encoding="utf-8")
+            for sec in ("## 一、", "## 二、", "## 三、", "## 四、", "## 五、面试怎么讲"):
+                if sec not in ot:
+                    err(f"[projects] {sub.name}/OUTLINE.md 缺段落「{sec}」")
+            # 章节标题不许以标点结尾（截断痕迹）
+            for m in re.finditer(r"^### (.+[、，,：:；;])$", ot, re.M):
+                err(f"[projects] {sub.name}/OUTLINE.md 章节标题疑似被截断：{m.group(1)[:24]}")
+    return n
+
+
+def check_projects_kp():
+    """工程线对考点只做**单向引用**（只写 KP 号与考点名），所以引用的号必须真实存在。
+
+    反向不检查：`kaoyan/` 里不应出现任何项目名（本轮 grep 结果为 0）。
+    """
+    d = ROOT.parent / "projects"
+    if not d.exists():
+        return 0
+    kps = set(re.findall(r"`((?:408|M1)-[A-Z]{2,3}-[0-9]{2,8})`",
+                         "".join(p.read_text(encoding="utf-8")
+                                 for p in (ROOT / "syllabus").glob("*.md"))))
+    n = bad = 0
+    for p in d.rglob("*.md"):
+        for m in re.finditer(r"`((?:408|M1)-[A-Z]{2,3}-[0-9]{2,8})`", p.read_text(encoding="utf-8")):
+            n += 1
+            if m.group(1) not in kps:
+                bad += 1
+                err(f"[projects] KP 不存在：{p.relative_to(d)} -> {m.group(1)}")
     return n
 
 
@@ -323,6 +354,7 @@ def main():
     n_exam = check_exam(kps)
     n_drill = check_drill(kps)
     n_proj = check_projects()
+    check_projects_kp()
     n_quick = check_quick()
     n_rev = check_reviews(kps)
     n_tab = check_syllabus_tables()

@@ -11,7 +11,8 @@ notebook/
 │   ├── diffrential/    专题一：微分方程
 │   ├── li/             专题二：李群
 │   ├── survey/         专题四（独立册）：主仓数值库的数学镜像，97 条 + verify.py
-│   └── bridges/        专题三：跨篇串讲（按 S1–S6 结构动作分篇，含 NOW.md 覆盖矩阵）
+│   ├── bridges/        专题三：跨篇串讲（按 S1–S6 结构动作分篇，含 NOW.md 覆盖矩阵）
+│   └── STRUCTURE.md    结构台账（篇目 / 入口 / 产物 / 已知缺口 / 编译验收口径；不记进度）
 ├── kaoyan/        ← 11408 考研体系（Markdown）
 │   ├── syllabus/       L0 考纲（考点 + 档位 + 真题落点 + 一课位置，唯一坐标系）
 │   ├── quick/          L1 一口气讲完一科（9 份三合一：考纲表 + 概括版 + 口语版）
@@ -32,6 +33,7 @@ notebook/
 │   cg/ 分组 1+5：rasterizer（画出来） raytrace（再画一遍） geometry-anim（顶点从哪来）
 │                 engine（一帧怎么组织） game（手感与联机）
 │   单列 6（不硬放）：csapp 6824 cs149 database ai discrete-math
+│   PLAN.md ← 目录级路线与优先级（初试前冻结 / 初试后三支线）
 └── HANDOFF/       ← 交接包：规范、任务 prompt、派发器、验收脚本
 ```
 
@@ -59,7 +61,8 @@ notebook/
 ## 各自规约
 
 - `kaoyan/` 的归档规约、KP 命名、双线隔离铁律 → `kaoyan/AGENTS.md`（**真源，本文不复述**）
-- `math/` 的公式编号前缀、注释三段式 → 父仓 `AGENTS.md` §六
+- `math/` 的公式编号与注释规约 → **没有全局规约**：`AGENTS.md` §六 是 `graphics/src/**/*.hpp` 头文件专属；
+  `math/` 全部公式不编号（0 个 `\tag`/`equation`/`label{eq}`），写作规约只在各子册自己的 `CONTRACT.md` / `README.md`
 - `math/survey/` 的条目格式、状态词白名单、更新触发 T1–T5 → `math/survey/CONTRACT.md`（验收 `python3 math/survey/verify.py`）
 - `math/bridges/` 的骨架 S1–S6、≅ 规则、覆盖矩阵与占位规则 → `math/bridges/README.md`
 - `projects/` 的规约（两件套、五段 OUTLINE、面试章节）→ `projects/README.md`

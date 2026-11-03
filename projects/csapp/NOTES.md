@@ -25,24 +25,24 @@
 
 我逐文件读了本地仓，**结论与"我之前做过这个项目"的预期不符**，如实报告：
 
-| 目录 | 真实状态 | 证据 |
+| 目录 | 就绪度（截至 2026-11-04） | 证据（仓库内可查） |
 |---|---|---|
-| `bomb/` | ✅ **唯一有真实产出的**：`bomb/solutions`（94 行中文笔记，含 `(gdb) x/s 0x402400` 反汇编分析，覆盖 phase1–6 + secret phase） | 文件存在且含你的 gdb 分析 |
-| `datalab/bits.c` | ⬜ 官方骨架：13 个 puzzle 全部是 `return 2;` / `return 0;` 占位 | `grep return` 全部是占位值 |
-| `cachelab/csim.c` | ⬜ 7 行空壳，只有 `printSummary(0,0,0)` | 全文 7 行 |
-| `cachelab/trans.c` | ⬜ `transpose_submit` 函数体为空 | 函数体空 |
-| `malloclab/mm.c` | ⬜ 官方 `mm-naive.c` 骨架（110 行，brk 递增式，无 header/footer、不合并） | 文件头注释即 naive 版说明 |
-| `shlab/tsh.c` | ⬜ 官方 starter（509 行，注释齐全，无 `fork`/`execve`/`waitpid` 实现） | grep 无 fork/execve/waitpid |
-| `proxylab/proxy.c` | ⬜ 14 行空壳，只打印 UA 头 | 全文 14 行 |
-| `archlab/` | ⬜ `sim.tar` **未解压**，只有 `archlab.pdf` + `simguide.pdf` | `ls archlab/sim` 不存在 |
-| `target1/` | 🟡 attacklab 靶子齐全（`ctarget` `rtarget` `farm.c` `hex2raw` `cookie.txt = 0x59b997fa`），但**没有答案文件** | 有靶子无解答 |
+| `bomb/` | **有真实产出**：`bomb/solutions`（94 行中文笔记，含 `(gdb) x/s 0x402400` 反汇编分析，覆盖 phase1–6 + secret phase） | `bomb/solutions` 含 gdb 反汇编分析 |
+| `datalab/bits.c` | 空壳·官方骨架：13 个 puzzle 全部是 `return 2;` / `return 0;` 占位 | `grep return` 全部是占位值 |
+| `cachelab/csim.c` | 空壳·7 行，只有 `printSummary(0,0,0)` | 全文 7 行 |
+| `cachelab/trans.c` | 空壳·`transpose_submit` 函数体为空 | 函数体空 |
+| `malloclab/mm.c` | 空壳·官方 `mm-naive.c` 骨架（110 行，brk 递增式，无 header/footer、不合并） | 文件头注释即 naive 版说明 |
+| `shlab/tsh.c` | 空壳·官方 starter（509 行，注释齐全，无 `fork`/`execve`/`waitpid` 实现） | grep 无 fork/execve/waitpid |
+| `proxylab/proxy.c` | 空壳·14 行，只打印 UA 头 | 全文 14 行 |
+| `archlab/` | 空壳·`sim.tar` **未解压**，只有 `archlab.pdf` + `simguide.pdf` | `ls archlab/sim` 不存在 |
+| `target1/` | 半·attacklab 靶子齐全（`ctarget` `rtarget` `farm.c` `hex2raw` `cookie.txt = 0x59b997fa`），但**没有答案文件** | 有靶子无解答 |
 
 **两个环境硬事实**（会直接影响你能不能跑）：
 
 1. **所有参考二进制都是 Linux x86-64 ELF**：`datalab/dlc`、`cachelab/csim-ref`、`cachelab/test-csim`、`shlab/tshref`、`bomb/bomb`、`target1/ctarget` 全部是 ELF。本机是 macOS（darwin），**这些跑不了**。所以 CSAPP 这条线必须有 Linux 环境（Docker / 虚拟机 / 远程主机），macOS 只能做"读代码 + 写代码 + 静态分析"。
 2. **`malloclab/` 缺 trace 文件**：本地只有 `short1-bal.rep` / `short2-bal.rep` 两个迷你 trace，`traces/` 与 `mdriver` 二进制都没有 —— 官方 handout 里的 `traces/` 需要从 `csapp.cs.cmu.edu/3e/malloclab-handout.tar` 补。
 
-> 所以这次"复习"的准确定位是：**用你已有的 bomb lab 分析笔记当锚点，把其余七个 lab 按 408 收益重新排序，从零做起**。下面的路线就是按这个定位排的。
+> 所以这次"复习"的准确定位是：**用仓里已有的 bomb lab 分析笔记当锚点，把其余七个 lab 按 408 收益重新排序，从零做起**。下面的路线就是按这个定位排的。
 
 ---
 
@@ -263,7 +263,7 @@ attacklab 用五个 phase 演示了一次完整的**防御—攻击螺旋**：
 
 ### L2 · bomblab（Ch3）
 
-- **状态**：✅ 你已做完，`bomb/solutions`（94 行）覆盖 phase1–6 + secret phase。
+- **就绪度（截至 2026-11-04）**：`bomb/solutions`（94 行）已覆盖 phase1–6 + secret phase，不重做。
 - **正确复习姿势（2 h，不重做）**：拿你的笔记反推"每关考的是哪个机器级知识点"，列成下面这张对照表，然后**只复习你不熟的那几个知识点**：
 
 | Phase | 你的答案 | 背后考的机器级知识点 |
@@ -668,7 +668,7 @@ make btest          # 或者 make
 
 ### 7.2 bomblab · 逐层设计（Ch3，复习式）
 
-> 你已经做完了（`bomb/solutions`，6 phase + secret）。这一节**不是让你重做**，而是把那 94 行笔记里的每个答案，反推成"它背后考的是哪个机器级知识点"，再按 408 的口径过一遍。
+> `bomb/solutions` 已覆盖 6 phase + secret（截至 2026-11-04）。这一节**不是重做**，而是把那 94 行笔记里的每个答案，反推成"它背后考的是哪个机器级知识点"，再按 408 的口径过一遍。
 
 #### 7.2.1 通用拆解流程（这套动作比某个炸弹的答案值钱）
 

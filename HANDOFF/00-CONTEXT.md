@@ -6,7 +6,7 @@
 
 ```
 notebook/
-├── math/       LaTeX 数学笔记（141 页 PDF，含四篇跨篇串讲）
+├── math/       LaTeX 数学笔记（116 页 PDF，含跨篇串讲 br0–br4 五篇）
 ├── kaoyan/     考研笔记（408 / 数学一 / 英语一 / 政治）
 └── projects/   工程笔记（5 个与考纲无关的项目）
 ```
