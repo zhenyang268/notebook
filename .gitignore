@@ -27,6 +27,7 @@ __pycache__/
 
 # 施工目录
 .gen2/
-math/survey/*.pdf
-math/main.pdf
-math/bridges/main.pdf
+# pdf进仓
+# math/survey/*.pdf
+# math/main.pdf
+# math/bridges/main.pdf

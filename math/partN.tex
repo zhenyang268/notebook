@@ -1,5 +1,15 @@
 \section{N. 核心公式速查表}
 
+\noindent\textbf{这一节是索引，不是第二遍讲解。}每条只给结论，推导在对应篇里——
+\begin{itemize}[leftmargin=1.4em,itemsep=0pt]
+\item 分析类公式 → \textbf{A}（分析学）、\textbf{C}（概率与测度）；
+\item 代数与几何 → \textbf{B}；经典力学 → \textbf{D}；场论 / 量子 → \textbf{E}、\textbf{F}；
+\item 数值与图形 → \textbf{G}、\textbf{H}、\textbf{I}、\textbf{J}；
+\item 微分方程 9 层 → \textbf{ODE-1}--\textbf{ODE-10}；李群与李代数 → \textbf{Lie-1}--\textbf{Lie-8}。
+\end{itemize}
+本节内部的「第一层 / 第二层 / 第三层 / 第四层」指\textbf{重要性分层}（承重墙 / 支撑 / 工具 / 延伸），
+与 ODE 那条线的「第 n 层」不是一回事，别混。
+
 \subsection{分析}
 \[
 \int_{\partial M} \omega = \int_M d\omega \qquad \text{（广义 Stokes）}
@@ -115,8 +125,8 @@ H2--H4 渲染方程 & Kajiya 1986 & \emph{The Rendering Equation}（11 页，必
 H4 MIS & Veach 1997 博士论文 & Ch.9（MIS 的出处） \\
 I1--I4、I9 流体力学 & Bridson \emph{Fluid Simulation for CG} & 全书（偏实现） \\
 K1--K4 路径积分、L1--L8 QFT & Peskin \& Schroeder & Ch.9（路径积分）、Ch.4--7（Feynman 规则） \\
-de1--de4 微分方程专题 & 丁同仁《常微分方程教程》 + Evans \emph{PDE} & 丁 Ch.1--4；Evans Ch.2（分类）、Ch.5--6（弱解） \\
-lie1--lie3 李群专题 & Hall & 全书（比 B1 深一档） \\
+ODE-1--10 微分方程线（ode1--ode4） & 丁同仁《常微分方程教程》 + Evans \emph{PDE} & 丁 Ch.1--4；Evans Ch.2（分类）、Ch.5--6（弱解） \\
+Lie-1--8 李群线（lie1--lie3） & Hall & 全书（比 B1 深一档） \\
 M6 离散外微分 & Crane 的 DDG 课程笔记 & 前 5 讲 \\
 M7 变分积分器 & Hairer--Lubich--Wanner \emph{GNI} & Part I Ch.III（辛积分器） \\
 P 计算必修（P1--P9） & Graham--Knuth--Patashnik \emph{Concrete Mathematics} + Hardy--Littlewood--Pólya \emph{Inequalities} & CM Ch.2--7（求和与递推）；Ineq. 全书（不等式） \\
@@ -206,9 +216,9 @@ Q 拓扑学（除 Q5） & Q7 商空间是网格粘合与切割图的语言（球
 Q9 同调与 Euler 特征是网格修复与亏格判定的依据。 \\
 R 复分析 & 二维 PDE（位势、调和函数）与 CG 共形参数化的共同基础；
 但三维以上用不上（Riemann 映射定理无高维对应），所以停在支撑层。 \\
-de1 第三层 & 特殊函数与级数（Bessel、Legendre、幂级数解法）是分离变量法的核心，
-PDE 里会一次次回来。（de1 第一、二层见第四层。） \\
-lie1--lie3 & 对称性方法的完整版；lie3 的「在 CG 中的应用」（旋转、球谐、等变神经网络）
+ODE-3（ode1） & 特殊函数与级数（Bessel、Legendre、幂级数解法）是分离变量法的核心，
+PDE 里会一次次回来。（第 1--2 层见 ODE-1、ODE-2，第 4 层见 ODE-4。） \\
+Lie-1--8 & 对称性方法的完整版；\texttt{lie3} 的「在 CG 中的应用」（旋转、球谐、等变神经网络）
 对你的工程线是直接可用的。 \\
 \bottomrule
 \end{tabular}
@@ -240,8 +250,8 @@ O 学习路径 $+$ §15.5 & 导航本身：卡在某节时先查教材对照表�
 \toprule
 \textbf{章} & \textbf{为什么现在不投入} \\
 \midrule
-de1 第一--二层 & 考研/高数级 ODE 套路与系统理论——你的底子够用，需要时回查即可。 \\
-de2 第四层 & 李群方法解 ODE 很漂亮，但用得少；知道「对称性怎么找」就够。 \\
+ODE-1--2 & 考研/高数级 ODE 套路与系统理论——你的底子够用，需要时回查即可。 \\
+ODE-4 & 李群方法解 ODE 很漂亮，但用得少；知道「对称性怎么找」就够。 \\
 C10 Itô 微积分 & 除非要做\textbf{随机流体/随机 NS}，先记住一句：
 「SDE 与抛物型 PDE 是同一件事的两种语言」。 \\
 K 路径积分专题 & 与渲染的逐项类比极漂亮（K5），但不是工程必需。 \\

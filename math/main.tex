@@ -26,12 +26,13 @@
 
 \begin{document}
 \maketitle
+\setcounter{tocdepth}{2}   % 目录只到 subsection；想看三级小节改成 3
 \tableofcontents
 \newpage
 
 \input{A_analysis}
 \input{B_algebra}
-\input{C_partial}
+\input{C_prob}
 \input{D_classic}
 \input{E_Field}
 \input{F_quantum}
@@ -48,29 +49,28 @@
 \input{Q_topology}
 \input{R_complex}
 
+% ---------------------------------------------------------------------------
+% 2026-11-04 合并：原「专题一：微分方程」「专题二：李群」取消分册与 \part 分割，
+%   七个文件从 diffrential/ 与 li/ 搬到根目录（ode1–4、lie1–3），
+%   与 A–R 同一层级连续排。理由：它们不是「回头贯通」的旁支，而是本册主线的一部分，
+%   独立成 \part 只会让目录多一层、让交叉引用断在册边界上。
+%
+% 编号：A–R 是原有字母序列；新增部分用语义前缀，按出现顺序连续编号——
+%   ODE-1…ODE-10（第 1–9 层 + 总结）、Lie-1…Lie-8（李群/李代数/拓扑/三个应用/总结）。
+%   层号与文件名不一一对应：ode1 收第 1–3 层、ode2 收第 4–6 层、ode3 收第 7 层、ode4 收第 8–9 层。
+%
+% 专题三（跨篇串讲）仍为**独立册**：bridges/main.tex -> bridges/main.pdf。
+%   它是「A ≅ B」的对照表，性质是索引而非正文，故仍单册；survey/ 同理。
+% ---------------------------------------------------------------------------
 \clearpage
-\part{专题一：微分方程——从考研套路到现代理论}
-\input{diffrential/de1}
-\input{diffrential/de2}
-\input{diffrential/de3}
-\input{diffrential/de4}
+\input{ode1}
+\input{ode2}
+\input{ode3}
+\input{ode4}
 
 \clearpage
-\part{专题二：李群、李代数与拓扑}
-\input{li/lie1}
-\input{li/lie2}
-\input{li/lie3}
-
-% ---------------------------------------------------------------------------
-% 专题三（跨篇串讲）已于 2026-11-02 拆为**独立册**：bridges/main.tex -> bridges/main.pdf
-%
-% 为什么只拆专题三、不拆专题一/二:
-%   专题一（微分方程）、专题二（李群）是**新知识**，属于本册主线；
-%   专题三是「回头贯通」的连接（见 bridges/README.md 第 3 行），
-%   且会随学习进度持续追加，单册便于增量维护与单独打印。
-%
-% 拆分前提已验证：四篇不含 \ref/\eqref，也没有 equation/align/\tag，
-%   公式全为无编号 \[ \]，独立编译不会出现 ?? 与编号漂移。
-% ---------------------------------------------------------------------------
+\input{lie1}
+\input{lie2}
+\input{lie3}
 
 \end{document}

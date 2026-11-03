@@ -7,11 +7,10 @@
 ```text
 notebook/
 ├── math/          ← LaTeX 数学笔记（自学数学基础，非应试）
-│   ├── main.tex        xelatex 单一主文档，\input 聚合 A_…R_ 各篇
-│   ├── diffrential/    专题一：微分方程
-│   ├── li/             专题二：李群
-│   ├── survey/         专题四（独立册）：主仓数值库的数学镜像，97 条 + verify.py
-│   ├── bridges/        专题三：跨篇串讲（按 S1–S6 结构动作分篇，含 NOW.md 覆盖矩阵）
+│   ├── main.tex        xelatex 单一主文档，聚合 24 个 .tex（A–R 17 + partN 速查表 + ode1–4 + lie1–3）
+│   │                   2026-11-04 合并：原 diffrential/ 与 li/ 已搬回根目录，去掉 \part 分割
+│   ├── survey/         数值库数学串讲（独立册）：主仓数值库的数学镜像，97 条 + verify.py
+│   ├── bridges/        跨篇串讲（独立册）：按 S1–S6 结构动作分篇，含 NOW.md 覆盖矩阵
 │   └── STRUCTURE.md    结构台账（篇目 / 入口 / 产物 / 已知缺口 / 编译验收口径；不记进度）
 ├── kaoyan/        ← 11408 考研体系（Markdown）
 │   ├── syllabus/       L0 考纲（考点 + 档位 + 真题落点 + 一课位置，唯一坐标系）
