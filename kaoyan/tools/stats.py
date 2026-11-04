@@ -74,7 +74,8 @@ def collect():
 
     # —— drill
     dr = mds(ROOT / "drill")
-    lines_ = [p for p in dr if p.name not in ("README.md", "DESIGN.md")]
+    lines_ = [p for p in dr if p.name not in ("README.md", "DESIGN.md", "LOG.md")
+              and p.parent.name in ("408", "math1")]
     s["drill_lines"] = len(lines_)
     s["drill_lines_408"] = len([p for p in lines_ if p.parent.name == "408"])
     s["drill_lines_math1"] = len([p for p in lines_ if p.parent.name == "math1"])
@@ -84,14 +85,34 @@ def collect():
     s["drill_questions"] = s["drill_L1"] + s["drill_L2"] + s["drill_L3"]
     s["drill_anchors"] = body.count("**结果锚点**")
 
-    # —— words / reviews / projects
-    s["words_files"] = len(mds(ROOT / "words"))
-    s["reviews_rows"] = len(re.findall(r"^\|\s*`[A-Z0-9]", (ROOT / "reviews" / "REVIEWS.md").read_text(encoding="utf-8"), re.M))
+    # —— 计算必备清单（drill/calc/，不分难度）
+    calc = sorted((ROOT / "drill" / "calc").glob("*.md")) if (ROOT / "drill" / "calc").exists() else []
+    s["calc_files"] = len(calc)
+    s["calc_items"] = sum(len(re.findall(r"^### \d+ ", p.read_text(encoding="utf-8"), re.M)) for p in calc)
+
+    # —— 掌握度（2026-11-04 起取代 reviews/：档位写在 syllabus 主键表最后一列）
+    rows = []
+    for f in ("408.md", "math1.md"):
+        p = ROOT / "syllabus" / f
+        if not p.exists():
+            continue
+        for ln in p.read_text(encoding="utf-8").split("\n"):
+            if re.match(r"^\| `(?:408|M1)-", ln):
+                cells = [c.strip() for c in ln.strip().strip("|").split("|")]
+                rows.append((f, cells[-1] if len(cells) >= 7 else "?"))
+    for t in ("M0", "M1", "M2", "M3", "M4"):
+        s[f"mastery_{t}"] = sum(1 for _, x in rows if x == t)
+        s[f"mastery_{t}_408"] = sum(1 for f, x in rows if x == t and f == "408.md")
+        s[f"mastery_{t}_math"] = sum(1 for f, x in rows if x == t and f == "math1.md")
+    s["mastery_done"] = s["mastery_M3"] + s["mastery_M4"]
+    s["mastery_rows"] = len(rows)
+
+    # —— projects
     pj = REPO / "projects"
     s["projects"] = len([d for d in pj.iterdir() if d.is_dir()]) if pj.exists() else 0
 
     # —— 分层行数（只统计正文，便于看"哪层虚"）
-    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "quick", "note", "exam", "drill", "words")}
+    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "quick", "note", "exam", "drill")}
     return s
 
 
@@ -116,11 +137,9 @@ def render(s):
 |---|---|---|
 | 408 考点（KP） | **{s['kp']['408']}** | `syllabus/408.md` 主键表行数 |
 | 数一考点（KP） | **{s['kp']['math1']}** | `syllabus/math1.md` |
-| 英一 / 政治条目 | {s['kp']['english1']} / {s['kp']['politics']} | 非 KP 主键，按题型/模块计 |
-| 主键 KP（408 + 数一） | **{s['kp_main']}** | 与 `note/` 文件数应相等 |
-| KP 合计 | **{s['kp_total']}** | 再加英一 {s['kp']['english1']} / 政治 {s['kp']['politics']} |
+| 主键 KP 合计 | **{s['kp_main']}** | 与 `note/` 文件数应相等（英语政治已移出主线） |
 | `note/` 考点文件 | **{s['note_files']}** | 一考点一文件（粒度锁） |
-| `exam/` 章文件 | **{s['exam_chapters']}** | 一章一文件（不含 `真题/`、`真题专项/`） |
+| `exam/` 章讲义 | **{s['exam_chapters']}** | 2026-11-04 起归零：讲义正文归档，`exam/` 只留真题 |
 
 ## 二、真题库
 
@@ -138,16 +157,28 @@ def render(s):
 | 题型线 | **{s['drill_lines']}** | 408 {s['drill_lines_408']} 条（题号 41–47）+ 数一 {s['drill_lines_math1']} 条 |
 | 题目数 | **{s['drill_questions']}** | L1 {s['drill_L1']} / L2 {s['drill_L2']} / L3 {s['drill_L3']} |
 | 结果锚点 | {s['drill_anchors']} | 应等于题目数（一题一条） |
+| 计算必备清单 | **{s['calc_items']}** 项 | `drill/calc/`（{s['calc_files']} 份，不分难度，做一遍就会） |
 
-## 四、其它
+## 四、掌握度（`syllabus` 主键表最后一列，不再有 `reviews/`）
+
+| 档 | 408 | 数一 | 合计 |
+|---|---|---|---|
+| M0 未读 | {s['mastery_M0_408']} | {s['mastery_M0_math']} | **{s['mastery_M0']}** |
+| M1 能认 | {s['mastery_M1_408']} | {s['mastery_M1_math']} | {s['mastery_M1']} |
+| M2 能默 | {s['mastery_M2_408']} | {s['mastery_M2_math']} | {s['mastery_M2']} |
+| M3 限时对 | {s['mastery_M3_408']} | {s['mastery_M3_math']} | {s['mastery_M3']} |
+| M4 步骤满 | {s['mastery_M4_408']} | {s['mastery_M4_math']} | {s['mastery_M4']} |
+| **M3 以上** | — | — | **{s['mastery_done']} / {s['mastery_rows']}** |
+
+> 记账命令：`python3 tools/mastery.py --set <KP> M3`；总览：`python3 tools/mastery.py`。
+
+## 五、其它
 
 | 项 | 数量 | 说明 |
 |---|---|---|
-| `words/` 文件 | {s['words_files']} | 30 主题组 + 补全表 |
-| `reviews/` 行 | {s['reviews_rows']} | 一个 KP 一行 |
 | `projects/` 项目目录 | {s['projects']} | 副线，初试前冻结 |
 
-## 五、各层行数（看"哪层虚"）
+## 六、各层行数（看"哪层虚"）
 
 | 层 | 行数 |
 |---|---|
@@ -156,7 +187,6 @@ def render(s):
 | `note/` | {L['note']} |
 | `exam/` | {L['exam']} |
 | `drill/` | {L['drill']} |
-| `words/` | {L['words']} |
 """
 
 

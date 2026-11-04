@@ -100,8 +100,12 @@ DRILL_408 = ["41-树与图手算.md", "42-算法设计（手写 C 代码）.md",
              "47-子网与 TCP 计算.md"]
 DRILL_MATH = ["01-极限与一元微分.md", "02-一元积分与定积分应用.md", "03-多元微分与重积分.md",
               "04-曲线曲面积分与三大公式.md", "05-级数与微分方程.md", "06-线性代数综合.md",
-              "07-概率统计综合.md"]
-DRILL_TIERS = ("## 二、L1", "## 三、L2", "## 四、L3")
+              "07-概率统计综合.md", "08-不等式与中值证明.md"]
+
+# 2026-11-04 新口径（只做拔高）：不设 L1，每题 7 字段不变
+DRILL_NEW = {"math1/08-不等式与中值证明.md"}
+DRILL_NEW_SECS = ("## 一、", "## 二、L2", "## 三、L3", "## 四、")
+DRILL_TIERS = ("## 二、L2", "## 三、L3")
 DRILL_FIELDS = ("题干", "题眼", "卡在哪", "分步", "拿分骨架", "结果锚点", "变式")
 
 
@@ -134,10 +138,10 @@ def check_drill(kps):
             text = p.read_text(encoding="utf-8")
             if re.search(r"(?:19|20)\d{2}\s*年", text):
                 err(f"[drill] 出现四位年份（本层是原创变式题）：{sub}/{name}")
-            for seg in ("## 一、", "## 五、") + DRILL_TIERS:
+            for seg in DRILL_NEW_SECS:
                 if seg not in text:
                     err(f"[drill] 缺「{seg}」段：{sub}/{name}")
-            for tier in ("L1", "L2", "L3"):
+            for tier in ("L2", "L3"):
                 qs = re.findall(rf"^### {tier}-\d+ ", text, re.M)
                 if len(qs) < 2:
                     err(f"[drill] {tier} 少于 2 题（{len(qs)}）：{sub}/{name}")
@@ -149,6 +153,72 @@ def check_drill(kps):
             for m in re.finditer(r"`((?:408|M1)-[A-Z]{2,3}-\d{2,8})`", text):
                 if m.group(1) not in kps:
                     err(f"[drill] KP 不在 syllabus 中：{sub}/{name} -> {m.group(1)}")
+    return n
+
+
+CALC_REQ = {"408.md": 20, "math1.md": 12}
+
+
+def check_delims():
+    """公式定界符只认 `$...$` / `$$...$$`（2026-11-04 统一：此前 drill 里有 1032 处反斜杠圆括号）。"""
+    n = 0
+    for p in ROOT.rglob("*.md"):
+        if "_archive" in p.parts or ".workbuddy" in p.parts:
+            continue
+        t = p.read_text(encoding="utf-8")
+        if re.search(r"(?<!\\)\\\(", t) or re.search(r"(?<!\\)\\\[", t):
+            err(f"[delim] 仍有 \\( 或 \\[ 定界符：{p.relative_to(ROOT)}")
+            n += 1
+    return n
+
+
+def check_calc():
+    """drill/calc/ 计算必备清单（2026-11-04 起）：不分 L1/L2/L3，只要求「每条都有算例」与条数下限。"""
+    d = ROOT / "drill" / "calc"
+    if not d.exists():
+        err("[calc] 缺 drill/calc/")
+        return 0
+    n = 0
+    for name, need in CALC_REQ.items():
+        p = d / name
+        if not p.exists():
+            err(f"[calc] 缺 {name}")
+            continue
+        text = p.read_text(encoding="utf-8")
+        ids = re.findall(r"^### (\d+) ", text, re.M)
+        if len(ids) < need:
+            err(f"[calc] {name} 条目不足（{len(ids)} < {need}）")
+        if re.search(r"^### L[123]", text, re.M):
+            err(f"[calc] {name} 不应按难度分档（发现 L1/L2/L3 标题）")
+        for body in re.split(r"^### \d+ ", text, flags=re.M)[1:]:
+            for field in ("**概念**", "**算例**", "**易混**"):
+                if field not in body:
+                    err(f"[calc] {name} 有条目缺 {field}：{body.splitlines()[0][:20]}")
+                    break
+            else:
+                continue
+            break
+        n += len(ids)
+    return n
+
+
+def check_note():
+    """note/ 一考点一文件：408 必须有「真题原题」段（或明写本考点无题）；文件名以 KP 开头。
+
+    2026-11-04 起真题按 KP 内嵌进 note（题干副本），所以「有没有真题」成为结构判据。
+    """
+    n = 0
+    for p in sorted((ROOT / "note").rglob("*.md")):
+        n += 1
+        m = re.match(r"^((?:408|M1)-[A-Z]{2,4}-\d{2,8})-", p.name)
+        if not m:
+            err(f"[note] 文件名不以 KP 开头：{p.relative_to(ROOT)}")
+            continue
+        if not m.group(1).startswith("408-"):
+            continue
+        text = p.read_text(encoding="utf-8")
+        if "## 真题原题" not in text and "无对应题目" not in text:
+            err(f"[note] 缺真题原题段（或「无对应题目」声明）：{p.relative_to(ROOT)}")
     return n
 
 
@@ -205,11 +275,15 @@ def check_projects_kp():
 
 
 QUICK_FILES = ["408-ds.md", "408-co.md", "408-os.md", "408-net.md",
-               "math-hs.md", "math-la.md", "math-ps.md", "english.md", "politics.md"]
+               "math-hs.md", "math-la.md", "math-ps.md"]
 
 
 def check_quick():
-    """quick/ 一层：九份三合一口语稿（2026-11-02 起：408 分四科、数三分三科）。"""
+    """quick/ 一层：七份（408 分四科、数一分三科）。
+
+    2026-11-04 起「第一部分 · 考纲依据」不再重复考纲表，只留指向 `syllabus/` 的指针；
+    英语与政治移出主线（归档在 `_archive/off-scope/`）。
+    """
     d = ROOT / "quick"
     if not d.exists():
         err("[quick] 缺 quick/ 目录")
@@ -230,36 +304,16 @@ def check_quick():
     return n
 
 
-def check_reviews(kps):
-    p = ROOT / "reviews" / "REVIEWS.md"
-    if not p.exists():
-        err("[reviews] 缺 REVIEWS.md")
-        return 0
-    rows = 0
-    for line in p.read_text(encoding="utf-8").split("\n"):
-        if not line.startswith("| `"):
-            continue
-        cols = [c.strip() for c in line.strip("|").split("|")]
-        if len(cols) < 8:
-            err(f"[reviews] 列数不足：{line[:60]}")
-            continue
-        rows += 1
-        kp = cols[0].strip("`")
-        if kp not in kps:
-            err(f"[reviews] KP 不在 syllabus 中：{kp}")
-        f = cols[2].strip("`")
-        if not (ROOT / "exam" / "408" / f).exists() and not list((ROOT / "exam").rglob(Path(f).name)):
-            err(f"[reviews] 指向的文件不存在：{f}")
-        if not re.search(r"R[123]\s*(待|已过)", cols[-1]):
-            err(f"[reviews] 状态写法不合规（应为 `Rn 待` / `R3 已过`）：{line[:50]}")
-    return rows
-
-
 TAGS = {"高频", "常考", "低频", "可能不考"}
+MASTERY = ("M0", "M1", "M2", "M3", "M4")
 
 
 def check_syllabus_tables():
-    """主键表必须是 6 列且标签列取值合法（LaTeX 里的 | 会吃列，这里兜住）。"""
+    """主键表必须是 7 列：6 列事实 + 「掌握」列（2026-11-04 起，取代 reviews/）。
+
+    列数错多半是 LaTeX 里出现裸 `|`，这里兜住；掌握列只认 M0–M4；
+    文件列必须指向真实文件（现在指向 `note/`，一考点一文件）。
+    """
     n = 0
     for f in ("408.md", "math1.md"):
         p = ROOT / "syllabus" / f
@@ -270,11 +324,16 @@ def check_syllabus_tables():
                 continue
             n += 1
             cells = [c.strip() for c in ln.strip().strip("|").split("|")]
-            if len(cells) != 6:
-                err(f"[table] {f}:{i} 列数 {len(cells)}（应为 6，检查 LaTeX 里的裸 |）")
+            if len(cells) != 7:
+                err(f"[table] {f}:{i} 列数 {len(cells)}（应为 7，检查 LaTeX 里的裸 |）")
                 continue
             if cells[4] not in TAGS:
                 err(f"[table] {f}:{i} 标签「{cells[4]}」不合法（应为 {'/'.join(sorted(TAGS))}）")
+            if cells[6] not in MASTERY:
+                err(f"[table] {f}:{i} 掌握列「{cells[6]}」不合法（应为 {'/'.join(MASTERY)}）")
+            tgt = cells[5].strip("`")
+            if not (ROOT / tgt).exists():
+                err(f"[table] {f}:{i} 文件列指向不存在的文件：{tgt}")
     return n
 
 
@@ -356,7 +415,9 @@ def main():
     n_proj = check_projects()
     check_projects_kp()
     n_quick = check_quick()
-    n_rev = check_reviews(kps)
+    n_calc = check_calc()
+    check_delims()
+    n_note = check_note()
     n_tab = check_syllabus_tables()
     n_link = check_links()
     n_ref = check_kp_refs(kps)
@@ -364,8 +425,8 @@ def main():
     n_zt = check_zhenti_format()
     check_landing()
 
-    print(f"syllabus KP 数：{len(kps)}　exam 文件：{n_exam}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
-          f"projects 目录：{n_proj}　复习行：{n_rev}　主键表行：{n_tab}　"
+    print(f"syllabus KP 数：{len(kps)}　exam 真题篇章：{n_exam}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
+          f"projects 目录：{n_proj}　note 文件：{n_note}　计算清单：{n_calc} 项　主键表行：{n_tab}　"
           f"KP 引用：{n_ref}　失效路径：{n_link}　真题 {n_zt} 年")
     for w in warns:
         print(f"  ⚠ {w}")
