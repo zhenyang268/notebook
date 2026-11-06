@@ -8,7 +8,7 @@ CUDA 相关的工程事故形态很固定：同一个 kernel 在 A100 上跑 3 m
 
 这项能力拦住的，是「凭直觉调参」和「只会调库」之间的那段空白：**能否用一个指标（有效带宽、achieved occupancy、stall 归因、算术强度）说明当前瓶颈，并预估下一步优化的上限**。
 
-**入口（本文的读法）**：在 CUDA 的 `cudaLaunchKernel` 配置、SIMT 调度、延迟隐藏/吞吐优先、`gridDim/blockDim/threadIdx/blockIdx` 索引、HBM/L2/shared memory/constant/register 层次、warp 分支与 `__syncthreads`/`atomicAdd` 约束下，本文把“跨卡变慢、归约非确定、GEMM/归约慢”换成可测机制账：`float4`/`ldg` 的 global memory sector 事务、shared tile array 的 32-bank 访问、`__shfl_down_sync`/`atomicAdd` 的归约顺序、register spill 到 local memory、`achieved occupancy`、`stall reason`、`memory throughput`、`arithmetic intensity` 与 roofline；换的是从调 `blockDim`、`__launch_bounds__`、`#pragma unroll`、tile size 的直觉，转为按 Nsight Compute 指标和 PTX/SASS 指令定位瓶颈。
+**入口（本文的读法）**：在 CUDA 的执行配置（`gridDim/blockDim`、SIMT 调度、`__syncthreads`）与存储层次（HBM/L2/shared/constant/register）约束下，把「变慢」拆成可测的账：sector 事务数、32-bank 冲突、register spill、`achieved occupancy`、`stall reason`、`memory throughput`。换的是 kernel 写法（分块、向量化、异步拷贝），不换的是「每个百分比都要归因到一条计数」这条口径。
 
 **不换的是什么**：全程不变的是 CUDA 的 SM 资源账本与语义账本——warp scheduler 发射、register file 配额、shared memory 32 bank、global memory sector 事务、`__syncthreads` 全 block 屏障、atomic 内存序与浮点加法不满足结合律；因此看到差异先问 Nsight Compute 的 `achieved occupancy`、`stall reason`、`global memory coalescing efficiency`、`shared bank conflict`、`local memory spill`、`arithmetic intensity` 是否变化，并按“occupancy 未变而 `long scoreboard` 涨查 global load 合并/延迟，`barrier` 涨查 `__syncthreads`/warp divergence，`bank conflict` 涨查 shared 索引 stride，结果非确定查 `atomicAdd`/`__shfl_down_sync` 顺序”决定改 `blockDim`、`__launch_bounds__`、`float4`/`ldg`、shared tile 或 atomic 顺序。
 

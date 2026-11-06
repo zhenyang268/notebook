@@ -6,7 +6,7 @@
 
 验收长这样：换一台同架构机器，别人拿同样配置能跑出落在你误差棒内的数字；任取表里一个加速比，你能指着代码和硬件计数器说清它是怎么来的；把 N 故意调小到全塞进 L1，曲线形状必须按预期变化。三条里缺一条，数字就只是数字。
 
-**入口（本文的读法）**：在固定 workload（向量加、点积、归约、矩阵乘、stencil）与可复现配置（N、后端、线程数、重复次数、sched_setaffinity 绑核）约束下，本文把每个加速比拆成可计数事件：clock_gettime/CLOCK_MONOTONIC 串行基线、FLOP/byte 对 L1/L2/DRAM 的 roofline、AVX/NEON 寄存器与 vmovups/vfmadd/ld1/fmla 指令、pthread 手工分区与 OpenMP parallel for/reduction、MESI/MOESI cache line 伪共享、强扩展固定 N 与弱扩展每线程 N、cudaMemcpy/kernel launch/stream 端到端开销、perf_event_open counters 到源码行/指令的归因报告。本文换的是配置项（N、后端、线程数、重复次数、sched_setaffinity 绑核）与实现路径（标量循环、SIMD 寄存器指令、pthread/OpenMP 任务、GPU kernel 启动与拷贝队列），不换 workload 的访问步长、边界条件、输入数组、clock_gettime/CLOCK_MONOTONIC 计时函数与 perf_event_open 事件集。
+**入口（本文的读法）**：在固定 workload 与可复现配置（N、后端、线程数、绑核）下，把每个加速比拆成可计数事件：串行基线的 `clock_gettime`、roofline 的 FLOP/byte、`vmovups`/`vfmadd` 指令、伪共享的 cache line、强/弱扩展斜率、`perf_event_open` 的归因。换的是配置项与实现路径，不换的是「加速比必须能被事件计数器解释」这条要求。
 
 **不换的是什么**：全程不变的是同一组 workload 的元素类型 float/int、访问步长与边界条件、随机种子与 fill 函数，同一 clock_gettime/CLOCK_MONOTONIC 计时器，同一 perf_event_open 事件集（cycles、instructions、cache-references、cache-misses、L1-dcache-load-misses、dTLB-load-misses），同一 64-byte cache line 对齐与 padding 布局，同一 warmup 次数与 median/IQR 统计口径；看到差异先问是否换了 N、后端、线程数、重复次数、sched_setaffinity 绑核、malloc/posix_memalign 分配器、编译器 -O/-march/-ffast-math 标志、GPU cudaMemcpy/kernel launch/stream 顺序、cpufreq governor。
 

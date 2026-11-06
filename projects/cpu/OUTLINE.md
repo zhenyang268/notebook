@@ -18,7 +18,7 @@
 
 **读法约定**：先看本文 §三 选路径，再进子项目读章节。不要从子项目第一章开始顺读。
 
-**入口（本文的读法）**：按“源码 → `objdump`/`readelf` → `perf`/PMU → `difftest`/STA → LLVM/MLIR”这条链读：在“同一份 C/RV32I 源码、固定目标 ISA、ELF/OS ABI、RTL 时序与 PMU 事件”约束下，解决“`call`/`ret`/`ecall` 的 `ra/sp/a0–a7` 与栈帧如何变成 `relocation`/`PLT`/`GOT` 装载、`IF/ID/EX/MEM/WB` 与 `ROB`/`issue queue`/`PMU` 的 stall/retire、LLVM `IR`/`Pass`/`MLIR`/`Triton`/`XLA` 的指令选择与 `ABI`，从而被 `objdump`/`readelf` 读懂、被 `perf`/PMU 归因、被 `difftest`/STA 实现、被 LLVM/MLIR 编译”的问题。换的是表示层与机制层：C 变量 → 汇编寄存器/栈帧 → 机器码 opcode/imm/section → ELF `PT_LOAD`/重定位 → 微架构 `CSR`/`AMO`/流水线级 → RTL `difftest`/STA 关键路径 → LLVM/MLIR `SSA`/`dialect`/GPU `warp`/`shared memory`。
+**入口（本文的读法）**：按「源码 → `objdump`/`readelf` → `perf`/PMU → `difftest`/STA → LLVM」这条链读，四个子项目各是链上的一段：看得懂（汇编与链接）→ 说得清（流水线与乱序）→ 做得出来（RV32I 与 difftest）→ 编得动（LLVM pass）。换的是表示层与机制层，不换的是「同一份源码在每一层都留下可核对痕迹」这条主线。
 
 **不换的是什么**：全程不变的是“同一输入下 `PC`/`x0–x31`/`FPR`/`CSR`/内存/异常状态的转换、`RV32I` 指令语义与 `misa`/`mstatus`/`mepc`/`scause` 行为、ABI 的 `ra/sp/s0–s11`/16B 栈对齐/`callee-saved` 规则、`ecall`/`sbi` 的 `a0–a7`/`sepc`/`scause` 系统调用约定、内存模型对 `load/store/AMO` 的可见顺序、`PMU`/`difftest` 对 `retire`/`stall_frontend`/`stall_backend` 的计数口径”，所以看到差异先问“哪条指令的 `rd/rs1/rs2`、`PC`、`CSR`、`ROB` 条目、`relocation` 类型、`PLT/GOT` 槽位、`IR` operand 或 `Pass` 依赖边变了”。
 

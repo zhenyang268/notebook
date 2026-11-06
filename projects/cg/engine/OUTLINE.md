@@ -12,7 +12,7 @@
 
 每条都能被别人用同一份数据重跑复现。
 
-**入口（本文的读法）**：本文把 engine 读成一份 scene descriptor（entity/component/transform hierarchy/asset manifest）、一段 timestamped event log、一个 injectable clock source（real clock 或 recorded frame interval sequence）到 render submission list（batch key、sorted draw items、state change point）、world query result（nearby entities、ray hits、overlap pairs）、frame state log（logical frame id、subsystem timing intervals、state hash）的确定性回放状态机；任何章节都按“输入字段—logical frame boundary—输出集合/计数器/哈希”归位。换的只是执行载体：Vulkan command buffer、Metal render encoder、D3D12 root signature、thread pool、mmap/IO asset loader、GPU timestamp query、epoll_wait/IOCP 调度，只要 scene descriptor、event log、clock source、logical frame boundary、state hash 不变。
+**入口（本文的读法）**：把一帧读成一个确定性状态机：输入是 scene descriptor 与可注入的时钟，输出是提交列表、世界查询结果与帧状态哈希。换的是渲染后端（Vulkan / Metal / D3D），不换的是「输入字段 → 逻辑帧边界 → 输出集合」这条回放约定——同一份输入必须回落成同一份输出。
 
 **不换的是什么**：全程不换的是 scene descriptor 的 entity/component/transform hierarchy/asset manifest、event log 的 timestamp→logical frame 映射、clock source 的 frame interval sequence、state hash 的逐帧序列、handle/reference count 的帧边界失效规则、render submission list 与 visible set 的差集、subsystem timing intervals 对 frame duration 的闭合误差；看到差异先问这些字段、计数器、集合、区间哪一项先分叉。
 

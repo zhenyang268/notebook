@@ -16,7 +16,7 @@
 
 一句话定位：**`linux-api` 是你天天用的那一侧，`jos` 是你自己造的那一侧，`kernel-compare` 解释两者为什么不同，`drivers` 解释硬件怎么被接进来，`security` 解释这些边界里的哪一条会被跨过、靠什么跨、被什么挡住。** 面试里最值钱的不是任一层知识点，而是层与层对不上的地方——`top` 显示 380% 到底在说几个核、epoll 边缘触发为什么会丢事件、描述符环的 `tail` 归谁、为什么 `copy_from_user` 不能省、为什么 NX 迫使攻击者去拼 ROP。
 
-**入口（本文的读法）**：在 CPU 特权级（`CS/SS`、`RFLAGS.IOPL`、`TSS RSP0`、`syscall/sysret`/`int 0x80/iret`）、页表（`CR3`、`PML4/PD/PT`、`PTE U/R/W/NX/P`）、内核对象（`task_struct/mm_struct/file/inode/socket`、JOS `Env`）和设备队列（PCI BAR、MMIO doorbell、descriptor ring head/tail、IRQ/EOI）这些约束下，本文把任意症状或机制定位到“哪层实现、哪层绕过”；换的是 API 名、结构名、驱动路径和攻击原语，不换的是同一条从用户调用到寄存器/页表/队列的落点链。`linux-api` 用 `/proc/pid/status` 的 VmRSS/VmPSS、`epoll_wait` 返回、`ss -i` 的 `TIME_WAIT`、信号/定时器把症状对回这条链；`jos` 用引导、页表、trapframe、COW fork、IPC 自己造这条链；`kernel-compare` 用系统调用号→分发表、CPU 架构给的材料解释同一链为何长成不同 API；`drivers` 用 IDE PIO 轮询与 e1000 MMIO/DMA/中断展示设备如何进入这条链；`security` 用 NX、ROP、`copy_from_user`、内核提权展示哪一段权限边界被跨过。
+**入口（本文的读法）**：在 CPU 特权级、页表、内核对象与设备队列这四类约束下，把任意症状定位到「哪层实现、哪层绕过」。换的是 API 名、结构名、驱动路径与攻击原语，不换的是同一条从用户调用到寄存器 / 页表 / 队列的落点链。
 
 **不换的是什么**：全程不变的是陷入入口（`CS/SS` selector、`RIP/RSP`、`TSS RSP0`、`syscall/sysret` 或 `int/iret`）、地址转换（`CR3` + 页表项 `U/R/W/NX/P`）、系统调用分发（syscall number → dispatch table → `task_struct`/`Env`/fd table）、队列所有权（descriptor ring 的 head/tail 由软件或硬件哪端推进）、完成通知（IRQ/EOI 或轮询状态位）和对象生命周期（引用计数、fd 表、inode/socket 状态机）；因此看到差异先问：它是否改变了“谁推进 head/tail、谁设置页表权限位、陷入时 RIP/RSP 来自哪里、syscall number 落到哪个分发表、数据经过哪个 buffer/descriptor”。
 

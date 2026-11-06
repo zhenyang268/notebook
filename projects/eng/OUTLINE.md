@@ -14,7 +14,7 @@
 
 **一句话定位**：前四个是流程上的四段，`latent-issues` 是把四段里反复出现的**同一批陷阱**按专题收拢的案例库。它们的共同点不是"技术栈"，而是**判据形态**——每条结论都必须能写成"观察到 X 就说明我错了"。
 
-**入口（本文的读法）**：在“同一请求路径的容量、正确性、可观测性必须被同一组可观察信号互相约束”的约束下，把 `system-design` 的 QPS/延迟预算、Redis `INFO commandstats`、令牌桶 refill、Kafka consumer lag、MySQL `EXPLAIN rows`、库存 CAS，`testing` 的断言、契约 schema、冒烟 exit code、CI 门禁，`debug-toolchain` 的 core dump、gdb backtrace、strace errno、ASan/TSan 报告，`perf-engineering` 的 benchmark 指标、on/off-CPU 火焰图、Amdahl 上限，`latent-issues` 的 epoll 惊群、伪共享 cache line、ABA 计数器、优先级反转 futex、队头阻塞 head-of-line、TIME_WAIT、RLIMIT_NOFILE、Nagle/延迟 ACK、EINTR，都读成“`INFO commandstats`、consumer lag、`EXPLAIN rows`、`epoll_wait` errno、futex wait queue、perf cycles 等信号出现 X，就推翻对应假设 Y”。换的是把“调 max_connections、加 consumer group、建 B+Tree 索引”这类动作，替换成“MySQL `SHOW STATUS Threads_connected`、Kafka consumer lag、`EXPLAIN type/rows`、`epoll_wait` errno、futex wait queue、perf cycles”等信号是否仍支持结论。
+**入口（本文的读法）**：在「容量、正确性、可观测性必须由同一组信号互相约束」的前提下，把五个方法论项目读成同一条链：设计 → 写 → 出事 → 变慢。换的是证据来源（`EXPLAIN rows`、consumer lag、core dump、火焰图、`epoll` 惊群），不换的是判断顺序：先定量级，再看错误，最后看时间。
 
 **不换的是什么**：全程不变的是请求标识、单调时钟、资源边界、状态转换表和证据链（trace id、`CLOCK_MONOTONIC`、cgroup `cpu.max/memory.max`、`RLIMIT_NOFILE`、状态机迁移表、core dump/pcap/perf.data），所以看到差异先问：输入分布、观测口径、并发/资源限制是否改变了状态转换，例如 p99 上升是 `cpu.max` 节流、futex 等待、TIME_WAIT 堆积还是 Nagle/延迟 ACK 导致。
 

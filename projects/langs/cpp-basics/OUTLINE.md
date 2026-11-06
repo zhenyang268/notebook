@@ -2,7 +2,7 @@
 
 本项目要搭一个“能亲手验证结论”的 C++ 核心实验工程，用一组自己实现的最小类型、容器和所有权包装，把对象模型、资源管理、泛型与并发这四块知识变成可观察、可对比、可压测的现象。输入是若干 C++ 类型及其使用场景：构造与析构、拷贝与移动、异常路径、容器操作、线程竞争等；输出是三类证据：对象生命周期与拷贝/移动计数日志、容器操作次数随规模变化的曲线、并发压力下的行为记录与 sanitizer/编译器告警报告。验收标准是：对给定代码先预测行为，再用工程复现；能把危险写法改成 RAII、所有权明确、异常安全且并发正确的版本，并说清代价。最终形成一套能讲清“为什么这样设计”的面试口径，而不是题库答案。
 
-**入口（本文的读法）**：在模板实例化后的成员布局、构造/析构函数调用、operator new/delete、pthread_create/join、std::atomic::memory_order 约束下，把每章都读成一张对象状态迁移表，以把对象模型、资源管理、泛型与并发变成可观察证据：类型系统与模板给出实例化后的成员布局、vtable/构造析构函数签名，值与引用/构造/析构给出对象在栈帧、堆、线程栈上的创建、复制、移动、销毁事件，RAII、拷贝控制、移动语义、智能指针给出 operator new/delete、std::unique_ptr::reset、std::shared_ptr 控制块、close(fd)、pthread_mutex_unlock、pthread_join 等资源的归属与释放点，STL 容器与算法给出 std::vector::push_back 的 size/capacity、std::unordered_map::find 的桶与迭代器失效、算法复杂度与 iterator 失效规则，异常安全与并发 thread/mutex/atomic/UB 给出 __cxa_throw、std::terminate、std::mutex::lock/unlock、std::atomic::load/store 的 memory_order、happens-before、数据竞争与 TSan/ASan/UBSan 报告。读法换的是：从“代码能编译”换成“构造/析构日志、拷贝/移动计数、std::vector/std::unordered_map 操作次数曲线、__cxa_throw/std::terminate 展开记录、TSan/ASan/UBSan 报告能复现并解释”。
+**入口（本文的读法）**：在模板实例化、构造/析构、`operator new/delete`、`memory_order` 这些已定的语义约束下，把 12 章读成一张对象状态迁移表：每次创建、复制、移动、销毁都要指出对应的函数调用与资源归属。换的是载体（栈帧 / 堆 / 控制块 / 原子操作），不换的是「谁申请、谁释放、在哪一行」这条主线。
 
 **不换的是什么**：全程不变的是：对象状态由模板实例化后的类型布局、值/引用绑定与构造函数/析构函数调用决定，资源释放由 std::unique_ptr/std::shared_ptr 所有权、RAII 析构顺序和 operator new/delete、close(fd)、pthread_mutex_lock/unlock、pthread_create/join 等调用决定，容器与算法行为由 std::vector::push_back 的 size/capacity、std::unordered_map::find 的桶与 iterator 失效、std::sort 的比较/移动次数曲线决定，并发与错误路径由 std::atomic::memory_order、happens-before、__cxa_throw/std::terminate 决定；因此看到差异先问构造函数/析构函数是否执行、拷贝/std::move/swap 是否转移所有权、异常是否展开、迭代器是否失效、锁或 atomic 是否建立 happens-before。
 
