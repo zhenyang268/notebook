@@ -12,6 +12,10 @@
 
 每条都能被别人用同一份数据重跑复现。
 
+**入口（本文的读法）**：本文把 engine 读成一份 scene descriptor（entity/component/transform hierarchy/asset manifest）、一段 timestamped event log、一个 injectable clock source（real clock 或 recorded frame interval sequence）到 render submission list（batch key、sorted draw items、state change point）、world query result（nearby entities、ray hits、overlap pairs）、frame state log（logical frame id、subsystem timing intervals、state hash）的确定性回放状态机；任何章节都按“输入字段—logical frame boundary—输出集合/计数器/哈希”归位。换的只是执行载体：Vulkan command buffer、Metal render encoder、D3D12 root signature、thread pool、mmap/IO asset loader、GPU timestamp query、epoll_wait/IOCP 调度，只要 scene descriptor、event log、clock source、logical frame boundary、state hash 不变。
+
+**不换的是什么**：全程不换的是 scene descriptor 的 entity/component/transform hierarchy/asset manifest、event log 的 timestamp→logical frame 映射、clock source 的 frame interval sequence、state hash 的逐帧序列、handle/reference count 的帧边界失效规则、render submission list 与 visible set 的差集、subsystem timing intervals 对 frame duration 的闭合误差；看到差异先问这些字段、计数器、集合、区间哪一项先分叉。
+
 ## 二、为什么这样做（功能设计）
 
 **把可变步长逻辑换成「固定步长逻辑 + 可变步长渲染 + 追帧上限」，是这一节最核心的替换。** 现成教程把时间语义替你隐式处理掉了：你在一个 update 函数里写代码，从不追问 $\Delta t$ 从哪来、抖动多少、逻辑帧率是否恒定。换掉后必须自己定：逻辑步长 $\Delta t_{\text{fixed}}$、累加器 $a \leftarrow a+\Delta t_{\text{real}}$ 与取帧数 $n=\lfloor a/\Delta t_{\text{fixed}}\rfloor$、单帧最多追 $n_{\max}$ 帧、追不上时丢弃还是拉长、渲染侧要不要插值。代价是多一帧延迟和多一套插值代码；可接受，因为确定性与可回放是后面所有验收的前提，而单机场景里一帧延迟难以感知。
@@ -48,7 +52,28 @@
 
 **第 10 章 性能预算与剖析。** CPU 帧预算拆分、GPU 提交侧、火焰图（flame graph）与指标口径（用什么测、量级大概多少、误差从哪来）。关键：预算是分给子系统的而非一个总数、计时区间要能嵌套、火焰图看宽度分布而不看峰值。验证：单帧导出的时间线里子系统区间之和与帧总时长在采样精度内闭合，每个区间能追到一条代码路径。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 固定步长逻辑 | 删掉后 `Δt_real` 直接驱动 `update`，逻辑帧号与输入时间戳不再一一对应，同一场景、同一段输入、同一时间源回放三次时状态哈希序列分叉；必需 | 必需 |
+| 累加器 `a` 与追帧上限 `n_max` | 删掉后无法把可变步长输入切成固定步长逻辑帧，`n = floor(a / Δt_fixed)` 无界时单帧事件处理顺序与状态哈希写入顺序不稳定；必需 | 必需 |
+| 提交列表（render submission list）与批次键 / 排序键 | 删掉后渲染器直接遍历场景对象，可见集（visible set）与提交项差集无法离线比对，状态切换点和绘制项顺序不能定位到具体实体；必需 | 必需 |
+| 世代句柄（generation handle）与帧边界延迟卸载 | 删掉后裸指针持有资产，引用计数归零的资产可被旧句柄（handle）继续访问，生命周期验收从“可断言失效”变成 use-after-free；必需 | 必需 |
+| 动画独立时钟与根运动（root motion）提取 | 删掉后动画采样时间跟渲染帧走，人为改动渲染帧率时动画采样时间序列变化，逻辑帧序列与动画解耦验收失败；必需 | 必需 |
+| 插值代码 | 删掉后渲染帧率变化时实体 transform 只取最近逻辑帧，画面位置跳变，但逻辑帧序列、动画采样时间序列与状态哈希仍不变；选择 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 时间源只提供真实系统时钟、不提供提前录制的帧间隔序列 → 累加器 `a` 的 `Δt_real` 抖动，`n = floor(a / Δt_fixed)` 在三次回放中产生不同逻辑帧号，状态哈希序列不再逐帧相同。
+- 帧边界延迟卸载被改成引用计数归零即时卸载 → 提交列表里的旧句柄（handle）指向已释放网格 / 材质，生命周期验收从“可断言失效”变成 use-after-free。
+- 动画采样时间由渲染帧号推进 → 人为改动渲染帧率时动画采样时间序列变化，逻辑帧序列与动画解耦验收失败。
+- 世界查询返回实体指针集合而非句柄 + 显式时间语义 → 宽相（broad phase）/ 窄相（narrow phase）从暴力遍历换成空间划分（spatial partitioning）时，调用方依赖指针稳定性，重叠对顺序不稳定，可见集差集不能定位到具体实体。
+- 提交列表不导出批次键与排序键 → 渲染器直接遍历场景对象，状态切换点、绘制项顺序与可见集（visible set）差集无法离线比对，换渲染后端时场景侧必须改动。
+
+### 不做什么（范围）
 
 边界：不做网络同步（固定步长只留出接口，不做回滚与预测）；不做完整刚体求解器（只做查询与简单响应，约束求解是另一条线）；不做编辑器与工具 UI；不重写图形 API 封装与着色器编译（沿用已有渲染器）；不做音频 DSP 与混音器实现，只定触发与延迟口径；不做资产导出器，只定资产格式。理由一致：这些要么依赖另一条线的深度，要么会把面试叙事从「结构怎么组织」拉成「某个子系统的实现细节」。
 

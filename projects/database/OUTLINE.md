@@ -10,6 +10,10 @@
 
 对应的面试题几乎是同一批：为什么是 B+ 树而不是 B 树或哈希、回表和覆盖索引、RR 到底防不防幻读、MVCC 快照何时创建、间隙锁锁什么、redo 与 binlog 为什么需要两阶段提交、主从延迟怎么发现。
 
+**入口（本文的读法）**：把问题落在 InnoDB 可观测对象上：B+ 树索引页的 LSN、EXPLAIN 的 type/key/rows/Extra、MVCC ReadView 的 m_ids/min_trx_id/max_trx_id、undo 版本链的 trx_id、锁结构 record/gap/next-key、redo record 的 space_id/page_no/offset、binlog event 的 GTID/position、relay log SQL thread 回放位点；据此判断并发读改写与崩溃恢复是否自洽。换的是访问路径（联合索引最左前缀、覆盖索引、回表、filesort）、隔离级别（RC/RR/ReadView 创建时机）、提交协议（redo prepare→binlog fsync→redo commit、sync_binlog、innodb_flush_log_at_trx_commit）、复制策略（异步/半同步、并行回放、GTID 等待、读己之写走主库）。
+
+**不换的是什么**：全程不变的是 B+ 树 page 的 LSN、undo log 的 trx_id 版本链、ReadView 的 m_ids/min_trx_id/max_trx_id、redo record 的 space_id/page_no/offset、binlog event 的 GTID/position 与 relay log 回放位点；看到差异先按顺序问：EXPLAIN 的 key/rows/Extra 是否走覆盖索引或 filesort，当前读是否带 FOR UPDATE/LOCK IN SHARE MODE，隔离级别是否 RC/RR 以及 ReadView 创建时机，锁范围是否 record/gap/next-key，提交是否完成 redo prepare→binlog fsync→redo commit，从库是否满足 GTID 已执行或 Seconds_Behind_Master=0。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** “加了索引变快了”不算结论，能证伪的表述是：同一 SQL 优化前后 `EXPLAIN` 的 `rows` 估计、`Extra` 里 `Using filesort` / `Using index` / `Using index condition` 的变化，以及 `Handler_read_next`、`Handler_read_rnd_next` 这类逻辑读计数的差值。事务侧的口径是 `information_schema.INNODB_TRX` 里的事务年龄、`SHOW ENGINE INNODB STATUS` 的 `LATEST DETECTED DEADLOCK` 段、`DATA_LOCK_WAITS`（视图名随版本而异，按实现而定）。复制侧的口径是 GTID gap 与回放线程状态，而不是只看 `Seconds_Behind_Master`。
@@ -53,7 +57,27 @@
 
 **一致性四层串讲：CPU 缓存 / 内存序 / 事务 / 副本**：MESI 与可见性、内存屏障与顺序、事务隔离与串行化点、副本复制与读己之写，四层共享“多副本 + 可见性顺序”的同一抽象，越往下代价越高、粒度越粗。可回答：“数据库事务和内存屏障是不是一回事？”
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 联合索引最左前缀与覆盖索引 | `EXPLAIN` 仍出现 `type=ALL`、`key=(status)`、`rows` 上千万、`Extra=Using filesort`，`ORDER BY created_at DESC LIMIT 20` 不能按索引序返回，承诺“扫描行数接近 LIMIT”破 | 必需 |
+| MVCC 快照读 | 普通 `SELECT qty` 不能从 undo 版本链读取可见版本，读不加锁承诺破，RC/RR 下会与当前读争用同一行锁 | 必需 |
+| next-key lock（行锁 + 间隙锁） | RR 下范围查询/更新不再锁住记录间隙，幻读可发生，`SELECT ... FOR UPDATE` 后插入仍使两次范围结果不同 | 必需 |
+| redo 与 binlog 两阶段提交 | `kill -9` 后 redo 前滚页与 binlog 事务顺序无法对齐，从库可能多一条或少一条，崩溃后主从一致承诺破 | 必需 |
+| GTID 等待与会话粘性 | “写完立刻读从库”只能依赖 `Seconds_Behind_Master`，回放线程阻塞或延迟抖动时仍读到旧副本，读己之写承诺破 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- redo/binlog 所在存储关闭 fsync/FUA 且 `innodb_flush_log_at_trx_commit=2` 或 `sync_binlog=0` → 两阶段提交不再保证已提交事务必进 binlog，`kill -9` 后从库可能少一条。
+- 复制协议未启用 GTID（`gtid_mode=OFF`） → `GTID gap` 口径不可用，只能看 `Seconds_Behind_Master`，会漏报 SQL 线程中断。
+- 会话缺少 `PROCESS`/`PERFORMANCE_SCHEMA` 权限或 `performance_schema=OFF` → `DATA_LOCK_WAITS` 为空，锁等待时长与死锁检测口径失效。
+- 主从无 NTP/PTP 时钟同步且时钟漂移大于复制延迟 → `Seconds_Behind_Master` 可能为负或虚高，复制延迟判据变错。
+- `innodb_buffer_pool_instances` 与核数/内存不匹配且热工作集超过 buffer pool → `Handler_read_rnd_next`、脏页比例、redo 生成速率上升，覆盖索引减少回表的收益被页淘汰抵消。
+
+### 不做什么（范围）
 
 - 不做 408 式推导：关系代数、范式分解证明、SQL 语法教学。
 - 不做具体语言与框架层：ORM 用法、连接池参数调优、驱动重试策略。

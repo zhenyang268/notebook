@@ -14,6 +14,10 @@
 
 **一句话定位**：前四个是流程上的四段，`latent-issues` 是把四段里反复出现的**同一批陷阱**按专题收拢的案例库。它们的共同点不是"技术栈"，而是**判据形态**——每条结论都必须能写成"观察到 X 就说明我错了"。
 
+**入口（本文的读法）**：在“同一请求路径的容量、正确性、可观测性必须被同一组可观察信号互相约束”的约束下，把 `system-design` 的 QPS/延迟预算、Redis `INFO commandstats`、令牌桶 refill、Kafka consumer lag、MySQL `EXPLAIN rows`、库存 CAS，`testing` 的断言、契约 schema、冒烟 exit code、CI 门禁，`debug-toolchain` 的 core dump、gdb backtrace、strace errno、ASan/TSan 报告，`perf-engineering` 的 benchmark 指标、on/off-CPU 火焰图、Amdahl 上限，`latent-issues` 的 epoll 惊群、伪共享 cache line、ABA 计数器、优先级反转 futex、队头阻塞 head-of-line、TIME_WAIT、RLIMIT_NOFILE、Nagle/延迟 ACK、EINTR，都读成“`INFO commandstats`、consumer lag、`EXPLAIN rows`、`epoll_wait` errno、futex wait queue、perf cycles 等信号出现 X，就推翻对应假设 Y”。换的是把“调 max_connections、加 consumer group、建 B+Tree 索引”这类动作，替换成“MySQL `SHOW STATUS Threads_connected`、Kafka consumer lag、`EXPLAIN type/rows`、`epoll_wait` errno、futex wait queue、perf cycles”等信号是否仍支持结论。
+
+**不换的是什么**：全程不变的是请求标识、单调时钟、资源边界、状态转换表和证据链（trace id、`CLOCK_MONOTONIC`、cgroup `cpu.max/memory.max`、`RLIMIT_NOFILE`、状态机迁移表、core dump/pcap/perf.data），所以看到差异先问：输入分布、观测口径、并发/资源限制是否改变了状态转换，例如 p99 上升是 `cpu.max` 节流、futex 等待、TIME_WAIT 堆积还是 Nagle/延迟 ACK 导致。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：为什么这些能放一起，而 `os/`、`cpu/` 不能。** 这五份讨论的是**做事的方法**，与具体技术栈无关：perf 的口径可以用于任何语言，debug 的链路可以用于任何服务，system-design 的量级估算与语言无关。而 `os/`、`cpu/` 讨论的是**特定系统的知识**，换个对象就不成立。把方法与知识分开，才能避免"讲性能时混进内核细节、讲内核时混进方法论"。
@@ -39,7 +43,27 @@
 
 **一条硬判据**：五份文档里任何一条结论，都要能落到**一次测量或一次复现**。方法论最大的敌人不是不知道，而是"用听起来专业的说法掩盖没有测量"。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `CI 门禁` | 承诺破：合并前拦截协议破坏；错误发生：`契约` 未跑，`MQ` 消息新增字段被消费端按旧 schema 丢弃，主干继续合并。 | 必需 |
+| `ASan/TSan` | 承诺破：并发可见性错误在 `UT` 阶段暴露；错误发生：`ABA` 只在 `core dump` 里留下坏指针，`gdb` 无法证明缺少 `atomic` compare-exchange。 | 必需 |
+| `on/off-CPU 火焰图` | 承诺破：慢请求可归因到 `锁竞争` 或计算；错误发生：`benchmark` 把 `futex` 等待计入 CPU 时间，`Amdahl` 加速比按错误分母计算。 | 必需 |
+| `TIME_WAIT` | 承诺破：短连接压测区分端口占用与内存泄漏；错误发生：`fd 耗尽` 被归因到对象池，错过 `2MSL` 与四元组复用前提。 | 必需 |
+| `EINTR` | 承诺破：阻塞 `read`/`write` 遇信号可恢复；错误发生：慢 syscall 返回 `-1` + `errno=EINTR` 被当作连接错误，连接池误关闭。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- `/proc/sys/kernel/yama/ptrace_scope=0` + core dump 目录权限位 `rwx` → `gdb` 能解析 `core dump` 的 `RIP`/`RSP` 与 `glibc` 栈帧；若 `ptrace_scope=1` 或缺 `rwx`，只剩返回地址，无法还原 `strace` 前的系统调用参数。
+- 多核 + 同一 cache line 被两个线程读写 + 未用 `alignas(64)` 或原子指令 → `伪共享`/`TSan` 的可见性结论成立；单核或 cache line 隔离后，`on/off-CPU 火焰图` 不再出现 `锁竞争` off-CPU 尖峰。
+- TCP 默认 `TIME_WAIT=2MSL` + 未设 `SO_REUSEADDR` + 短连接 → `fd 耗尽` 归因到四元组占用；若 `tcp_tw_reuse=1` 或改用 HTTP/2 多路复用，`TIME_WAIT` 不再导致压测端口耗尽。
+- `TCP_NODELAY=0` + 对端延迟 ACK + 小写请求 → `Nagle 与延迟 ACK` 的 40ms p99 尖刺成立；若 `TCP_NODELAY=1` 或切到 HTTP/3/QUIC，延迟 ACK 不解释 `benchmark` 尖刺。
+- `SA_RESTART` 未设置 + 阻塞 `read` + `SIGALRM` → `EINTR` 重试承诺破；若设置 `SA_RESTART` 或改用 `epoll_wait` 超时返回 `EINTR`，连接池不再误关。
+
+### 不做什么（范围）
 
 **不做框架与中间件教程。** Kubernetes、Kafka、Redis 的用法与调参不展开；`system-design` 只讲"为什么需要这一层、它引入什么新问题"。
 

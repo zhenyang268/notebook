@@ -12,6 +12,10 @@
 
 **一句话定位**：这三份都在回答同一个问题的不同侧面——**「这段代码为什么慢/为什么错」**。C++ 的答案是"你踩了 UB 或对象生命周期"，Python 的答案是"GIL/引用计数/解释执行"，CUDA 的答案是"占用率与访存模式"。它们共同点在于：**只靠写代码和跑工具就能验证**，不需要额外的硬件、内核或分布式环境。
 
+**入口（本文的读法）**：在“只用源码、`objdump`/`dis`/`strace`/Nsight 可重放指标，不引入额外硬件、内核模块或分布式集群”的约束下，把 C++ 的对象布局/`vtable`/RAII 析构顺序/移动构造/模板实例化符号/`std::atomic` 内存序/UB 指令，Python 的 `PyObject`/`tp_iter`/`tp_iternext`/GIL `PyThreadState`/`asyncio` 任务状态/`PyGC_Head`，CUDA 的 SIMT warp/`__shared__`/bank conflict/occupancy/归约/扫描/矩阵乘 tiling/Nsight 指标，统一换成可检查机制：寄存器分配、指令流、vtable/`type_info`、原子指令、对象头与引用计数、任务状态字段、kernel launch 配置、访存计数。换的是归因坐标：把“为什么慢/为什么错”从“移动语义/GIL/占用率”这类标题词换成指令流、对象头、任务状态、launch config 和访存计数。
+
+**不换的是什么**：全程不变的是同一输入下可由 `objdump` 指令流、`dis` 字节码、`strace` 的 `futex`/`ioctl`、`asyncio.Task.__step` 状态、`cudaOccupancyMaxActiveBlocksPerMultiprocessor` 计数和 Nsight 访存指标重放的观测序列，所以看到差异先问是 ABI/对象头/内存序/事件循环/launch config 中哪一项变了。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：语言与 GPU 放一起，而不是把 CUDA 塞进并行计算。** 表面上看 CUDA 更像"并行/性能"话题，但它在面试里的问法与 `cs149` 那类课程完全不同：`cs149` 问的是"加速比从哪来、访存层次怎么影响 roofline"，而 CUDA 岗位问的是"你这个 kernel 为什么 30% 占用率""共享内存 bank conflict 怎么消""为什么加了 `__syncthreads()` 反而更慢"。**后者是写代码的人直接踩的坑，与 C++ 的 UB、Python 的 GIL 是同一类问题**：语言/执行模型的约束如何变成性能与正确性。
@@ -37,7 +41,27 @@
 
 **一条硬判据**：三份文档的结论都必须能落到**工具输出**上——C++ 对 ASan/objdump，Python 对 `dis`/`sys.getrefcount`/事件循环日志，CUDA 对 `ncu` 的核心指标。落不上去的，是语言教程而不是能力。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `RAII` | 删掉 `RAII` 后，“生命周期怎么分工”承诺破；异常展开时 `std::vector`/`std::unique_ptr` 析构不执行，堆内存与文件描述符泄漏。 | 必需 |
+| `GIL` | 删掉 `GIL` 后，“CPU 密集线程串行”承诺破；多线程同时执行 `Py_INCREF`/`Py_DECREF`，`PyObject` 引用计数可能提前归零并触发 `tp_free`。 | 必需 |
+| `bank conflict` | 删掉 `bank conflict` 后，“访存模式决定延迟隐藏”承诺破；warp 内多个 lane 访问同一 32-bit bank 的 `__shared__` 数组时，`l1tex` 冲突计数上升但无法归因。 | 必需 |
+| `Nsight` | 删掉 `Nsight` 后，“每一步都要有指标支撑”承诺破；无法采集 `occupancy`、`memory throughput`、`shared memory bank conflicts`，tiling 只能靠代码猜测。 | 必需 |
+| `RTL` / `difftest` / `STA` | 删掉“不把 `cpu/` 拉进来”的边界后，`分组只做路由` 承诺破；`langs` 判据会从 `ASan`/`dis`/`Nsight` 扩到波形、指令级差分、时序报告，但三份语言/GPU 结论不破。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- Python 3.13 free-threaded build 移除 `GIL` → “GIL 导致 CPU 密集线程串行”结论变；瓶颈转为 `PyObject` 引用计数原子操作、`pymalloc` 分配器锁和 `tp_dealloc` 竞争。
+- CUDA warp 内分支使 `__syncthreads()` 只在部分 lane 执行 → “加同步能修复共享内存可见性”结论变；行为变成未定义/死锁，`Nsight` 的 bank conflict 指标不再解释主要停顿。
+- `taskset -c 0` 把进程绑定到单核 → “多 `std::thread`/`asyncio` 并发收益来自核数”结论变；`epoll_wait`、`GIL` 切换和 `pthread_cond_wait` 的调度开销成为主因。
+- Nsight Compute 缺少 `--metrics` 权限或 GPU 被 `CUDA_VISIBLE_DEVICES` 外进程独占 → “占用率、bank conflict、访存效率可归因”结论变；只能回退 `cudaEventElapsedTime`、`cudaDeviceGetAttribute` 和 `sm__warps_active.avg.pct_of_peak_sustained_active` 估算。
+- C++ 编译单元使用 `-fno-exceptions` 或 `noexcept` 路径 → “RAII 在异常展开中兜底”结论变；资源释放只依赖正常析构、显式 `close()`/`munmap()` 或 `std::optional::reset()`。
+
+### 不做什么（范围）
 
 **不做语言教程。** 语法、标准库 API 大全、第三方生态（Django/Flask/Numpy 用法）一律不涉及；只写"编译器/运行时替你做了什么，以及它在哪里露馅"。
 

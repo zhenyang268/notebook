@@ -59,6 +59,7 @@ notebook/
 
 ## 各自规约
 
+- **学习方法与判断准则**（六段：入口 / 积木 / A[i]→A / 两边 / 条件 / 失效点；六条判据 + 七个校准器 + 两域差异表）→ `LEARNING.md`（**方法层真源**，`math/` 与 `projects/` 共用）
 - `kaoyan/` 的归档规约、KP 命名、双线隔离铁律 → `kaoyan/AGENTS.md`（**真源，本文不复述**）
 - `math/` 的公式编号与注释规约 → **没有全局规约**：`AGENTS.md` §六 是 `graphics/src/**/*.hpp` 头文件专属；
   `math/` 全部公式不编号（0 个 `\tag`/`equation`/`label{eq}`），写作规约只在各子册自己的 `CONTRACT.md` / `README.md`

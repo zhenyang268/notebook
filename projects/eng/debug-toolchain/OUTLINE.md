@@ -8,6 +8,10 @@
 
 **场景三：不可复现的脏读。** 压测 6 小时复现一次，attach 上去所有线程都正常。这类问题的解法是插桩（TSan）、结构化日志、最小复现三条线并行，而不是盯代码。
 
+**入口（本文的读法）**：在 `ulimit -c=0`、二进制 strip、`systemd` journal 只给 `signal=11` 的约束下，它把“重启+猜测”换成 `core_pattern`/`coredumpctl` 的 core、`build-id`/`.debug_line` 的源码行、`SIGSEGV`/`SIGBUS` + `RIP/RSP/RBP` + `/proc/pid/maps` 的访问地址，以及 `ASan` shadow memory/redzone、`TSan` happens-before/mutex lock/unlock、`perf record`/`bpftrace` 的 tracepoint 事件与最小复现脚本，用来固定 `-O2` 指令序列、压测脏读路径和面试追问链条。
+
+**不换的是什么**：全程不变的是同一 ELF 的 `build-id`、`.text` 指令字节、崩溃 `RIP`、`/proc/pid/maps` 映射区间和共享内存的 happens-before 边，所以 `-O2` 崩而 `-O0` 不崩、ASan 不报而 TSan 报、attach 后线程正常时，先核对 core 与 debuginfo 的 `build-id`、`RIP` 是否落在 `.text` 且访问地址是否未映射、mutex `lock/unlock` 是否覆盖读写、以及 `TSan`/`ASan` 插桩是否改变 happens-before 边或 shadow memory 检查范围。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** 本方法论要求每条结论都带可核验的判据：崩溃要能还原到 `(线程, 帧, 源码行, 访问地址)`；内存错误要有一份 sanitizer 报告指明“谁申请、谁释放、第一次越界发生在哪一行”；数据竞争要有 happens-before 边 $a \rightarrow b$ 的断裂点，即两个冲突访问各自的位置与中间缺失的同步。做不到这些的，一律降级为“假设”，标在问题单上而不是结论里。
@@ -54,7 +58,27 @@
 讲键值/JSON 化让“崩溃前最后 N 条”可机读；trace id 与 span 的父子关系才能还原跨进程因果，只有 id 没有 span 等于没接上；日志分级与采样在高频路径上的成本；最小复现作为调试的终点产物——判据是“一条命令 + 一个输入”稳定命中同一栈或同一报告，方法上对应输入二分（delta debugging）。
 能回答：“线上 bug 怎么在 24 小时内给出结论？”“什么算一份好的 bug 报告？”
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `build-id` | `debuginfo` 被 `strip` 后，`core` 无法与线上二进制配对；`(线程, 帧, 源码行, 访问地址)` 还原承诺破，`栈帧` 只能显示地址，不能落到源码行 | 必需 |
+| `SIGSEGV`/`SIGBUS` | 只剩 `systemd` 的 `signal=11`；无法用 `寄存器` 与 `栈帧` 区分访问地址落在 `映射区间` 外还是页内非法访问，`(线程, 帧, 源码行, 访问地址)` 承诺破 | 必需 |
+| `ulimit -c` | `core` 不生成；`recv failed` 后无法读取 `寄存器`、`栈帧`、`映射区间`，`MTTR 分段` 的定位段承诺破，只能靠重启猜测 | 必需 |
+| `happens-before 边` | TSan 报告只剩两个冲突访问位置；无法指出中间缺失的 `mutex`/同步原语，结论不能写成竞争定位，只能标为 `问题单` 上的 `假设` | 必需 |
+| `ASan` | 没有 `shadow memory`/`redzone` 报告；内存错误不能固定到“谁申请、谁释放、第一次越界发生在哪一行”，但可用 `Valgrind` 审查翻译到的指令，故为选择 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- `ptrace_scope=1` 且容器缺 `CAP_SYS_PTRACE` → `gdb attach` 不能读 `/proc/<pid>/mem`、`寄存器`、`栈帧`；`SIGSEGV`/`SIGBUS` 只能停在 `systemd` 的 `signal=11`，`(线程, 帧, 源码行, 访问地址)` 降级为 `问题单` 上的 `假设`。
+- `ulimit -c=0` 且 `debuginfo` 未保留、`build-id` 未归档 → `core` 不生成或无法与 `strip` 后二进制配对；`recv failed` 与 `systemd` 重启记录不能证明访问地址越出 `映射区间`。
+- `CLOCK_REALTIME` 与 `systemd` 日志时间戳受 NTP step 调整 → `MTTR 分段` 的发现/定位顺序反转，`recv failed` 与 `signal=11` 不能证明 `core` 生成在崩溃前/后，定位段计时不能归因到源码行。
+- ASan 未覆盖未重编译库、JIT 代码、内联汇编 → `shadow memory`/`redzone` 不产生 sanitizer 报告；报告为空不等于无越界，未插桩指令的访问不进入 `shadow memory`/`redzone` 判定。
+- TSan 对未注解 `mutex`/同步原语不生成 `happens-before 边` → 两个冲突访问之间没有可核验同步边；`可复现率 R=1` 也可能只固定同一误报，结论不能写成“已定位数据竞争”。
+
+### 不做什么（范围）
 
 不做操作系统原理课：页表、调度算法、文件系统实现属于 408 层，这里只讲“调试时怎么读它”。不做语言语法与标准条款考证：UB 只讲能否被抓到，不做标准文本的逐条释义。不做工具版本特性对比表与 IDE/编辑器配置。不深入内核态调试（kgdb、kprobe、eBPF 追踪），只到用户态能看到的 `/proc` 与内核栈为止。不承诺任何性能倍数：所有插桩开销统一写“按实现与配置而定”。不复现厂商基准数据。
 

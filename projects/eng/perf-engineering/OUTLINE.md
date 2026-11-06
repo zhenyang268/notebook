@@ -8,6 +8,10 @@
 
 这项能力的目标不是“会跑工具”，而是把性能结论变成可复核的：口径明确、负载明确、样本明确、边界明确。
 
+**入口（本文的读法）**：在固定 SLO 字段（p99_ms、qps、error_rate、timeout_ms）、固定负载模型（open-loop/closed-loop、connection_pool_size、retry_policy、backoff_jitter、HTTP 429/503 处理）和固定采样口径（perf_event_open 的 task-clock/cycles/instructions，sched_switch/mutex_lock/futex_wait/io_submit/epoll_wait，HDR histogram bucket）约束下，把“达标/瓶颈/扩容”判断替换为同一时间窗内可计数的边界：P99/P99.9 分布、饱和点（run_queue_len、accept queue overflow）、强扩展/弱扩展斜率、on-CPU PMU（IPC、L3 miss、TLB miss）与 off-CPU 等待栈占比。
+
+**不换的是什么**：全程不变的是同一 trace_id/request_id 关联、同一 percentile 分桶与采样窗口、同一负载模型参数（并发、connection_pool_size、timeout_ms/retry_policy、CPU affinity/NUMA）、同一计数器语义（cycles/instructions 与 sched_switch/futex_wait/io_submit 时间戳）；看到差异先问：是否换了 p99 bucket、perf 采样频率、closed/open loop、重试次数、火焰图折叠规则或系统调用计数口径。
+
 ## 二、为什么这样做（方法论设计）
 
 关键取舍一：**有口径才算数**。一个性能结论至少要绑定：工作负载（读写比、数据集、并发模型）、指标定义（成功请求还是尝试请求、单实例还是集群）、采样窗口与样本量、环境（CPU 拓扑、频率策略、内核/运行时版本、编译选项）、重复次数与置信区间。缺一项，结论就只能算线索，不能算证据。
@@ -48,7 +52,27 @@ $$，其中 $L$ 为系统内请求数，$\lambda$ 为到达率，$W$ 为停留�
 **加速比与扩展性：Amdahl、强扩展与弱扩展**  
 讲串行比例、强扩展/弱扩展、效率与瓶颈迁移。学完能回答：“加机器为什么不线性？强扩展和弱扩展分别怎么测？”
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 指标口径 | 删掉“成功请求/尝试请求、单实例/集群”绑定后，SLO 的 P99 < 200 ms 承诺不可复核；重试放大会被计入尝试请求，压测“达标”变成错误结论 | 必需 |
+| 饱和点 | 删掉“吞吐不再上升且排队延迟出现拐点”判据后，平均 QPS 报告会在压测连接模型耗尽、限流触发前误判达标，P99 1–2 s 尾部事故漏过 | 必需 |
+| on-CPU/off-CPU | 删掉 off-CPU 对照后，火焰图宽度只给采样占比，`futex_wait`/`epoll_wait` 等等待点无法与计算热点区分，会把锁竞争/IO 等待误判为“算得慢” | 必需 |
+| 重复次数与置信区间 | 删掉重复次数与置信区间后，单次压测的 P99 差异无法区分噪声与收益；`nearest-rank`/固定桶直方图结果只能降级为假设 | 选择 |
+| 强扩展/弱扩展 | 删掉强扩展/弱扩展判据后，4 核扩到 16 核 QPS 不线性会被归因为机器不够，继续加副本而不检查临界区/锁竞争 | 必需 |
+
+### 失效点：哪条前提一破，结论就变
+
+- `CAP_PERFMON`/`ptrace` 权限位从允许变为拒绝 → `perf_event_open` 返回 `EPERM`，on-CPU/off-CPU 对照缺失，火焰图宽度不能证明 `futex_wait`/`epoll_wait` 等待点。
+- CPU 频率策略从 `performance` governor 变为 `schedutil`/动态调频 → `rdtsc`/TSC 周期与 ns 延迟换算失效，P99 分布混入频率缩放，微基准不能外推到生产。
+- 工作集从 L3 缓存内变为 DRAM/NVMe 介质 → 缓存命中率 99% 不再覆盖 miss 类型，IO 等待主导尾延迟，饱和点从 CPU 吞吐拐点移动到块设备队列深度/`epoll` 等待。
+- HTTP 协议版本从 HTTP/1.1 keep-alive 长连接变为 HTTP/2 多路复用或短连接 TLS handshake → 成功请求延迟包含 `SETTINGS`/TLS 证书验证，P99 < 200 ms 的 SLO 口径改变，压测连接模型需重算。
+- 时钟源从 TSC 稳定变为 `kvm-clock`/NTP step → 采样窗口与样本量时间戳失真，coordinated omission 无法对齐重试放大，Little 定律 \(L=\lambda W\) 的量纲 sanity check 失效。
+
+### 不做什么（范围）
 
 不做 408 考点式的操作系统选择题、页面置换算法推导和调度算法背诵；这些属于考试层，不是这里的判据。不做具体语言语法、框架入门和 API 用法教学；工具只讲到能形成证据链。不做某云厂商参数模板、某内核版本的固定调优清单；参数与默认值按实现和版本而定。不做无负载模型的容量承诺，也不把未经验证的“优化案例”包装成结论。
 

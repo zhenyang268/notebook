@@ -11,6 +11,11 @@
 
 数量级的感觉必须有：L1 命中几个周期，L2 十几到二十几个周期，DRAM 上百周期；一次分支误预测在深流水核上是十几个到二十几个周期的量级。具体数字按实现而定，但**数量级之间的比例关系**决定了优化该落在哪一层——这正是这门能力唯一能给出的东西：把“慢”定位到某一级、某一个结构。
 
+**入口（本文的读法）**：在 `CPUID` 暴露的 ISA 扩展、`CR0/CR4` 控制位、`PTE/TLB` 映射和 `MESI` 的 `M/E/S/I` cache-line 状态不变的前提下，把流水线、分支预测、`SIMD`、缓存、TLB、多核一致性与 DRAM 层次的耗时差异读成 `perf_event_open` 的 `instructions`、`cycles`、`cache-misses`、`branch-misses`、`TLB-misses`、`stalled-cycles-backend` 对 ROB/RS/LSU/IQ、`BTB/BHT`、`SIMD` 端口、load/store queue 深度、cache line 迁移与 DRAM row-buffer/bandwidth 的约束，用于把 `cycles` 差异定位到 `ROB` 满、`BTB/BHT` 误预测、`LSQ` 满、`SIMD` 端口不足、cache line 迁移或 `DRAM row-buffer` 冲突。
+换的是把源码改写直接映射到 `BTB/BHT` 误预测、`ROB` 回收、`LSQ` 满、`SIMD` 端口、cache line 迁移和 `DRAM row-buffer` 冲突的归因链。
+
+**不换的是什么**：全程不变的是 ISA 指令语义、`RFLAGS` 条件码、`CR3/PTE` 页表结构、`MESI` cache-line 状态、`lock cmpxchg` 的原子语义和 `syscall/sysret` 边界，所以看到耗时差异时先问 `perf_event_open` 的 `instructions` 与 `cycles` 是否同比例变化、`cache-misses`/`branch-misses`/`TLB-misses`/`stalled-cycles-backend` 是否同向变化，再问 ROB/RS/LSU 是否出现 `load/store queue full`、`memory order buffer full`、`prefetcher miss` 或 `DRAM bank/row-buffer conflict`。
+
 ## 二、为什么这样做（方法论设计）
 
 四个取舍：
@@ -49,7 +54,27 @@
 
 **现代核的横向对照：大小核、向量单元、多发射与能效**——讲公开可验证的结构差异：大核宽而深、小核窄而浅、向量单元宽度与频率-电压曲线的取舍。它解决上一章的瓶颈：单核指标不能跨核直接比较，同一个瓶颈在不同功耗与面积约束下的解法不同。能回答：同功耗下比较两颗核，应该看哪几个量，为什么不能只比单核 IPC？
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `perf stat` 的 `cycles` 与 `instructions` 比值 | “瓶颈从后端算力转到访存”的承诺破：只剩“乱序窗口大所以快”“超标量肯定并行”这类不可证伪语气。 | 必需 |
+| MPKI 口径（`cache-misses`、`TLB`、`branch-misses`） | 把 L1 命中率、分支误预测、TLB 缺页混成一个“cache 友好”，优化落点会错层。 | 必需 |
+| `AMAT = t_hit + m × t_miss` | L2 十几到二十几个周期与 DRAM 上百周期无法折算成周期代价，无法判断 miss 是否主导端到端耗时。 | 必需 |
+| roofline `P = min(π·I, β)` | 无法判断算术强度 `I` 在平衡点哪一侧，会把 `load/store` 队列饱和或 `β` 受限误判成算力不足。 | 必需 |
+| 大页 | 四级页表遍历开销可被记到不相干指标上，“改循环分块有效”的承诺破；但保留大页会引入 `madvise(MADV_HUGEPAGE)`、页表更新与内存碎片代价，属选择。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 被测线程数=1、工作集已热且 `perf stat` 重复计数方差小于优化幅度 → 冷启动或高方差时，`TLB` 缺页、`I-cache` 填充与页表遍历占主导，`MPKI` 与 `IPC` 不再指示稳态后端瓶颈。
+- PMU 事件数 ≤ 硬件计数器个数 → 多路复用使 `cache-misses`、`branch-misses` 成为按比例缩放估计，短程序上的 `AMAT` 与 `roofline` 平衡点判断失效。
+- SMT=关闭或邻居负载=0、介质=本地 DRAM → 8 核吞吐可能受内存控制器队列饱和、L3 slice 争用或 `load/store` 队列深度限制，单线程 `β` 口径失效。
+- 时钟源=TSC invariant 且 `RDTSC` 可用 → DVFS、虚拟化时钟源或 `RDTSC` 禁用使 `cycles/instructions` 与 `wall clock` 不可比，`IPC` 下降可能来自时钟源而非微架构。
+- 权限位/系统调用=`madvise(MADV_HUGEPAGE)` 成功且页表层级=4-level → 5-level paging、禁用 `transparent_hugepage_enabled` 或 `MADV_HUGEPAGE` 失败时，`TLB` 覆盖与页表遍历开销改变，循环分块收益需重算。
+
+### 不做什么（范围）
 
 不写 408 考点式的计算题：流水线加速比公式、cache 组相联的地址位划分手算，只在必要处引用定义，不作为主线。不写 RTL 与门级时序：不展开 Verilog 实现、工艺角、时钟树，这些属于数字设计层。想看 RTL 怎么写、怎么用 difftest 证明正确、怎么在开源 PDK 上出关键路径与面积，去 `riscv-core/`——那里才是「造核」；这里只保证你在看到一份 STA 报告或一份 Top-down 分解时，知道它在说什么。不给未公开的微架构参数：某代产品的 ROB 项数、保留站大小、各操作的精确延迟与 miss 惩罚周期，一律写“按实现而定”，只讲公开可验证的结构。不写编译器后端的完整调优流程（自动向量化报告怎么读、循环变换全流程），那属于编译器层，这里只到“为什么这段没被向量化”的判断为止。不写 OS 调度、虚拟化与大页策略的完整设计，只在 TLB 章节讲清开销来源。不写 GPU/SIMT 微架构，仅在 roofline 对照时提一句。不写具体业务系统的调优复盘，本文只负责骨架，不负责案例。
 

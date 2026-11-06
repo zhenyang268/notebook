@@ -34,14 +34,18 @@
 
 | 子册 | 独立 `main.tex` | 独立 PDF | 为什么仍单列 |
 |---|---|---|---|
-| `bridges/`（br0–br4） | 有 | 有（31 页） | 性质是「A ≅ B」的**对照索引**，不是正文；会随学习进度增量追加 |
+| `bridges/`（br0–br4 + 附录 A） | 有 | 有（37 页） | 性质是「A ≅ B」的**对照索引**，不是正文；会随学习进度增量追加 |
 | `survey/`（p1–p11） | 有 | 有（39 页；同目录另有一份中文名发布副本） | 主仓 `learning/graphics` 数学面的**镜像清单**，97 条，跟代码仓走 |
 
 两者都有入口、都有产物，状态完整。正文（A–R + ODE + Lie）全部在主册，不再有"有入口无产物"或"无入口"的情况。
 
 **产物策略（2026-11-04 定）**：`*.pdf` **进库**——它是产出，不是中间态；`aux/xdv/fls/log/toc/out/fdb_latexmk` 不进库。
 所以**改了 `.tex` 就要重编译并提交 PDF**，否则库里的产物与源不一致。
-`survey/` 有两份同名产物：`main.pdf`（规范名）与 `数值库数学串讲.pdf`（发布副本），**重编后必须同步**，见 §4。
+`survey/` 有两份产物：`survey.pdf`（规范名）与 `数值库数学串讲.pdf`（发布副本），**重编后必须同步**，见 §4。
+
+**PDF 命名（2026-11-04 改）**：三册不再都叫 `main.pdf` —— `math/math.pdf`、`math/bridges/bridges.pdf`、`math/survey/survey.pdf`。
+名字由各目录的 `.latexmkrc` 里 `$jobname` 固定，**入口仍是 `main.tex`**，所以 §4 的命令行一个字都不用改。
+新建册子时记得加同款 `.latexmkrc`，否则又会掉回 `main.pdf`。
 
 ---
 
@@ -67,11 +71,14 @@ cd math
 latexmk -pdfxe -interaction=nonstopmode main.tex     # 必须 -pdfxe；用 -pdf 会卡在交互输入
 cd bridges && latexmk -pdfxe -interaction=nonstopmode main.tex
 cd ../survey && latexmk -pdfxe -interaction=nonstopmode main.tex
-cp main.pdf 数值库数学串讲.pdf                        # ← 发布副本必须同步，否则两份产物不一致
+cp survey.pdf 数值库数学串讲.pdf                       # ← 发布副本必须同步，否则两份产物不一致
 cd .. && python3 survey/verify.py                    # 必须 CRIT=0
 ```
 
-**体检口径**（`main.log` 里该看的四行）：
+输出名由各目录 `.latexmkrc` 的 `$jobname` 决定：主册 `math.pdf`、`bridges/bridges.pdf`、`survey/survey.pdf`。
+所以上面三条命令**不用加 `-jobname`**，也不要在命令行覆盖它 —— 覆盖会让库里的产物变成 `main.pdf`，与命名约定不一致。
+
+**体检口径**（日志随 `$jobname` 走：`math.log` / `bridges.log` / `survey.log`，**不再是 `main.log`** 里该看的四行）：
 
 | 项 | 期望 | 怎么看 |
 |---|---|---|

@@ -16,6 +16,10 @@
 
 一句话定位：**`linux-api` 是你天天用的那一侧，`jos` 是你自己造的那一侧，`kernel-compare` 解释两者为什么不同，`drivers` 解释硬件怎么被接进来，`security` 解释这些边界里的哪一条会被跨过、靠什么跨、被什么挡住。** 面试里最值钱的不是任一层知识点，而是层与层对不上的地方——`top` 显示 380% 到底在说几个核、epoll 边缘触发为什么会丢事件、描述符环的 `tail` 归谁、为什么 `copy_from_user` 不能省、为什么 NX 迫使攻击者去拼 ROP。
 
+**入口（本文的读法）**：在 CPU 特权级（`CS/SS`、`RFLAGS.IOPL`、`TSS RSP0`、`syscall/sysret`/`int 0x80/iret`）、页表（`CR3`、`PML4/PD/PT`、`PTE U/R/W/NX/P`）、内核对象（`task_struct/mm_struct/file/inode/socket`、JOS `Env`）和设备队列（PCI BAR、MMIO doorbell、descriptor ring head/tail、IRQ/EOI）这些约束下，本文把任意症状或机制定位到“哪层实现、哪层绕过”；换的是 API 名、结构名、驱动路径和攻击原语，不换的是同一条从用户调用到寄存器/页表/队列的落点链。`linux-api` 用 `/proc/pid/status` 的 VmRSS/VmPSS、`epoll_wait` 返回、`ss -i` 的 `TIME_WAIT`、信号/定时器把症状对回这条链；`jos` 用引导、页表、trapframe、COW fork、IPC 自己造这条链；`kernel-compare` 用系统调用号→分发表、CPU 架构给的材料解释同一链为何长成不同 API；`drivers` 用 IDE PIO 轮询与 e1000 MMIO/DMA/中断展示设备如何进入这条链；`security` 用 NX、ROP、`copy_from_user`、内核提权展示哪一段权限边界被跨过。
+
+**不换的是什么**：全程不变的是陷入入口（`CS/SS` selector、`RIP/RSP`、`TSS RSP0`、`syscall/sysret` 或 `int/iret`）、地址转换（`CR3` + 页表项 `U/R/W/NX/P`）、系统调用分发（syscall number → dispatch table → `task_struct`/`Env`/fd table）、队列所有权（descriptor ring 的 head/tail 由软件或硬件哪端推进）、完成通知（IRQ/EOI 或轮询状态位）和对象生命周期（引用计数、fd 表、inode/socket 状态机）；因此看到差异先问：它是否改变了“谁推进 head/tail、谁设置页表权限位、陷入时 RIP/RSP 来自哪里、syscall number 落到哪个分发表、数据经过哪个 buffer/descriptor”。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：分成两份而不是合成一份。** 两者的判据根本不同。`jos` 的判据是**你写的代码能不能通过 lab 的检验**（页表映射对不对、陷入现场是否精确、COW 引用计数是否平衡），错一次程序就崩；`linux-api` 的判据是**你能不能用一个命令或一个系统调用解释真实症状**（380% 是哪几个字段、`ss -i` 里哪个计数在涨）。合成一份文档会让"实现正确"与"解释正确"互相稀释。
@@ -50,7 +54,28 @@
 
 **一条硬判据**：任何结论都要能落到「一个命令 + 一段输出」「一次 lab 通过」或「一条所有权时间线」。落不上去的，是背来的。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 页表与地址转换 | JOS 的用户环境无法把虚拟地址翻译成物理页，缺页处理找不到 PTE，lab 的页表映射检查破 | 必需 |
+| 用户环境与陷入 | 系统调用没有跨特权级的现场保存/恢复，返回时 EIP/EFLAGS 或寄存器被破坏，用户环境崩溃 | 必需 |
+| COW fork | 父子进程写同一页不触发缺页复制，COW 引用计数不平衡，fork 共享页的 lab 检查失败 | 必需 |
+| copy_from_user | 内核直接解引用用户指针，缺页与权限边界丢失，系统调用会把用户态地址当内核地址访问并崩 | 必需 |
+| 描述符环的 `tail` | e1000 网卡的收包路径无法判定 CPU 与 DMA 的写所有权，描述符会被重复写或跳过，`处理完成` 这一步不成立 | 必需 |
+| TIME_WAIT | 网络章节无法解释主动关闭后的端口复用与 `ss -i` 计数，Linux API 症状归因少一条；JOS 不依赖 TCP 状态机，可后补 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 核数：单核 JOS 变为多核 Linux → `top` 的 380% 必须拆成 per-CPU 字段，JOS 的抢占调度与 Linux 的 `epoll` 唤醒需要按 CPU 运行队列和 TLB 一致性重新检查。
+- 介质：IDE 盘 PIO + 轮询变为 e1000 网卡 MMIO + DMA + 中断 → 驱动四步中的“搬数据”从 CPU 读寄存器变成 DMA 写描述符环，`tail` 所有权与中断处理完成成为判据。
+- 协议版本：TCP 正常关闭保留 TIME_WAIT 变为 `SO_LINGER` 跳过 TIME_WAIT → `ss -i` 的 TIME_WAIT 计数不再解释端口复用，网络章节的主动关闭等待结论失效。
+- 权限位：页表 U/S 位与 `copy_from_user` 边界存在变为缺失 → 用户环境与陷入不再能挡住内核访问用户指针，内存破坏可直接跨过系统调用边界。
+- 时钟源：TSC 变为 HPET/ACPI timer → 信号与定时器超时精度、CPU 使用率采样间隔和缺页/OOM 事件时间线需要重新校准。
+
+### 不做什么（范围）
 
 **不写完整操作系统。** 不做完整文件系统（日志、崩溃一致性）、不做网络协议栈——`jos` 只到能把用户进程跑起来；协议栈那条线（原 CS144）已下线，不重建。块设备与网卡的**设备层**细节归 `drivers/`，这里不重复。
 

@@ -10,6 +10,10 @@
 
 面试侧的高频题与这些场景同源：fork 之后父子共享什么、mmap 与 read 的代价差在哪、epoll 边缘触发为什么必须配非阻塞 fd、EINTR 该不该重试、backlog 到底是谁在排队。答不出代价，就只是背过。
 
+**入口（本文的读法）**：在 Linux 只暴露 `/proc/PID/*`、`ss`、`top`、系统调用返回值这些观测约束下，把 RSS/PSS/USS、`%CPU`、TIME_WAIT、`EINTR`/backlog 等现象翻译成 `mm_struct` 页表映射、`task_struct` 的 `utime`/`stime`、`sock` 的 `sk_state`、`epoll` 的 `EPOLLET` 与 `accept` backlog 的可计数代价。换的是“看 `Pss` 还是 `Rss`、看进程 `utime` 还是线程 `utime`、看 `sk_state` 还是 `accept` 队列、看 `O_NONBLOCK` 还是 `EINTR`”。
+
+**不换的是什么**：全程不变的是内核对象口径：`/proc/PID/smaps` 的 `Rss`/`Pss`/`Uss` 来自页表与共享映射，`top -H`/`pidstat -u -t` 来自 `task_struct` 的 `utime`/`stime`，`ss -tan state time-wait` 来自 `sock` 状态与协议栈计数，`epoll_wait`/`read`/`accept` 的阻塞或 `EINTR` 来自 fd flags 与内核等待队列；看到差异先问字段取自哪个内核对象、采样是进程还是线程、fd 是否 `O_NONBLOCK`、触发是 `EPOLLET` 还是水平、队列是 `accept` backlog 还是 SYN 队列。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** 内存数字必须带口径前缀：VSS / RSS / PSS / USS，四者不可互换，其中
@@ -76,7 +80,27 @@ $$\mathrm{PSS}=\mathrm{USS}+\sum_i \frac{\mathrm{shared}_i}{n_i}$$
 
 **附录 A 与 macOS / Windows 的差异速查**（不占章）：进程创建模型（`fork`/`posix_spawn`/`CreateProcess`）、事件通知模型（就绪 vs 完成：`epoll`/`kqueue`/IOCP）、内存压力行为（OOM killer / 压缩内存 / 提交即占用）、可观测接口（`/proc` 专有 vs ETW）。只列会造成误判的差异。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `/proc/PID/smaps` 的 `Pss` | 删掉「内存数字必须带口径前缀」的承诺，几十 GB RSS 会被当成独占占用，触发无谓扩容或带流量重启 | 必需 |
+| `pidstat -u -t` | 删掉「CPU 必须拆到线程级」的承诺，`top` 的 300% `%CPU` 会被误读为整机不高，自旋等锁与真实计算混同 | 必需 |
+| `ss -tan state time-wait` | 删掉「连接边界要区分主动关闭与端口范围」的承诺，`EADDRNOTAVAIL` 会被归因为服务容量不足，而不是 TIME_WAIT 累积 | 必需 |
+| `netstat -s` 的 overflow 计数 | 删掉「overflow 计数作为佐证指标」的承诺，TIME_WAIT 高时无法判断是 listen backlog / accept 队列溢出，还是端口范围不够 | 必需 |
+| `taskset` | 删掉「亲和性佐证」的承诺，多核满载无法区分网络软中断绑核与线程自旋；但可用 `pidstat -u -t` 与 `voluntary_ctxt_switches` 降级判断 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 单机、已知内核版本、无 cgroup 干扰 → 容器内 `/proc/PID/smaps` 的 `Pss` 与宿主 page cache 混算，结论从「共享映射导致 RSS 虚高」变成「cgroup `memory.current` / `memory.stat` 口径漂移」。
+- 核数 `N` 与 `top` 的 `%CPU` 单核 100% 基准 → cgroup `cpu.max` 限制或 `taskset` 绑核改变，300% 不再等于 3 个物理核满载，可能是 quota 内多核自旋或亲和性错位。
+- 默认端口范围与未启用 `SO_REUSEADDR` / `SO_REUSEPORT` → `ss -tan state time-wait` 的 TIME_WAIT 计数不再解释 `EADDRNOTAVAIL`，错误归因从端口耗尽变成应用关闭策略或 `backlog` 排队。
+- buffered IO 与 page cache 命中 → `iostat -x` 的 `await` / `util` 不再代表应用 IO 代价，`O_DIRECT` + `fsync` 或 NVMe 多队列下结论从「page cache 掩盖 IO」变成「同步写路径与队列深度饱和」。
+- 采样窗口覆盖抖动周期且时钟源稳定 → 短采样 `pidstat -u -t` / `perf top` 不再能证明持续自旋，TSC 不稳定或故障周期大于采样窗口时，结论从「单线程占满一核」变成「周期性锁竞争漏采」。
+
+### 不做什么（范围）
 
 - **不写 408 考点**：页表硬件细节、调度算法正确性证明、TCP 拥塞控制公式推导，属于考试层；这里只到「语义与代价」。
 - **不写语言与运行时**：C++ RAII、Go netpoller、JVM NIO 的内部实现，属于各语言层。

@@ -8,6 +8,10 @@
 
 验收看四个场景：杀掉 leader，一秒内集群自己选出新的；一百个客户端并发写，停下来之后每个节点上的日志前缀完全相同；把少数派网线拔掉再插回来，被隔离期间没提交的日志要被覆盖掉，已提交的一条都不能丢；整组机器同时断电重启，任期不回退、同一任期不投两次票；一个日志被快照压缩过的节点，能把严重落后的新节点追上。
 
+**入口（本文的读法）**：在“多数派最终可达、任意少数节点可宕机/重启/网络分区”的故障约束下，它解决“把 `Start(cmd)` 转成唯一 `(index, term)`，再由 `applyCh` 按全序投递已提交命令”的复制状态机问题。各章替换的是 `RequestVote`/`AppendEntries`/`InstallSnapshot` 载荷编码、goroutine/通道调度、选举超时、日志落盘格式、快照传输、故障注入、KV 分界实现，只要仍能约束 `currentTerm`、`votedFor`、`commitIndex`、`log[index].term`、`lastIncludedIndex/lastIncludedTerm` 这些字段。
+
+**不换的是什么**：全程不变的是 `currentTerm` 不回退、`votedFor` 每任期最多一次、`commitIndex` 只由多数派 `matchIndex` 推进且不回退、已多数派落盘的 `log[index].term` 不可被覆盖、`applyCh` 只能投递 `lastIncludedIndex < index <= commitIndex` 的日志且不跳序、`lastIncludedIndex/lastIncludedTerm` 只能截断 `lastApplied` 之前的已应用前缀；看到差异先检查 `currentTerm` 是否回退、`votedFor` 是否重复、`commitIndex` 是否被未经多数派 `matchIndex` 确认的日志推进、`log[index].term` 是否被截断、`applyCh` 是否跳序、快照边界是否越过 `lastApplied`。
+
 ## 二、为什么这样做（功能设计）
 
 **替换掉的是什么。** 现实里没人手写共识——用 etcd/raft 或 hashicorp/raft 的库，几行代码就能起一个复制组。这个项目把那层库整个抽掉自己写，只保留两样给定的东西：一个可注入丢包、延迟、乱序、重复、断网的 RPC 框架，和一个只能整块读写字节的假磁盘。也就是说，「不可靠」的两个来源是给定的，不替换；被换掉的是中间那层「把不可靠通信变成可靠全序」的逻辑。
@@ -38,7 +42,27 @@
 7. **正确性论证与测试方法**——五条安全性质逐条对照实现；故障注入（丢包率、延迟、分区、重启）；为什么分布式测试必须重复跑、一次通过不算通过；竞态检测器与随机种子；线性一致性检查的思路（把历史记录拿出来看能不能排成一个合法全序）。做完能对一个 bug 假设设计出必然暴露它的场景，而不是靠加长超时碰运气。
 8. **向上接一层：KV 与分界**——`Start` + `applyCh` 的实际用法；客户端请求号去重表实现「恰好一次」；为什么线性一致读比线性一致写更难（ReadIndex / lease 两条思路）；为什么上层不能反读日志。做完能验证：一个最小 KV 在分区与重启下 get/put 行为符合预期，且上层没有引用 Raft 内部结构。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `prevLogIndex/prevLogTerm` | 删掉接收方日志匹配检查，乱序或分区恢复的旧 `AppendEntries` 会在同一 `index` 写入不同 `term`，`applyCh` 向状态机投出分叉命令。 | 必需 |
+| `currentTerm`、`votedFor` 回复之前落盘 | 删掉落盘顺序，断电重启后同一 `currentTerm` 可投两次票，两个 leader 同时发 `AppendEntries`，已提交日志可被覆盖。 | 必需 |
+| `commitIndex` 推进检查任期 | 删掉「只有当前任期的条目能靠多数派直接提交」，旧 leader 可提交旧任期日志，新 leader 覆盖后 `Start(cmd)` 已返回的客户端成功对应命令不再进入 `applyCh`。 | 必需 |
+| 随机区间 `[T,2T]` | 删掉随机化，多个 follower 同时超时并参选，选票分散在同一个 `currentTerm`，集群可能长期没有 leader，`Start(cmd)` 一直返回 `isLeader=false`。 | 选择 |
+| 快照压缩后的下标偏移 | 删掉逻辑下标/物理下标区分，日志数组起点不为 0 后，`prevLogIndex`、`matchIndex`、`commitIndex` 会指向错误条目，严重落后节点追不上。 | 必需 |
+| 发 RPC 前放锁 | 删掉锁边界，持锁发 RPC 会拖住 `Start(cmd)`、`applyCh` 和 `AppendEntries` 重试，分布式测试表现为随机超时。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 集群成员数为 3 或 5，且多数派阈值按 `floor(N/2)+1` 推进 `commitIndex` → 若成员数变成 2 并把阈值误配成 1，分区两侧都能提交，旧 leader 与新 leader 可同时写 `applyCh`，已提交日志会被覆盖。
+- `AppendEntries` 协议字段携带 `prevLogIndex/prevLogTerm`，RPC 框架允许丢包、重复、乱序、断网 → 若协议版本删掉这两个字段或 RPC 变成可靠有序 FIFO，接收方不再拒绝分叉日志，`applyCh` 可能投出不同命令前缀。
+- 假磁盘对 `currentTerm`、`votedFor`、日志和快照在回复之前整块落盘，进程对数据文件有写权限且持久化屏障生效 → 若权限位变成只读、介质带写回缓存或落盘失败被忽略，断电重启后 `votedFor` 可丢失，同一任期出现双投票。
+- 选举超时依赖本地单调时钟，随机区间 `[T,2T]` 大于 RPC 往返和 `AppendEntries` 处理延迟 → 若时钟源跳变、核数争用或调度延迟使 `AppendEntries` 处理超过超时，旧 leader 会自我退位，`currentTerm` 连续递增，`Start(cmd)` 长时间返回 `isLeader=false`。
+
+### 不做什么（范围）
 
 **课程不要求的**：成员变更（joint consensus，增删节点）、跨分片与分片迁移、多组分片管理、生产级 TLS/鉴权/监控。这些是真实系统必需、但和「理解多数派」无关的部分。
 

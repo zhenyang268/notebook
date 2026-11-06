@@ -10,6 +10,10 @@
 
 对应到面试，它拦的是这几类题：「SSA 是什么，phi 干什么用」「mem2reg 之后 alloca 去哪了」「寄存器不够时怎么办」「内联是不是越多越好」「这段代码为什么 -O2 和 -O0 结果不一样」。这些题的共同点是：**背名词能过一半，讲不清判据就露馅**。
 
+**入口（本文的读法）**：在源码语义、`target triple`、SysV AMD64 调用约定、`opt`/`llc`/`llvm-mca`/`perf` 可观测接口不变的前提下，本文把“代码生成层出了事”换成可复现定位：凡涉及优化收益归因、`-O2` 才崩、C/Rust ABI 边界、SSA/`phi`/`mem2reg`/`alloca`/寄存器溢出/内联，都必须落到 `opt -print-after=<pass>`、`-opt-bisect-limit`、IR 属性（`sret`/`byval`/`nonnull`/`align`）、反汇编的 `sub rsp`/寄存器分配/溢出槽、以及 `llvm-mca` 与 `perf stat` 的 IPC/cache-miss/TLB-miss 上。换的是“快 15%”“栈被踩了”“链接不报错”这类口头结论，换成具体 pass、IR 节点、寄存器分配、ABI 字段和性能计数器读数。
+
+**不换的是什么**：全程不变的是 C/Rust 源码语义与 UB 规则、`target triple` 与 SysV AMD64 调用约定（`sret`、`byval`、`rsp`、`rdi/rsi/rdx/rcx/r8/r9`）、以及同一 `opt`/`llc`/`llvm-mca`/`perf` 可观测管线；所以看到 `-O0` 与 `-O2`、C 与 Rust、PR 与基线差异，先问 pass 顺序、优化级别、寄存器分配结果、结构体返回路径、cache/TLB 条件是否一致，而不是先问“是不是优化器坏了”。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数 vs 看起来专业但无法证伪。**
@@ -61,7 +65,28 @@
 **11. 面向计算与域特定语言的编译：GPU 后端、Triton、TVM、XLA 与 dialect 分层**
 讲「算法」与「调度」为什么要拆开：手写 CUDA 把线程映射、共享内存、流水线全钉死在代码里，换硬件或换形状就得重写；DSL 编译器把这几件事交给编译器或搜索。分层是四段——图/算子层（XLA 的 HLO、TVM 的 Relay/Relax）→ tile/循环层（TVM 的 TIR 与 schedule 原语、Halide 的 algorithm/schedule 分离、MLIR 的 `linalg`/`affine`）→ 线程与显存层（Triton 的 block 模型、MLIR 的 `gpu` dialect、NVVM/ROCDL）→ 机器码（PTX/SASS）。核心变换只有三类半：**融合**（少起 kernel、少访存）、**tiling 与布局**（切块、合并访存、共享内存与 bank）、**流水线化**（多级 staging 隐藏延迟），外加自动调优（搜索 + cost model）。学完能答：「Triton 替你决定了什么、代价是什么」「TVM 的 schedule 原语和 LLVM 的 pass 差在哪一层」「为什么 XLA 能做整图融合而 LLVM 做不了」。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `opt -opt-bisect-limit=N` | 承诺破：`-O2` 才崩时无法二分出首个错误 pass，只能整条管线关 pass 上线 | 必需 |
+| `opt -print-after=<pass> -print-changed` | 错误发生：GVN / mem2reg 是否改变 `alloca` / `phi` 无法被 IR diff 证伪，评审只剩口头声称 | 必需 |
+| `sret` / `byval` | 错误发生：24 字节结构体跨 C / Rust 边界时隐藏指针与 `sub rsp, N` 栈帧不可判定，链接通过但运行崩 | 必需 |
+| `llvm-lit` + `FileCheck` | 承诺破：`ptr` 迁移或 canonicalize 改变 IR 形态后，pass 触发与期望 `phi` / `alloca` 无断言，错误静默进入下游 | 必需 |
+| `opt -verify-each` | 错误发生：非法 SSA / `phi` 或越界 `alloca` 要等 `llc` 崩溃才暴露，排查从 pass diff 变成后端堆栈 | 必需 |
+| `llvm-mca` | 承诺破：无法在真机前比较 uops / cycle 建模与 `perf stat` 的 cycles / instructions 偏差，但可用 `perf stat` 替代 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- SysV AMD64 ABI 对大于 16 字节聚合体使用隐藏指针 / `sret` 返回的前提 → 换成 Windows x64 或 AArch64 后，返回值寄存器与栈参数规则改变，C 侧 24 字节结构体与 Rust 侧按值接收不再等价。
+- `perf stat` 的 cycles / instructions 来自同一稳定时钟源（绑核、无 DVFS / SMI）的前提 → 若时钟源漂移或 `taskset` 丢失，IPC 与 15% 加速比被噪声淹没，pass 收益不可复现。
+- 单核或固定核数下 L1 / L2 cache 争用可忽略的前提 → 若超线程或多核共享 cache，branch-misses 和 cycles 波动大于 IR 指令数下降，microbench 收益不迁移。
+- 源码满足 C 严格别名、无有符号溢出、无越界的前提 → 若 UB 存在，`-O0` 正常而 `-O2` 错值，`opt -print-changed` 会显示 GVN / 循环变换放大错误，归因从 pass bug 变成源码契约破。
+- PGO / LTO 关闭或 profile 与二进制同版本的前提 → 若开启 PGO / LTO 后函数边界和调用图变化，模块级 spill / reload 与 inline 结论失效。
+
+### 不做什么（范围）
 
 - **不做 408 / 编译原理课的考点覆盖**：正则到 NFA/DFA、LL/LR 分析表构造、语法制导翻译，属于另一层，这里不重讲。
 - **不做语言语法与语义**：C/C++/Rust 的具体语法、模板、所有权规则不在此文档范围。

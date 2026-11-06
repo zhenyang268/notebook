@@ -18,6 +18,10 @@
 
 **读法约定**：先看本文 §三 选路径，再进子项目读章节。不要从子项目第一章开始顺读。
 
+**入口（本文的读法）**：按“源码 → `objdump`/`readelf` → `perf`/PMU → `difftest`/STA → LLVM/MLIR”这条链读：在“同一份 C/RV32I 源码、固定目标 ISA、ELF/OS ABI、RTL 时序与 PMU 事件”约束下，解决“`call`/`ret`/`ecall` 的 `ra/sp/a0–a7` 与栈帧如何变成 `relocation`/`PLT`/`GOT` 装载、`IF/ID/EX/MEM/WB` 与 `ROB`/`issue queue`/`PMU` 的 stall/retire、LLVM `IR`/`Pass`/`MLIR`/`Triton`/`XLA` 的指令选择与 `ABI`，从而被 `objdump`/`readelf` 读懂、被 `perf`/PMU 归因、被 `difftest`/STA 实现、被 LLVM/MLIR 编译”的问题。换的是表示层与机制层：C 变量 → 汇编寄存器/栈帧 → 机器码 opcode/imm/section → ELF `PT_LOAD`/重定位 → 微架构 `CSR`/`AMO`/流水线级 → RTL `difftest`/STA 关键路径 → LLVM/MLIR `SSA`/`dialect`/GPU `warp`/`shared memory`。
+
+**不换的是什么**：全程不变的是“同一输入下 `PC`/`x0–x31`/`FPR`/`CSR`/内存/异常状态的转换、`RV32I` 指令语义与 `misa`/`mstatus`/`mepc`/`scause` 行为、ABI 的 `ra/sp/s0–s11`/16B 栈对齐/`callee-saved` 规则、`ecall`/`sbi` 的 `a0–a7`/`sepc`/`scause` 系统调用约定、内存模型对 `load/store/AMO` 的可见顺序、`PMU`/`difftest` 对 `retire`/`stall_frontend`/`stall_backend` 的计数口径”，所以看到差异先问“哪条指令的 `rd/rs1/rs2`、`PC`、`CSR`、`ROB` 条目、`relocation` 类型、`PLT/GOT` 槽位、`IR` operand 或 `Pass` 依赖边变了”。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：四个文档而不是一个大文档。** 合并会立刻出现两个问题。一是验证口径不同：`asm-link-arch` 的判据是「能不能对着二进制说清每一句」（`objdump`/`readelf`/`gdb`），`riscv-core` 的判据是「difftest 零分歧 + STA 无违例」，两者的"算数"标准根本不一样，混在一份文档里会互相稀释。二是读者路径不同：只想读核的人不需要 RTL，只想造核的人不需要读 PTX 汇编。**分组是为了让每份文档只守一个判据。**
@@ -67,7 +71,27 @@
 - [ ] 有没有一次实测推翻了自己的预期，并且能解释为什么？（80 分线）
 - [ ] 被问「GPU 上为什么不直接写 CUDA」时，能不能说出 Triton/TVM 各自替你做了什么、代价是什么？（80 分线）
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `difftest` | `riscv-core` 的“做得出来吗”承诺破：RTL 与 RV32I 指令语义的分歧不可见，单周期→流水线→乱序的四个数失去可验证性。 | 必需 |
+| `STA` | 单周期→流水线→乱序的时序承诺破：关键路径超过时钟周期，`riscv-core` 交出的频率/IPC 数字不可复现。 | 必需 |
+| `objdump` | `asm-link-arch` 的“对着二进制说清每一句”承诺破：无法把 C、机器码、ELF、重定位、PLT/GOT 对齐到反汇编行。 | 必需 |
+| `PMU/roofline` | `cpu-microarchitecture` 的“把慢归因到某一层”承诺破：低 IPC/CPI 无法归因到五级流水线、乱序、AMAT 或关键路径。 | 必需 |
+| `Triton/TVM/XLA/MLIR` | `compiler` 第 11 章的 GPU/域特定语言分层承诺破：无法说明高层表示降到 PTX 汇编/硬件的取舍；LLVM IR/Pass/后端/ABI 主线仍可守判据。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 时钟源从固定仿真周期改为 FPGA PLL 抖动超过 STA 裕量 → `riscv-core` 的关键路径结论从“周期可闭合”变为“必须重排流水线寄存器或降频”。
+- 核数从单核 RV32I 改为多核共享总线 → `cpu-microarchitecture` 的 AMAT/CPI 归因从本地 cache miss 变为 MESI 状态、snoop/invalidation 和总线仲裁；没有 PMU 事件时慢因无法定位。
+- 介质从本地静态 ELF 改为 PIE/ASLR 下的共享库 → `asm-link-arch` 的调用解释必须经过 PLT/GOT 与重定位表；`objdump` 看到的 `call` 目标不再等于运行时跳转地址。
+- 权限位从用户态可执行改为 GOT/RELRO 只读或 mmap 缺页 → `asm-link-arch` 的装载承诺从“符号可解析”变为“重定位写入触发权限异常”；`gdb` 断点可能停在 PLT 而非目标函数。
+- 协议版本从 RV32I 扩展到 RV32M/RV32A/RV32F/RV32D → `riscv-core` 的 `difftest` 零分歧前提破；新增指令编码、CSR 和异常状态必须进入 `difftest` 比对的指令语义集合，否则流水线/乱序核的指令语义分歧不可见。
+
+### 不做什么（范围）
 
 **不把四个子项目合并成一份文档。** 判据不同，合并即稀释（见 §二）。本文只做路由。
 

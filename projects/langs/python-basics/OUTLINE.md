@@ -2,6 +2,10 @@
 
 这个项目把 Python 岗面试里最常追问的四块内容（对象模型、迭代协议、并发、内存）做成一套能当众演示的知识。输入是一张问题清单：每条都是面试中真实出现的“为什么”，比如“为什么默认参数不能写 `[]`”“`for` 循环到底调了什么”“既然有 GIL，为什么还要加锁”。这些口语化问题会先被改写成可验证的假设：一句预测，加一个能推翻它的最小实验。输出是两类成对产物：每个假设配一个几十行、只用标准库的独立脚本，以及一张结论卡，包含结论句、成立边界、反例、常见错误答法和 30 秒口述版。验收不看读了多少材料，而看三件事：随机抽一张结论卡，能在本机跑脚本复现结论；能说清这条结论在哪个版本、实现或平台上不成立；能在三分钟内把它讲成面试官愿意点头的答案。
 
+**入口（本文的读法）**：在 `sys.version`/`sys.implementation.name`/`sys.path` 可固定、脚本只 `import` 标准库且 `assert` 可复现的约束下，这套大纲把对象模型与可变性、容器、切片与推导式、迭代器与生成器、装饰器与闭包、上下文管理器与 with、GIL 与多线程、多进程与并发选型、asyncio 与事件循环、内存管理与垃圾回收、类型标注、打包与工程化这些章节的面试追问，换成“预测 + 最小 `assert` + 结论字段（`sys.version`/`sys.implementation.name`/`platform.system` 边界、反例 `assert`）”的证据链。它换的是把“为什么”替换成可执行机制断言：`id`/`__dict__`/`__slots__`、`list`/`dict`/`set` 的 `__len__`/`__contains__`/`__iter__`、`slice.indices`/`__getitem__`/`LIST_APPEND`/`SET_ADD`/`MAP_ADD` bytecode、`__iter__`/`__next__`/`yield`、`__code__.co_freevars`/`co_cellvars`、`__enter__`/`__exit__`/`contextlib.ExitStack`、`PyGILState_Ensure`/`Release`/`threading.Lock`、`os.fork`/`multiprocessing.Queue`、`loop.call_soon`/`Selector`、`sys.getrefcount`/`gc.collect`、`__annotations__`/`typing.get_type_hints`、`pyproject.toml`/`entry_points`。
+
+**不换的是什么**：全程不变的是同一套可执行判据：每章都绑定至少一个 `assert`、一个 `sys.version`/`sys.implementation.name`/`platform.system` 成立边界和一个 `pyproject.toml`/`build-system.requires` 依赖边界，所以看到差异先问这三项是否改变，再定位到解释器版本、实现、平台、并发运行时、GC、类型标注或打包依赖层，而不是先改 `assert` 结论。
+
 ## 二、为什么这样做（功能设计）
 
 四块内容不是并列的清单，而是有依赖的一条主线：对象模型是底层基础，可变性决定容器、默认参数、切片的行为；迭代协议把对象模型接到控制流上，`for`、解包、生成器、`async for` 是同一套协议的不同变体；并发与内存是代价问题，GIL 决定线程能做什么，引用计数决定对象什么时候消失。章节顺序由这条主线决定，不从“哪个话题热门”出发。
@@ -27,7 +31,28 @@
 11. **类型标注**：标注是运行期元数据而非约束，`Optional`、`Union`、`TypeVar`、`Generic`、`Protocol` 的用法，`Protocol` 的结构化子类型与 ABC 的差异，mypy、pyright 的检查口径，`from __future__ import annotations`。做完能给一段动态代码补齐标注并通过严格模式检查。
 12. **打包与工程化**：模块与包、`__init__` 与导入机制、相对导入的坑、`pyproject.toml`、虚拟环境与依赖锁定、最小可安装包、测试与 CI 的基本形态。做完能把一堆脚本变成可安装、可导入、别人能复现的包。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 预测 | “默认参数 `[]` 跨调用累积”的承诺无法被 `id(f.__defaults__)` 或 `inspect.signature(f).parameters['items'].default` 推翻，错误发生：把每次新建列表误判为共享列表 | 必需 |
+| 反例 | “`for` 调 `__iter__`/`__next__`”的承诺遇到只实现 `__getitem__` 的老式序列时失去边界，错误发生：把 `iter()` 走 `PySequence_GetIter` 的兼容路径说成必须存在 `__iter__` | 必需 |
+| 复现方式 | “随机抽卡可本机跑脚本复现结论”的承诺破，错误发生：`sys.version`、`platform.python_implementation()` 未记录，`dict` 顺序与 `asyncio` 接口差异无法归因到版本 | 必需 |
+| 脚本头部锁定版本与实现 | “结论只在 CPython 3.8-3.12 成立”的承诺破，错误发生：把 `sys.getrefcount` 即时回收套到 PyPy，`del obj` 后 `weakref.ref(obj)()` 仍非 None | 必需 |
+| 对照组 | “并发脚本证明竞态或加速”的承诺破，错误发生：`threading.Lock` 下 `list.append` 丢失被误判为 GIL 字节码边界，实际可能是 `queue.Queue` 未初始化或索引越界 | 必需 |
+| `timeit` 中位数 | “时间结论可复现”的承诺破，错误发生：单次 `time.perf_counter_ns` 把事件循环调度抖动当成 GIL 切换开销，离散度不显示，加速/减速判定不可信 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- `platform.python_implementation() == "CPython" and sys.version_info < (3, 7)` → `dict` 插入顺序从语言保证降为 CPython 实现细节，`for k in {"b":1,"a":2}` 可能不返回 `b,a`，结论卡“`dict` 顺序稳定”失效。
+- `platform.python_implementation() == "PyPy"` → `sys.getrefcount` 不驱动 `__del__` 即时调用，`del obj` 后 `weakref.ref(obj)()` 仍可非 None，引用计数“最后一个引用消失即析构”不成立。
+- `multiprocessing.get_start_method() == "spawn"` → 子进程不继承父进程 `fork` 内存，默认参数 `[]` 不跨进程累积，模块重新导入且 `__name__` 为 `__mp_main__`，`fork` 下“全局可变状态可见”结论反转。
+- `os.cpu_count() == 1` → `threading.Lock` 与无锁 `list.append` 的吞吐差被单核调度抖动覆盖，`timeit` 中位数离散度超过阈值时，“加锁代价/并发加速”不能成立。
+- `tracemalloc` 未开启且只用 `sys.getsizeof` → “生成器省内存”变成只省 `list` 指针数组，不证明 `resource.getrusage(RUSAGE_SELF).ru_maxrss` 峰值下降，`yield` 对象仍可被 `gc.get_referrers` 持有。
+
+### 不做什么（范围）
 
 不做 CPython 源码级剖析：深度到“足以解释观察到的行为”为止，不逐行读解释器主循环。不覆盖第三方生态（Web 框架、ORM、数据栈），它们不在这四块焦点上。不做性能调优工程：只做能解释差异的测量，不追求把某段代码压到极限。不追求版本全覆盖：以一个固定版本为主，差异只在边界处标注，不维护版本矩阵。不产出“最佳实践清单”式结论集：没有条件的结论一律不收。
 

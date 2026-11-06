@@ -8,6 +8,10 @@
 
 面试里它对应：epoll 惊群怎么产生、`TIME_WAIT` 能不能调、`EMFILE` 时 `accept` 返回什么、伪共享怎么测、无锁为什么难、Nagle 为什么叠加延迟。
 
+**入口（本文的读法）**：在 `epoll_wait` 唤醒多个 worker 后 `accept4` 返回 `EAGAIN`、`listen` backlog 与 `ListenOverflows`、`tcp_sock` 的 `TIME_WAIT`/2MSL 定时器、进程 `fd` 表与 `RLIMIT_NOFILE`、`TCP_NODELAY`/delayed ACK 的 `PSH/ACK` 时序、以及 `cmpxchg`/`futex` 和 64B cache line 这些硬约束下，把“偶发致命”和“单点拖垮”改写成可追踪的状态转换。换的是不再背参数结论，而是按 `errno`、`ss -tin` 的 `state/send-Q/recv-Q`、`/proc/sys/net/ipv4/*`、`lsof`/`/proc/<pid>/fd`、`strace` 的 syscall 序列、`perf c2c` 的 cache line 冲突来定位。
+
+**不换的是什么**：全程不变的是内核可观测状态机：`epoll` 的 `ready list`/`EPOLLONESHOT` 语义、`tcp_sock` 状态与 `TIME_WAIT` 定时器、`task_struct->files` 的 `fd` 配额、TCP 发送缓冲与 `TCP_NODELAY`/delayed ACK 的字段组合、x86 `LOCK CMPXCHG`/`futex` 与 cache line 对齐；看到差异先问它改变的是哪条可观测记录：`accept4` 的 `errno`、`ss -tin` 的 `state/backlog`、`/proc/<pid>/limits` 的 `Max open files`、`perf c2c` 的 cache line 地址，还是 `strace -e trace=network,process` 的调用返回。
+
 ## 二、为什么这样做（方法论设计）
 
 这套方法的核心取舍是：只对“有口径”的结论买单。有口径 = 能写出触发条件、观测指标、判据、修复代价；缺一项，结论就退化成名词解释。
@@ -57,7 +61,27 @@
 ### 信号与系统调用：EINTR、信号丢失、fork 后的锁状态
 讲慢系统调用被信号中断返回 `EINTR`、标准信号不排队导致丢失、`fork` 后子进程继承已加锁的 mutex 导致永久死锁，以及 `sigaction` 与 `pthread_atfork` 的正确用法。面试问"为什么子进程一启动就卡住"，学完能立刻想到"锁在 fork 前被别的线程持有"。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `accept4` | 删掉 `accept4` 返回 `EAGAIN` 的计数口径，惊群承诺“一次 `epoll_wait` 唤醒 $W$ 个 worker，仅 1 个成功”无法证伪，排障会把 `EAGAIN` 误记成业务超时。 | 必需 |
+| `ListenOverflows` | 删掉 `/proc/net/netstat` 的 `ListenOverflows/ListenDrops`，SYN 突刺打满 accept 队列的内核侧错误断链，健康检查超时会被归因给 `sys` CPU 或 backlog 参数。 | 必需 |
+| `TIME_WAIT` | 删掉 `ss -tan state time-wait` 与 ephemeral 端口范围对账，主动关闭方堆积 `TIME_WAIT` 的端口占用承诺变成名词解释，端口耗尽会被误判为 `EMFILE`。 | 必需 |
+| `EMFILE` | 删掉 `ulimit -n`、`/proc/pid/fd`、`lsof -p` 的 fd 余量曲线，`accept` 返回 `EMFILE` 后连接队列继续涨的错误链路断掉，泄漏仍在并会在下一轮 `accept` 再次返回 `EMFILE`。 | 必需 |
+| `tcp_tw_recycle` | 删掉 `tcp_tw_recycle` 的内核版本/NAT 边界，见 `TIME_WAIT` 就开 sysctl 的代价承诺丢失；在已移除该 sysctl 或 NAT 多源路径上会把端口耗尽排障变成随机 SYN/ACK 丢弃。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 核数=1 或所有写变量落在不同 cache line → `perf c2c` 的 HITM 不再证明伪共享，`CAS` 重试计数不会因同一 cache line 争用而上升。
+- 权限位=无 `CAP_SYS_PTRACE`/`CAP_SYS_ADMIN` → `strace -f -e trace=accept4,epoll_wait` 与 `perf c2c` 采不到 `EAGAIN` 和 HITM，惊群/伪共享判据退化成日志猜测。
+- 协议版本/内核 sysctl=TCP timestamps 经 NAT 多源共享公网 IP，或内核已移除 `tcp_tw_recycle` → `tcp_tw_recycle` 的时间戳检查会丢弃合法 SYN/ACK，`TIME_WAIT` 缓解结论变成握手失败。
+- 时钟源=容器 `CLOCK_MONOTONIC` 与宿主机 `perf sched`/`ss` 采样窗口不同步 → p99、`ListenOverflows`、`TIME_WAIT` 无法同窗口对齐，相关性不成立。
+- 队列=应用层队列或 TLS 记录层已缓冲小包 → `TCP_NODELAY` 不再能消除尾延迟，错误变成小包增多、拥塞窗口和 CPU 上升而队头阻塞仍在。
+
+### 不做什么（范围）
 
 - **不做性能调优实战**：本篇只到"能定位、能说清机制、能给判据"。真做优化属于 `eng/perf-engineering/`，两边不重复。
 - **不写内核版本适配表**：同一参数在不同版本的默认值与行为会变，逐版本列表一定会过期。只写"哪些结论按实现而定"。

@@ -22,6 +22,10 @@
 
 **一句话定位**：把"微架构"从名词表变成**约束下的取舍能力**。你最终要能回答的是"窗口从 32 加到 64，IPC 涨多少、面积涨多少、频率掉多少、值不值"，而不是"我实现了乱序执行"。
 
+**入口（本文的读法）**：本文的读法是把每个章节都归到同一张判据表：在 RV32I 的 `add` 等指令的 `rd/rs1/rs2/imm` 编码、`pc` 提交序、`mstatus/mcause/mtval/ecall` 异常态和 load/store 访存序约束下，换 `ROB` 深度、`保留站` 发射口、`LSQ` 消歧窗口、`BTB` 表项、I/D cache `tag/dirty` 行大小与 RTL 流水级，并对照 Rocket/BOOM/CVA6 的 `rob_entries`、`lsu_entries`、`btb_entries`。每个改动必须同时落到周期模型对 `ROB=32/64/128`、`LSQ=8/16`、`BTB=1024/2048` 的 IPC 扫描、RTL 的 `rename_map`/`rob_head`/`lsu_addr_match` 实现、difftest 对 Spike `commit log` 的逐条比对、Yosys/OpenSTA 的 `reg-to-reg` 关键路径与面积，并以 `rv32ui-p-*` 全过、Spike 零分歧、`setup/hold` 违例数为 0 回答是否值。
+
+**不换的是什么**：全程不换的是同一组可执行判据：任何差异先问它是否改变 `pc`、GPR、CSR（`mstatus/mcause/mtval`）、内存字节或 `ecall`/load/store 的可见顺序；若改变，必须用 Spike 提交日志零分歧证明，若只改 `ROB` 条目、`保留站` 发射口、`LSQ` 地址匹配、`BTB` 表项、cache `tag/dirty` 或流水级，则必须用 IPC、fmax、面积三数表证明。
+
 ## 二、为什么这样做（功能设计）
 
 **取舍一：为什么用 RV32I，而不是自造 ISA 或 x86 子集。** 自造 ISA 会把时间花在写手册、写汇编器、写编译器后端上，而这些跟微架构无关；x86 子集要先解决变长译码和 uop 转换，难度在错误的地方。RV32I 的规范只有一章，指令约 40 条，工具链（GCC、objdump、Spike、riscv-tests）全部现成，还有 Rocket/BOOM 可以逐段对照结构。**代价是失去了"自己定编码"的乐趣**——那部分恰好是 Turing Complete 的强项，两边互补。
@@ -64,7 +68,28 @@
 
 **S11 上板与功耗（可选，纯加分）。** FPGA 上跑通并报 fmax；功耗只做量级估算（门数 × 单位功耗），不做签核。判据：板上跑通 CoreMark 并给出与仿真周期数一致的结果。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| Spike | 删掉逐提交指令比对后，`x0` 被写、`jal` 立即数错位、forwarding 漏 `x0`、flush 时保留站残留这些状态错误不会被定位到 `PC/GPR`；验收口径②“随机 difftest 与 Spike 零分歧”不成立 | 必需 |
+| ROB | 删掉 ROB 后，乱序执行没有程序序退休边界，分支误预测 flush 无法确定哪些保留站项回收、哪些重命名映射回滚；产物二“乱序（重命名 + ROB + 保留站）”的提交语义破 | 必需 |
+| OpenSTA | 删掉 OpenSTA 后，Yosys 网表只剩功能仿真，没有关键路径起点终点、ns 数、fmax；验收口径③“综合通过且 STA 无违例”不成立 | 必需 |
+| I/D cache | 删掉 I/D cache 后，`rv32ui-p-*` 仍可过，但 CoreMark/随机程序的 IPC 表缺 miss/refill 变量，产物四无法回答“cache 值不值” | 选择 |
+| Zicsr + mcycle | 删掉 CSR 周期计数器后，RTL 里无法用 `mcycle` 自计周期，IPC 只能靠外部仿真时间或提交计数，产物四少一个指令级时钟入口 | 选择 |
+| LSQ + 消歧 | 删掉 LSQ + 消歧后，乱序访存不能处理 store-to-load forwarding 和 load 被 store 误序，`lw/sw` 与 `jal` 分支交叠时可能读到旧值；但顺序核不需要 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 单 hart → 多 hart：Spike difftest 的“逐条相同”必须扩展为每 hart 的 `PC/GPR/mstatus` 相同，并记录 LSU/LSQ 访存序；否则一致性 bug 会被单核比对漏掉。
+- sky130 + OpenSTA → Artix-7 FPGA：关键路径 ns 和 fmax 不能换算，验收③必须换成 Vivado/Quartus timing report 与上板时钟源实测；否则“综合通过且 STA 无违例”不可迁移。
+- RV32I 无特权级 → 启用 Zicsr + mcycle：随机 difftest 必须比对 CSR 字段与 `mcycle` 溢出，Spike 配置要打开 ISA 扩展；否则 `mcycle` 读值差异会被误判为流水线 bug。
+- 周期精确模型固定内存延迟 → 接入 I/D cache miss + 总线延迟：IPC 表必须加入 miss 率、refill 周期、LSQ 占用；否则“窗口 32→64 值不值”的结论只适用于无 cache 假设。
+- 单发射五级 → 乱序多发射：保留站端口、重命名表项、ROB 退休宽度、分支预测 flush 恢复队列都要重新扫参；否则产物一的 CPI 公式不能外推到 RTL 乱序核。
+
+### 不做什么（范围）
 
 **不做 MMU、特权级、异常陷入、Linux。** 跑 Linux 需要页表、TLB、U/S 模式、中断、原子指令一整组，加进来项目就变成"移植 Linux"而不是"做微架构"。这条线在 `os/jos/`，两边不合并。
 

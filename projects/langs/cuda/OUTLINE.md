@@ -8,6 +8,10 @@ CUDA 相关的工程事故形态很固定：同一个 kernel 在 A100 上跑 3 m
 
 这项能力拦住的，是「凭直觉调参」和「只会调库」之间的那段空白：**能否用一个指标（有效带宽、achieved occupancy、stall 归因、算术强度）说明当前瓶颈，并预估下一步优化的上限**。
 
+**入口（本文的读法）**：在 CUDA 的 `cudaLaunchKernel` 配置、SIMT 调度、延迟隐藏/吞吐优先、`gridDim/blockDim/threadIdx/blockIdx` 索引、HBM/L2/shared memory/constant/register 层次、warp 分支与 `__syncthreads`/`atomicAdd` 约束下，本文把“跨卡变慢、归约非确定、GEMM/归约慢”换成可测机制账：`float4`/`ldg` 的 global memory sector 事务、shared tile array 的 32-bank 访问、`__shfl_down_sync`/`atomicAdd` 的归约顺序、register spill 到 local memory、`achieved occupancy`、`stall reason`、`memory throughput`、`arithmetic intensity` 与 roofline；换的是从调 `blockDim`、`__launch_bounds__`、`#pragma unroll`、tile size 的直觉，转为按 Nsight Compute 指标和 PTX/SASS 指令定位瓶颈。
+
+**不换的是什么**：全程不变的是 CUDA 的 SM 资源账本与语义账本——warp scheduler 发射、register file 配额、shared memory 32 bank、global memory sector 事务、`__syncthreads` 全 block 屏障、atomic 内存序与浮点加法不满足结合律；因此看到差异先问 Nsight Compute 的 `achieved occupancy`、`stall reason`、`global memory coalescing efficiency`、`shared bank conflict`、`local memory spill`、`arithmetic intensity` 是否变化，并按“occupancy 未变而 `long scoreboard` 涨查 global load 合并/延迟，`barrier` 涨查 `__syncthreads`/warp divergence，`bank conflict` 涨查 shared 索引 stride，结果非确定查 `atomicAdd`/`__shfl_down_sync` 顺序”决定改 `blockDim`、`__launch_bounds__`、`float4`/`ldg`、shared tile 或 atomic 顺序。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数的**：同卡、同输入规模、同编译选项下的前后对照；roofline 上的算术强度与脊点位置；Nsight Compute 的 Speed of Light（Memory / Compute Throughput 百分比）、Achieved vs Theoretical Occupancy、stall 原因分布、shared memory bank conflict 计数、branch efficiency；CUDA event 计时的 kernel 时间中位数（含 warmup）。这些都能被第三方复现。
@@ -36,7 +40,28 @@ CUDA 相关的工程事故形态很固定：同一个 kernel 在 A100 上跑 3 m
 12. **性能分析：Nsight Compute 的关键指标、stall 归因与 roofline**：从 SOL 到 stall 采样再到 SASS 级定位的完整链路。回答：给你一个慢 kernel，你的前三个 ncu 动作是什么？
 13. **工程边界：什么时候不该用 CUDA，CUDA 与 HIP / OpenCL / 推理框架的关系**：移植成本、库覆盖度、团队能力。回答：这个任务该手写 kernel 还是调库？
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| CUDA event 计时的 kernel 时间中位数（含 warmup） | 删掉 warmup 与中位数，首个 `cudaLaunchKernel` 的 module load / context init / DVFS 爬坡进入样本，10 μs 级 kernel 的 A/B 差值会被 launch overhead 与计时抖动覆盖，无法判定是否超过 profiler 阈值 | 必需 |
+| Nsight Compute 的 Speed of Light（Memory / Compute Throughput 百分比） | 删掉 Memory / Compute Throughput 百分比，只保留总时间，GEMM 无法区分卡在 DRAM 读 $A/B$ tile 还是卡在 FMA pipe，roofline 脊点是否到达不可判定 | 必需 |
+| shared memory tiling | 删掉 shared memory tiling，GEMM 每个线程仍从 global memory 读 $2K$ 个 float，Memory Throughput 先饱和，Compute Throughput 无法接近峰值 | 必需 |
+| register blocking | 删掉 register blocking，shared memory 载入的 tile 仍反复经 `ld.shared` / `st.shared` 喂给 FMA，LSU 指令占比与 shared memory bank conflict 计数上升，FMA pipe utilization 被 load/store 挤占 | 必需 |
+| Achieved vs Theoretical Occupancy | 删掉 Achieved / Theoretical Occupancy，压寄存器导致 spill 到 local memory 时，只能看到 local `ld/st` 增加，无法判断是 warp 驻留不足还是寄存器文件限制，下一步优化上限不可估 | 必需 |
+| branch efficiency | 删掉 branch efficiency，向量加 / GEMM 的 warp 分支均匀，结论不变；稀疏或图遍历 kernel 中 divergent 分支会被平均成低 IPC，无法区分 FMA 不足还是分支串行化 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 输入/输出数组驻留 HBM 且单次 kernel 时间 ≥ 100 μs → 若数组走 pageable host memory 或 kernel < 10 μs，`cudaMemcpy` / `cudaLaunchKernel` 开销进入 CUDA event 时间，Memory Throughput 百分比不再代表 kernel 瓶颈。
+- grid block 数 ≥ 4 × SM 数且每 SM 可驻留 ≥ 2 block → 若换到 SM 数更低或 block 数不足，Achieved Occupancy 受 grid 并行度限制而非 register file / shared memory 限制，占用率结论失效。
+- 每 SM shared memory 上限 ≥ 48 KB 且 tile 不触发 `cudaFuncAttributeMaxDynamicSharedMemorySize` 失败 → 若迁移到旧架构或 MIG 分区导致 shared memory per SM 下降，block 驻留数下降，bank conflict 计数与 occupancy 结论变化。
+- Nsight Compute 可读取 hardware performance counters（profiling permission 开启、driver / GPU 支持） → 若云实例禁用 counters 或 MIG 分区不支持，Speed of Light 与 stall 归因不可得，只能退回 CUDA event，无法判定瓶颈。
+- GPU 时钟源稳定且 CUDA event 采样间隔小于被测 kernel 时间 → 若 DVFS 降频、MPS 共享 GPU 或 kernel 时间接近 1 μs 量级，kernel time median 漂移，A/B 差值可能低于时钟抖动，优化收益判定失效。
+
+### 不做什么（范围）
 
 - **不写语言与工程语法**：C++ 模板、pybind11、CMake 交叉编译属于别的层，只在 `extern "C"` 影响 kernel 签名时提一句。
 - **不写 408 类体系结构考点**：Cache 映射、TLB、进程调度不展开；只在解释「为什么 GPU 用切换而非缓存隐藏延迟」时对照一句。

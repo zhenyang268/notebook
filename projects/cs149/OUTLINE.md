@@ -6,6 +6,10 @@
 
 验收长这样：换一台同架构机器，别人拿同样配置能跑出落在你误差棒内的数字；任取表里一个加速比，你能指着代码和硬件计数器说清它是怎么来的；把 N 故意调小到全塞进 L1，曲线形状必须按预期变化。三条里缺一条，数字就只是数字。
 
+**入口（本文的读法）**：在固定 workload（向量加、点积、归约、矩阵乘、stencil）与可复现配置（N、后端、线程数、重复次数、sched_setaffinity 绑核）约束下，本文把每个加速比拆成可计数事件：clock_gettime/CLOCK_MONOTONIC 串行基线、FLOP/byte 对 L1/L2/DRAM 的 roofline、AVX/NEON 寄存器与 vmovups/vfmadd/ld1/fmla 指令、pthread 手工分区与 OpenMP parallel for/reduction、MESI/MOESI cache line 伪共享、强扩展固定 N 与弱扩展每线程 N、cudaMemcpy/kernel launch/stream 端到端开销、perf_event_open counters 到源码行/指令的归因报告。本文换的是配置项（N、后端、线程数、重复次数、sched_setaffinity 绑核）与实现路径（标量循环、SIMD 寄存器指令、pthread/OpenMP 任务、GPU kernel 启动与拷贝队列），不换 workload 的访问步长、边界条件、输入数组、clock_gettime/CLOCK_MONOTONIC 计时函数与 perf_event_open 事件集。
+
+**不换的是什么**：全程不变的是同一组 workload 的元素类型 float/int、访问步长与边界条件、随机种子与 fill 函数，同一 clock_gettime/CLOCK_MONOTONIC 计时器，同一 perf_event_open 事件集（cycles、instructions、cache-references、cache-misses、L1-dcache-load-misses、dTLB-load-misses），同一 64-byte cache line 对齐与 padding 布局，同一 warmup 次数与 median/IQR 统计口径；看到差异先问是否换了 N、后端、线程数、重复次数、sched_setaffinity 绑核、malloc/posix_memalign 分配器、编译器 -O/-march/-ffast-math 标志、GPU cudaMemcpy/kernel launch/stream 顺序、cpufreq governor。
+
 ## 二、为什么这样做（功能设计）
 
 这一节写的是几个关键取舍：把哪些现成组件替换掉、替换在哪一层替换、以及为什么值得付这个代价。
@@ -33,7 +37,28 @@
 7. **GPU 编程模型与端到端开销**——kernel 写法、grid/block、内存层次、四段计时、occupancy 的基本观察。知识点：SIMT、host-device 带宽、启动开销。做完能验证：端到端加速比与纯 kernel 加速比的差额能被拷贝量解释。
 8. **归因报告**——CSV 字段设计、误差棒、加速比表、每个数字的因果链。知识点：性能报告规范、可复现性。做完能验证：别人按你的配置能跑出落在误差棒内的数字。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| 手写 SIMD intrinsics | 无法把 `_mm256_add_ps` 的 8 float/指令计入向量宽度来源；自动向量化缺失时 6× 被误归因到核数，验收“指着代码和硬件计数器说清来源”破 | 选择 |
+| 64 字节对齐的分配与尾部处理 | `_mm256_load_ps` 触发未对齐访存或 fallback `_mm256_loadu_ps`，N 非整数倍时尾部 select/blend 错误，校验和超容差 | 必需 |
+| 绑核 | `sched_setaffinity`/`taskset` 缺失后线程迁移带走 L1/L2，中位数与 IQR 误差棒覆盖不了 30% 噪声，验收“同架构机器落在误差棒内”破 | 必需 |
+| 中位数和四分位距 | 取均值或最小值会把 turbo 尖峰/后台负载当稳定值，加速比表失去 IQR 误差棒，Amdahl 拟合口径断裂 | 必需 |
+| `alignas(64)` 或 padding | 对照组与修复组不再只差 padding，无法用 64B cache line 争用解释裸线程时间差；OpenMP `reduction` 隐藏布局时伪共享实验不可证伪 | 必需 |
+| GPU 计时被切成四段：分配、H2D 拷贝、kernel、D2H 回传 | `cudaMalloc`/`cudaMemcpy`/kernel launch 混成一个 `run(config)` 总时间，无法拆出 10× 被 H2D/D2H 吃掉多少，验收“每个加速比归因说明”破 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 物理核数/SMT 拓扑不同（`lscpu` 的 core/socket/thread、`OMP_NUM_THREADS`） → 多线程加速比随线程数的拐点位移，Amdahl 拟合的串行分数改变。
+- `sched_setaffinity`/cpuset 权限位不可用 → 线程迁移使中位数/IQR 误差棒外，加速比归因混入 L1/L2 冷热。
+- cpufreq governor 非 `performance` 且 turbo 未关 → `clock_gettime(CLOCK_MONOTONIC)` 下同 workload 周期数变，6× 可能来自 boost 而非核数。
+- 内存介质/NUMA 拓扑不同（DDR 通道、LLC 容量、远端节点） → N 扫描曲线 L1/L2/LLC 拐点位移，多核并行收益被带宽限制改变。
+- OpenMP runtime 版本或 `reduction`/schedule 策略改变、编译器把累加变量提升到寄存器 → 伪共享对照/修复组不再只差 `alignas(64)`，64B line 争用测不出。
+
+### 不做什么（范围）
 
 **课程不要求、明确不碰**：不写 LLVM/GCC 的向量化 pass，不实现自动向量化；不写 cache 模拟器或 CPU 微体系结构模拟器——一致性只做到“能测出流量差异”这一层，MESI 状态机本身归体系结构那边；不碰 MPI、多机、分布式一致性；GPU 不展开 PTX/SASS 级调优，不做 tiling 与 occupancy 的极限搜索，那是 GPU 深入项目的事。
 

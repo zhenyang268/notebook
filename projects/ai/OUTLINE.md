@@ -8,6 +8,10 @@
 
 还有一个高频静默错误：`transpose` 之后直接 `view`，要么抛 stride 不连续，要么被 `reshape` 悄悄拷贝 —— 正确性和显存都中招。
 
+**入口（本文的读法）**：在 `torch.cuda.get_device_properties().total_memory`、`nn.Module.parameters()` 的 `numel`、`dtype.itemsize`、`TensorImpl.sizes()/strides()`、`past_key_values` 的 `[batch, heads, seq_len, head_dim]`、`cudaMalloc`/`torch.cuda.memory_allocated()` 这些可检查字段下，把“面试能不能算”和“上线会不会 OOM”换成同一张账：权重、激活、KV cache、梯度、优化器状态各占多少字节。换掉的是 `model_name_or_path`、`torch.__version__`、`PYTORCH_CUDA_ALLOC_CONF` 这些不直接给出字节数的字段，换成 `state_dict` 的 key-shape-dtype、`input_ids/attention_mask` 的 `torch.Size`、`requires_grad` 与 AdamW `state` 的 `numel`。
+
+**不换的是什么**：全程不变的是 `state_dict` 的 key→`TensorImpl.sizes()/strides()/dtype`、`input_ids/attention_mask` 的 `torch.Size`、`past_key_values` 的 `[batch, heads, seq_len, head_dim]`、`requires_grad` 与 AdamW `state` 的 `numel`、`cudaMalloc` 返回的 allocator bytes；看到差异先问这五项是否同口径，再查 `transpose().view()` 是否触发 `contiguous` 拷贝或 `reshape` 是否改变 `storage_offset`。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数的**：参数量 $N=\sum_p \mathrm{numel}(p)$，逐层可数、可复现；FLOPs/MACs，但**必须声明口径**——batch 是否为 1、序列长度取多少、是否含 bias 与激活、MACs 算 1 次还是 2 次。同一份代码用 `fvcore` 的 `FlopCountAnalysis` 和用论文口径能差 2 倍，不是谁错，是口径不同。感受野 $r_l=r_{l-1}+(k_l-1)\prod_{i<l}s_i$、输出尺寸 $\lfloor (I+2P-D(k-1)-1)/S\rfloor+1$、注意力复杂度 $O(n^2d)$——这些是**闭式可算**的，算完能被人当场复核。
@@ -62,7 +66,27 @@ $\mathrm{softmax}(QK^\top/\sqrt{d_k})V$ 的逐步形状；$O(n^2d)$；多头是�
 $N$ 与 MACs 的估算模板；CNN 的局部性/平移等变 vs Transformer 的全局感受野/置换等变+位置编码；数据量、序列长度、延迟预算三条判据。
 → 能答：1 万张图、边缘端 10ms 预算，选 CNN 还是 ViT？给出判据而不是结论。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| KV cache 字节项 `2*L*d*batch*seq_len*dtype_bytes` | 删掉后峰值显存只数 `sum_p numel(p)*dtype_bytes`，长上下文时 `cudaMalloc`/allocator 触发 `CUDA out of memory`，形状检查不会报错。 | 必需 |
+| `reshape`/`view` 的 stride 连续性检查 | 删掉后 `transpose` 产生的非连续 stride 被 `view` 抛 `RuntimeError: view size is not compatible...` 或被 `reshape` 静默拷贝，batch/seq 维混叠导致数值全错。 | 必需 |
+| MACs 口径声明（`batch`、`seq_len`、bias、MAC=1/2） | 删掉后 `fvcore.FlopCountAnalysis` 与论文口径混用，同一 `QK^T`/`FFN` 图差 2 倍无法复核，选型表里的 `MACs` 列失去可比口径。 | 必需 |
+| 等变性/位置编码判据 | 删掉后无法把位置编码必要性写成 token 排列前后 `QK^T` 矩阵是否变化的检查项，只剩口头判断。 | 选择 |
+| MoE 激活参数量 | 删掉后只报总 `numel(p)`，不报 `top-k` 路由后的激活参数量，`FlopCountAnalysis` 与 all-to-all 通信量混用，参数效率不可比。 | 必需 |
+
+### 失效点：哪条前提一破，结论就变
+
+- `dtype_bytes=2` 且 `batch*seq_len` 固定 → 改 `int8/fp8` 后 KV cache 字节项 `2*L*d*batch*seq_len*dtype_bytes` 变，OOM 边界移到量化 scale/zero-point 与 cache 布局边界。
+- `transpose` 后 `tensor.is_contiguous()==True` → 若 stride 非连续，`view` 抛 `RuntimeError` 或 `reshape` 触发拷贝，静态 `MACs` 不变但 allocator 峰值显存和 kernel 时延估算失效。
+- 注意力 kernel 稠密计算 `QK^T` 且 `seq_len=n` 固定 → 若 `causal mask` 或 `varlen` 动态形状使有效计算量下降，`O(n^2d)` 静态 MACs 变上界，`MACs` 排序表变。
+- depthwise 卷积算术强度高于 GPU DRAM roofline 拐点 → 若低于拐点，`MACs` 低但 `ld.global`/`st.global` 带宽成为瓶颈，实测时延不随 FLOPs 下降。
+- MoE 路由 `top-k` 与容量系数固定 → 若 `top-k` 改变，总 `numel(p)` 不变但激活参数量、`FlopCountAnalysis` 和 all-to-all 通信量改变，参数效率结论变。
+
+### 不做什么（范围）
 
 - **不写任何训练内容**：损失函数推导、优化器、学习率调度、正则化、数据增强、分布式训练、调参经验、反向传播的梯度公式——全部不写。本文只描述「结构长什么样、为什么这样设计、参数量与计算量怎么算」。
 - **不写 408 考点**：Cache、流水线、进程调度、内存管理属于计算机组成/操作系统层。

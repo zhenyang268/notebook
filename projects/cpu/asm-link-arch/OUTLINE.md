@@ -4,6 +4,10 @@
 
 **场景一：线上崩溃。** 一个带调试信息的 ELF 常是几 MB 到几十 MB，core 可到 GB 级。若只看到 `SIGSEGV`，只能猜；有口径时，用 faulting PC 对到“函数+偏移”，再读参数寄存器与栈，才能区分空指针、栈破坏、ABI 不一致。**场景二：链接失败。** 单体仓库里一次 `undefined reference` 往往只有一行，根因却可能在几十个目标文件/库的链接顺序、C++ 名字修饰、符号可见性或版本里；符号冲突会让进程在 `main` 前退出，或运行时绑到错误实现。面试里则对应：参数怎么传、栈为何对齐、PLT/GOT、PIE/ASLR、内联汇编约束。
 
+**入口（本文的读法）**：在 release 只有 `SIGSEGV` 的 faulting `RIP/PC`、链接日志只有 `undefined reference`/符号冲突且 mangled name/可见性/版本不明、目标文件可能混 x86-64 与 ARM64 的约束下，把每章读成同一条可核对记录：预处理/编译/汇编产出 `.s` 与 `.o` 中的 `.text/.data/.bss/.symtab/.rela/.eh_frame`，链接器用 `.rela/.got/.plt/.dynamic` 解析符号并产出可执行/共享 ELF，加载器用 `ld.so/dl_iterate_phdr` 读 `PT_LOAD`/`dl_phdr_info` 建立 PIE/ASLR 映射，运行时用 `RIP/PC`、`rdi/rsi/x0`、`rsp/x29/x30`、16-byte 对齐、红区与 `varargs` 保存调用现场。这套记录用来把崩溃定位到“函数+偏移”、把链接失败定位到“定义/引用/重定位/可见性/版本记录”、把 ABI 误判定位到 SysV/AArch64 参数与保存规则；换的只是 ISA（`RIP-relative`/`PC-relative`、`mov/lea/cmp/jcc` 对 `LDR/STR/B.cond`、`flags/NZCV`）、静态/动态链接、PIE/ASLR 和 `asm/intrinsics` 的约束/`clobber`/`memory` 屏障，因此差异清单只用于判断何时必须读 `.text`/`.rela`/`.eh_frame`。
+
+**不换的是什么**：全程不变的是 ELF 的 `.symtab/.dynsym/.rela/.got/.plt/.dynamic/.eh_frame` 记录、`ld.so` 的符号解析与 `dl_iterate_phdr`/`dl_phdr_info` 遍历顺序、SysV/AArch64 的 `caller-saved/callee-saved` 与 `rsp/x29/x30`、16-byte 对齐、返回地址/`RIP/PC` 对应规则，所以看到 x86/ARM、静态/动态、PIE/ASLR 差异时，先问它改变的是哪条 `.symtab/.rela/.got/.plt` 记录、哪条 `ld.so` 解析顺序、哪组 `rdi/rsi/x0`/`rsp/x29/x30` 保存规则，而不是先归因于 ISA 标签。
+
 ## 二、为什么这样做（方法论设计）
 
 - **有口径才算数。** 每个结论要能落到可复查输出：`readelf -s` 的 UND/DEF、`objdump -d` 的 `call foo@plt`、GDB 的 `p/x $rsp`、`LD_DEBUG=bindings` 的绑定行。不能落到证据的，如“ARM 更省电”“延迟绑定更快”，不作为结论。
@@ -32,7 +36,28 @@
 
 10. **两个架构的差异清单：什么时候必须看汇编**——编码密度、内存模型（TSO vs 弱模型）、条件执行、`push/pop` vs `stp/ldp`、SP 对齐要求、参数与返回值寄存器；以及工程判据：什么情况下必须读反汇编（崩溃定位、性能归因、ABI 不匹配、编译器生成代码与源码不一致）。能答“同一份 C 代码在两个架构上，哪类写法会暴露差异”。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| faulting PC | 崩溃定位承诺破：只剩 `SIGSEGV`，无法把崩溃地址映射到“函数+偏移”，空指针、栈破坏、ABI 不一致混在一起。 | 必需 |
+| `readelf -s` 的 UND/DEF | 链接失败诊断承诺破：`undefined reference` 无法区分缺库、C++ 名字修饰不匹配、符号可见性或版本不匹配，只能盲调链接顺序。 | 必需 |
+| `objdump -d` 的 `call foo@plt` | 动态调用证据承诺破：无法确认调用是否经过 PLT/GOT，符号冲突、错误实现与直接跳转混为一谈。 | 必需 |
+| GDB 的 `p/x $rsp` | ABI 现场判据承诺破：无法核对 SysV/AAPCS64 的栈对齐、参数寄存器与返回地址现场，栈破坏无法和 ABI 不一致区分。 | 必需 |
+| `LD_DEBUG=bindings` | 绑定行证据承诺破：运行时绑到错误实现只能看到进程行为异常，拿不到符号绑定行。 | 选择 |
+| PIE/ASLR | 地址漂移判据承诺破：PC/rsp 地址变化无法区分是基址随机化还是真实栈破坏，跨进程对照地址会误判。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- SysV x86-64 ABI 或 AAPCS64 ABI 作为目标调用约定 → 参数寄存器、栈对齐、callee-saved 寄存器判据随 ABI 切换而变：x86-64 用 `rdi/rsi/rdx/rcx/r8/r9` 与 16 字节栈对齐，AArch64 用 `x0-x7` 与 `SP` 16 字节对齐。
+- ELF 动态链接 + PLT/GOT + `LD_DEBUG=bindings` → 符号绑定可追踪；改成 `-static` 或无共享库后 `call foo@plt` 与绑定行消失，运行时绑错无法用该判据定位。
+- 未 strip 的 `-g`/DWARF 调试信息 → `faulting PC` 可映射到“函数+偏移”；发布版 strip 后只能依赖 `readelf -s` 与 `objdump -d`，函数边界和源码行号不可靠。
+- 保留帧指针且未内联/尾调用/异常展开 → `rbp/rsp` 栈帧回溯成立；`-O2` 内联、尾调用、`.eh_frame` 展开或手写汇编使栈帧图失效，需用实际指令、寄存器现场与展开表判断。
+- `CAP_SYS_PTRACE` 可用且 `/proc/sys/kernel/yama/ptrace_scope=0` → GDB 能 attach 并读 `$rsp/$pc`；`ptrace_scope=1` 且目标非直接子进程时 attach 失败，现场寄存器判据退化为 core 与 `faulting PC`。
+
+### 不做什么（范围）
 
 **不做 Windows PE 与 macOS Mach-O。** 格式不同但概念同构，混进来会让"节与段""导入表""符号修饰"三件事各讲两遍，反而模糊主线。只以 ELF 为对象，需要时提一句对照。
 

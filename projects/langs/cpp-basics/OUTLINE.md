@@ -2,6 +2,10 @@
 
 本项目要搭一个“能亲手验证结论”的 C++ 核心实验工程，用一组自己实现的最小类型、容器和所有权包装，把对象模型、资源管理、泛型与并发这四块知识变成可观察、可对比、可压测的现象。输入是若干 C++ 类型及其使用场景：构造与析构、拷贝与移动、异常路径、容器操作、线程竞争等；输出是三类证据：对象生命周期与拷贝/移动计数日志、容器操作次数随规模变化的曲线、并发压力下的行为记录与 sanitizer/编译器告警报告。验收标准是：对给定代码先预测行为，再用工程复现；能把危险写法改成 RAII、所有权明确、异常安全且并发正确的版本，并说清代价。最终形成一套能讲清“为什么这样设计”的面试口径，而不是题库答案。
 
+**入口（本文的读法）**：在模板实例化后的成员布局、构造/析构函数调用、operator new/delete、pthread_create/join、std::atomic::memory_order 约束下，把每章都读成一张对象状态迁移表，以把对象模型、资源管理、泛型与并发变成可观察证据：类型系统与模板给出实例化后的成员布局、vtable/构造析构函数签名，值与引用/构造/析构给出对象在栈帧、堆、线程栈上的创建、复制、移动、销毁事件，RAII、拷贝控制、移动语义、智能指针给出 operator new/delete、std::unique_ptr::reset、std::shared_ptr 控制块、close(fd)、pthread_mutex_unlock、pthread_join 等资源的归属与释放点，STL 容器与算法给出 std::vector::push_back 的 size/capacity、std::unordered_map::find 的桶与迭代器失效、算法复杂度与 iterator 失效规则，异常安全与并发 thread/mutex/atomic/UB 给出 __cxa_throw、std::terminate、std::mutex::lock/unlock、std::atomic::load/store 的 memory_order、happens-before、数据竞争与 TSan/ASan/UBSan 报告。读法换的是：从“代码能编译”换成“构造/析构日志、拷贝/移动计数、std::vector/std::unordered_map 操作次数曲线、__cxa_throw/std::terminate 展开记录、TSan/ASan/UBSan 报告能复现并解释”。
+
+**不换的是什么**：全程不变的是：对象状态由模板实例化后的类型布局、值/引用绑定与构造函数/析构函数调用决定，资源释放由 std::unique_ptr/std::shared_ptr 所有权、RAII 析构顺序和 operator new/delete、close(fd)、pthread_mutex_lock/unlock、pthread_create/join 等调用决定，容器与算法行为由 std::vector::push_back 的 size/capacity、std::unordered_map::find 的桶与 iterator 失效、std::sort 的比较/移动次数曲线决定，并发与错误路径由 std::atomic::memory_order、happens-before、__cxa_throw/std::terminate 决定；因此看到差异先问构造函数/析构函数是否执行、拷贝/std::move/swap 是否转移所有权、异常是否展开、迭代器是否失效、锁或 atomic 是否建立 happens-before。
+
 ## 二、为什么这样做（功能设计）
 
 核心设计是把标准库里最容易被面试追问、又最容易被黑盒化的组件替换成教学版，而不是只读标准。替换发生在用户态接口层：场景程序只依赖值语义、迭代器/视图、所有权接口，底层可在“教学版”和“标准版”之间切换，用同一组场景对比行为。不碰内核态，线程与原子原语仍用标准库，只在外面加可观测壳，避免把项目做成操作系统课。必须自己实现的约定包括：构造函数建立不变量、析构释放资源；moved-from 对象保持有效但值未指定；迭代器失效规则；`unique_ptr` 表达独占，`shared_ptr` 的控制块线程安全与对象线程安全分开。
@@ -52,7 +56,27 @@
 
 12. **未定义行为与内存模型**：对象生命周期与有效类型、越界、悬垂、未初始化、有符号溢出、数据竞争、优化与 UB；验证 sanitizer 报告与 `-O0`/`-O2` 差异，写最小复现。
 
-## 四、不做什么
+## 四、不做什么 · 必要性 · 失效点
+
+### 必要性：删掉会怎样
+
+| 机制 | 删掉会怎样 | 判定 |
+|---|---|---|
+| `ScopeGuard` | 删掉后异常/提前 return 不再保证执行 `pthread_mutex_unlock`、`close`、`dlclose`，锁/文件/句柄释放承诺破，TSan 报“线程退出时仍持锁”，ASan/LeakSanitizer 报资源泄漏。 | 选择 |
+| `可注入分配器` | 删掉后不能在 `operator new`/`operator delete` 路径注入 `std::bad_alloc`，`Vector::reserve` 的异常回滚承诺破，分配次数随 n 的曲线不可复现。 | 必需 |
+| `确定性事件编号` | 删掉后日志事件序列随地址随机化与线程调度抖动，拷贝/移动计数对比承诺破，同一代码两次运行得到不同事件编号。 | 必需 |
+| `ASan/UBSan/TSan` | 删掉后越界读写、use-after-free、data race 只表现为偶发崩溃，sanitizer/编译器告警报告证据缺失，UB 只承认可观测告警的承诺破。 | 必需 |
+| `weak_ptr` | 删掉后 `shared_ptr` 循环引用使控制块引用计数不归零，析构释放资源承诺破，LeakSanitizer 报 memory leak。 | 选择 |
+
+### 失效点：哪条前提一破，结论就变
+
+- 单核 `taskset -c 0` 且所有 `std::thread` 绑到同一 CPU → `mutex`/`condition_variable` 的交错窗口消失，TSan 不再稳定报告 data race，原子停止标志的并发压力循环退化为顺序执行。
+- `-O2` 开启内联/寄存器分配且允许返回值优化 → `String` 移动构造调用次数少报，拷贝/移动计数日志不再反映源码层 `std::move` 承诺。
+- `malloc` 后端从 `brk` 页扩展改为 `mmap` 大块分配且 `M_MMAP_THRESHOLD` 被环境变量覆盖 → `Vector::reserve` 的分配次数曲线混入 `mmap` 系统调用与页错误，复杂度证据不再只对应 `operator new`。
+- 目标 CPU cache line 从 64 字节变为 128 字节（`std::hardware_destructive_interference_size` 假设破） → `atomic` 计数器伪共享边界移动，`seq_cst` 争用压力循环的吞吐曲线改变。
+- 容器 seccomp 禁止 `futex` 系统调用 → `std::mutex` 阻塞和 `std::condition_variable::wait` 唤醒不能依赖内核等待队列，并发测试从“调度窗口复现交错”变成超时或 `ENOSYS` 错误。
+
+### 不做什么（范围）
 
 不实现完整 STL、通用 allocator、编译期元编程库或 `std::function`/`variant`/`any` 的全量功能；不写无锁数据结构、协程、网络库、内核模块；不覆盖 C++ 全语法、GUI、嵌入式或跨平台 ABI 细节。性能只验证复杂度阶和明显退化，不做微优化，不承诺生产级吞吐。并发正确性以标准库原语和 sanitizer 为准，不把“某次没崩”当正确性证明。
 
