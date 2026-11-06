@@ -49,7 +49,7 @@
 |---|---|---|
 | `RAII` | 删掉 `RAII` 后，“生命周期怎么分工”承诺破；异常展开时 `std::vector`/`std::unique_ptr` 析构不执行，堆内存与文件描述符泄漏。 | 必需 |
 | `GIL` | 删掉 `GIL` 后，“CPU 密集线程串行”承诺破；多线程同时执行 `Py_INCREF`/`Py_DECREF`，`PyObject` 引用计数可能提前归零并触发 `tp_free`。 | 必需 |
-| `bank conflict` | 删掉 `bank conflict` 后，“访存模式决定延迟隐藏”承诺破；warp 内多个 lane 访问同一 32-bit bank 的 `__shared__` 数组时，`l1tex` 冲突计数上升但无法归因。 | 必需 |
+| `bank conflict` | 删掉 `bank conflict` 后，“访存模式决定延迟隐藏”承诺破；warp 内多个 lane 访问同一 32-bit bank 的 `__shared__` 数组时，`l1tex` 冲突计数上升但无法归因。 | 选择 |
 | `Nsight` | 删掉 `Nsight` 后，“每一步都要有指标支撑”承诺破；无法采集 `occupancy`、`memory throughput`、`shared memory bank conflicts`，tiling 只能靠代码猜测。 | 必需 |
 | `RTL` / `difftest` / `STA` | 删掉“不把 `cpu/` 拉进来”的边界后，`分组只做路由` 承诺破；`langs` 判据会从 `ASan`/`dis`/`Nsight` 扩到波形、指令级差分、时序报告，但三份语言/GPU 结论不破。 | 选择 |
 
