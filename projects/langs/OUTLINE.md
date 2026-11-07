@@ -12,7 +12,7 @@
 
 **一句话定位**：这三份都在回答同一个问题的不同侧面——**「这段代码为什么慢/为什么错」**。C++ 的答案是"你踩了 UB 或对象生命周期"，Python 的答案是"GIL/引用计数/解释执行"，CUDA 的答案是"占用率与访存模式"。它们共同点在于：**只靠写代码和跑工具就能验证**，不需要额外的硬件、内核或分布式环境。
 
-**入口（本文的读法）**：在“只用源码、`objdump`/`dis`/`strace`/Nsight 可重放指标，不引入额外硬件、内核模块或分布式集群”的约束下，把 C++ 的对象布局/`vtable`/RAII 析构顺序/移动构造/模板实例化符号/`std::atomic` 内存序/UB 指令，Python 的 `PyObject`/`tp_iter`/`tp_iternext`/GIL `PyThreadState`/`asyncio` 任务状态/`PyGC_Head`，CUDA 的 SIMT warp/`__shared__`/bank conflict/occupancy/归约/扫描/矩阵乘 tiling/Nsight 指标，统一换成可检查机制：寄存器分配、指令流、vtable/`type_info`、原子指令、对象头与引用计数、任务状态字段、kernel launch 配置、访存计数。换的是归因坐标：把“为什么慢/为什么错”从“移动语义/GIL/占用率”这类标题词换成指令流、对象头、任务状态、launch config 和访存计数。
+**入口（本文的读法）**：在 langs 项目只用源码、objdump、dis、strace、Nsight 可重放指标、不引入额外硬件、内核模块、分布式集群的约束下，解决 C++ 对象布局、vtable、RAII 析构顺序、移动构造、模板实例化符号、std::atomic 内存序、UB 指令、Python PyObject、tp_iter、tp_iternext、GIL、PyThreadState、asyncio 任务状态、PyGC_Head、CUDA SIMT warp、__shared__、bank conflict、occupancy、归约、扫描、矩阵乘 tiling、Nsight 指标为什么慢、为什么错。
 
 **不换的是什么**：全程不变的是同一输入下可由 `objdump` 指令流、`dis` 字节码、`strace` 的 `futex`/`ioctl`、`asyncio.Task.__step` 状态、`cudaOccupancyMaxActiveBlocksPerMultiprocessor` 计数和 Nsight 访存指标重放的观测序列，所以看到差异先问是 ABI/对象头/内存序/事件循环/launch config 中哪一项变了。
 

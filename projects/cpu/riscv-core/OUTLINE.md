@@ -22,7 +22,7 @@
 
 **一句话定位**：把"微架构"从名词表变成**约束下的取舍能力**。你最终要能回答的是"窗口从 32 加到 64，IPC 涨多少、面积涨多少、频率掉多少、值不值"，而不是"我实现了乱序执行"。
 
-**入口（本文的读法）**：本文的读法是把每个章节都归到同一张判据表：在 RV32I 的 `add` 等指令的 `rd/rs1/rs2/imm` 编码、`pc` 提交序、`mstatus/mcause/mtval/ecall` 异常态和 load/store 访存序约束下，换 `ROB` 深度、`保留站` 发射口、`LSQ` 消歧窗口、`BTB` 表项、I/D cache `tag/dirty` 行大小与 RTL 流水级，并对照 Rocket/BOOM/CVA6 的 `rob_entries`、`lsu_entries`、`btb_entries`。每个改动必须同时落到周期模型对 `ROB=32/64/128`、`LSQ=8/16`、`BTB=1024/2048` 的 IPC 扫描、RTL 的 `rename_map`/`rob_head`/`lsu_addr_match` 实现、difftest 对 Spike `commit log` 的逐条比对、Yosys/OpenSTA 的 `reg-to-reg` 关键路径与面积，并以 `rv32ui-p-*` 全过、Spike 零分歧、`setup/hold` 违例数为 0 回答是否值。
+**入口（本文的读法）**：在 riscv-core 的 RV32I `add` 等指令 `rd/rs1/rs2/imm` 编码、`pc` 提交序、`mstatus/mcause/mtval/ecall` 异常态、load/store 访存序约束下，用同一张判据表回答每个改动是否值。
 
 **不换的是什么**：全程不换的是同一组可执行判据：任何差异先问它是否改变 `pc`、GPR、CSR（`mstatus/mcause/mtval`）、内存字节或 `ecall`/load/store 的可见顺序；若改变，必须用 Spike 提交日志零分歧证明，若只改 `ROB` 条目、`保留站` 发射口、`LSQ` 地址匹配、`BTB` 表项、cache `tag/dirty` 或流水级，则必须用 IPC、fmax、面积三数表证明。
 

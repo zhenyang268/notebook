@@ -8,7 +8,7 @@
 
 **场景三：不可复现的脏读。** 压测 6 小时复现一次，attach 上去所有线程都正常。这类问题的解法是插桩（TSan）、结构化日志、最小复现三条线并行，而不是盯代码。
 
-**入口（本文的读法）**：在 `ulimit -c=0`、二进制 strip、`systemd` journal 只给 `signal=11` 的约束下，它把“重启+猜测”换成 `core_pattern`/`coredumpctl` 的 core、`build-id`/`.debug_line` 的源码行、`SIGSEGV`/`SIGBUS` + `RIP/RSP/RBP` + `/proc/pid/maps` 的访问地址，以及 `ASan` shadow memory/redzone、`TSan` happens-before/mutex lock/unlock、`perf record`/`bpftrace` 的 tracepoint 事件与最小复现脚本，用来固定 `-O2` 指令序列、压测脏读路径和面试追问链条。
+**入口（本文的读法）**：在 `ulimit -c=0`、二进制被 strip、`systemd` 只留 `signal=11` 的约束下，把「重启 + 猜测」换成三样可核对的东西：`core_pattern`/`coredumpctl` 的 core、`build-id`/`.debug_line` 得到的源码行、`SIGSEGV` 与 `RIP/RSP/RBP` 加 `/proc/pid/maps` 的访问地址。再往下是 `ASan` 的 redzone、`TSan` 的 happens-before、`perf`/`bpftrace` 的 tracepoint，最后收敛到一个最小复现脚本。
 
 **不换的是什么**：全程不变的是同一 ELF 的 `build-id`、`.text` 指令字节、崩溃 `RIP`、`/proc/pid/maps` 映射区间和共享内存的 happens-before 边，所以 `-O2` 崩而 `-O0` 不崩、ASan 不报而 TSan 报、attach 后线程正常时，先核对 core 与 debuginfo 的 `build-id`、`RIP` 是否落在 `.text` 且访问地址是否未映射、mutex `lock/unlock` 是否覆盖读写、以及 `TSan`/`ASan` 插桩是否改变 happens-before 边或 shadow memory 检查范围。
 

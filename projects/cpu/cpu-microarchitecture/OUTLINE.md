@@ -11,7 +11,7 @@
 
 数量级的感觉必须有：L1 命中几个周期，L2 十几到二十几个周期，DRAM 上百周期；一次分支误预测在深流水核上是十几个到二十几个周期的量级。具体数字按实现而定，但**数量级之间的比例关系**决定了优化该落在哪一层——这正是这门能力唯一能给出的东西：把“慢”定位到某一级、某一个结构。
 
-**入口（本文的读法）**：在 `CPUID` 暴露的 ISA 扩展、`CR0/CR4` 控制位、`PTE/TLB` 映射和 `MESI` 的 `M/E/S/I` cache-line 状态不变的前提下，把流水线、分支预测、`SIMD`、缓存、TLB、多核一致性与 DRAM 层次的耗时差异读成 `perf_event_open` 的 `instructions`、`cycles`、`cache-misses`、`branch-misses`、`TLB-misses`、`stalled-cycles-backend` 对 ROB/RS/LSU/IQ、`BTB/BHT`、`SIMD` 端口、load/store queue 深度、cache line 迁移与 DRAM row-buffer/bandwidth 的约束，用于把 `cycles` 差异定位到 `ROB` 满、`BTB/BHT` 误预测、`LSQ` 满、`SIMD` 端口不足、cache line 迁移或 `DRAM row-buffer` 冲突。
+**入口（本文的读法）**：在 `CPUID` 暴露的 ISA 扩展、`CR0/CR4` 控制位、`PTE/TLB` 映射与 `MESI` 状态不变的前提下，把流水线、分支预测、`SIMD`、缓存、TLB、一致性与 DRAM 的耗时差异，读成 `perf_event_open` 的 `instructions`/`cycles`/`cache-misses`/`branch-misses`/`TLB-misses`/`stalled-cycles-backend`。这些计数器分别对应 `ROB/RS/LSU/IQ` 深度、`BTB/BHT` 误预测、`SIMD` 端口、`LSQ` 满、cache line 迁移与 DRAM row-buffer 冲突——定位就是把 `cycles` 归到其中一条。
 换的是把源码改写直接映射到 `BTB/BHT` 误预测、`ROB` 回收、`LSQ` 满、`SIMD` 端口、cache line 迁移和 `DRAM row-buffer` 冲突的归因链。
 
 **不换的是什么**：全程不变的是 ISA 指令语义、`RFLAGS` 条件码、`CR3/PTE` 页表结构、`MESI` cache-line 状态、`lock cmpxchg` 的原子语义和 `syscall/sysret` 边界，所以看到耗时差异时先问 `perf_event_open` 的 `instructions` 与 `cycles` 是否同比例变化、`cache-misses`/`branch-misses`/`TLB-misses`/`stalled-cycles-backend` 是否同向变化，再问 ROB/RS/LSU 是否出现 `load/store queue full`、`memory order buffer full`、`prefetcher miss` 或 `DRAM bank/row-buffer conflict`。

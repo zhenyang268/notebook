@@ -8,7 +8,7 @@
 
 这项能力的目标不是“会跑工具”，而是把性能结论变成可复核的：口径明确、负载明确、样本明确、边界明确。
 
-**入口（本文的读法）**：在固定 SLO 字段（p99_ms、qps、error_rate、timeout_ms）、固定负载模型（open-loop/closed-loop、connection_pool_size、retry_policy、backoff_jitter、HTTP 429/503 处理）和固定采样口径（perf_event_open 的 task-clock/cycles/instructions，sched_switch/mutex_lock/futex_wait/io_submit/epoll_wait，HDR histogram bucket）约束下，把“达标/瓶颈/扩容”判断替换为同一时间窗内可计数的边界：P99/P99.9 分布、饱和点（run_queue_len、accept queue overflow）、强扩展/弱扩展斜率、on-CPU PMU（IPC、L3 miss、TLB miss）与 off-CPU 等待栈占比。
+**入口（本文的读法）**：在固定 SLO 字段（p99_ms、qps、error_rate、timeout_ms）、固定负载模型（open/closed-loop、连接池大小、retry 与 backoff、HTTP 429/503）和固定采样口径（`perf_event_open` 的 task-clock/cycles/instructions、`sched_switch`/`futex_wait`/`epoll_wait`、HDR histogram）这三重约束下，「达标/瓶颈/扩容」被替换为同一时间窗内可计数的边界。要读的是四组数：P99/P99.9 分布、饱和点（`run_queue_len`、accept queue 溢出）、强/弱扩展斜率、on-CPU PMU（IPC、L3 miss、TLB miss）与 off-CPU 等待栈占比。
 
 **不换的是什么**：全程不变的是同一 trace_id/request_id 关联、同一 percentile 分桶与采样窗口、同一负载模型参数（并发、connection_pool_size、timeout_ms/retry_policy、CPU affinity/NUMA）、同一计数器语义（cycles/instructions 与 sched_switch/futex_wait/io_submit 时间戳）；看到差异先问：是否换了 p99 bucket、perf 采样频率、closed/open loop、重试次数、火焰图折叠规则或系统调用计数口径。
 

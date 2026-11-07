@@ -11,7 +11,7 @@
 - **性能口径**：同一场景分别记录「含构建」与「不含构建」的耗时，报告必须写明场景三角形数、分辨率、机器与是否含次级射线。不看单次数字，只看口径是否写清、量级是否随规模单调变化。
 - **收敛斜率**：固定像素在 $N=1,4,16,64$ 下的样本方差（variance）应大致按 $1/N$ 下降。不看图「干净不干净」，只看方差序列的斜率。
 
-**入口（本文的读法）**：在“场景文本字段解析 → 相机投影矩阵 → 图元数组/BVH 节点 → 主射线与次级射线栈 → 着色递归 → PPM 字节流 → 统计报告字段”这条数据流上，只检查同一 `--width/--height/--samples N` 与同一随机种子下，轮廓像素是否落在 `f*r/d` 容差 ±1 内、阴影边界像素是否落在投影圆方程解出的坐标上、BVH 最近命中的 primitive id 与 t 是否等于暴力遍历、镜面递归像数是否等于 `depth_limit+1`、`bvh_build_ms`/`nodes_visited`/`total_samples` 是否按场景三角形数与是否含次级射线写清、样本方差序列是否随 `N=1,4,16,64` 按 `1/N` 下降。换的是求交指令序列、BVH 节点排序、采样迭代器、线程池和 `malloc/free` 路径。
+**入口（本文的读法）**：在场景文本字段解析 → 相机投影矩阵 → 图元数组/BVH 节点
 
 **不换的是什么**：全程不变的是场景文件中的 `camera.position/direction/fov`、`primitive.type/center/radius/vertices`、`material.reflectance`、`light.position`，命令行 `--width/--height/--samples`，随机种子，PPM 的 `P6` 头/宽高/最大像素值/RGB 字节序，统计报告中的 `rays_primary/rays_secondary/bvh_build_ms/nodes_visited/total_samples`，±1 像素容差、最近命中 primitive id 与 t、`depth_limit+1` 计数、方差公式；看到差异先核对这些字段、参数、种子、容差和计数口径是否被改。
 

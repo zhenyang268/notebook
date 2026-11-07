@@ -8,7 +8,7 @@
 
 面试侧对应的是高频题：覆盖率高就代表质量好吗？mock 该 mock 到什么程度？CI 失败了先看什么？消费方单测都过了为什么联调还挂？这些问题只背概念答不出来，考的是口径与取舍。
 
-**入口（本文的读法）**：在“同一 commit SHA、lockfile、test runner 版本下，junit.xml 的用例 ID、coverage.xml 的行/分支/条件计数、contract diff 的 schema 字段、CI exit code 与 fail-fast 开关必须可复现”的约束下，这套东西把假绿灯、红灯疲劳、不敢改判成“哪一层用例被选中、断言哪个返回值/错误码/协议字段/open/read/write syscall 序列、替身注入在哪、覆盖率按什么计数、门禁按什么顺序快停”；换的是 smoke/regression/acceptance 标签、public API 断言对象、mock/stub/fake/spy 注入边界、property seed 与 fuzz corpus、flaky retry 标记与确定性开关、CI stage 的 allow_failure/fail-fast。
+**入口（本文的读法）**：在“同一 commit SHA、lockfile、test runner 版本下，junit.xml 的用例 ID、coverage.xml 的行/分支/条件计数、contract diff 的 schema 字段、CI exit code 与 fail-fast 开关必须可复现”的约束下，这套东西把假绿灯、红灯疲劳、不敢改判成“哪一层用例被选中、断言哪个返回值/错误码/协议字段/open/read/write syscall 序列、替身注入在哪、覆盖率按什么计数、门禁按什么顺序快停”。换的是 smoke/regression/acceptance 标签、public API 断言对象、mock/stub/fake/spy 注入边界、property seed 与 fuzz corpus、flaky retry 标记与确定性开关、CI stage 的 allow_failure/fail-fast。
 
 **不换的是什么**：全程不变的是 commit SHA、lockfile、test case ID、expected value、random seed、clock/syscall 注入、contract schema 字段、junit.xml 的 pass/fail、coverage.xml 的行/分支/条件计数、CI exit code；看到差异先问“是这些输入/断言对象/契约字段变了导致 junit.xml、coverage.xml、contract diff 或 CI exit code 变，还是只是 CI stage 顺序、retry 策略、mock 注入点、coverage 阈值或 allow_failure 配置变了”。
 

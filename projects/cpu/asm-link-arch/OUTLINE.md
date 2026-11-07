@@ -4,7 +4,7 @@
 
 **场景一：线上崩溃。** 一个带调试信息的 ELF 常是几 MB 到几十 MB，core 可到 GB 级。若只看到 `SIGSEGV`，只能猜；有口径时，用 faulting PC 对到“函数+偏移”，再读参数寄存器与栈，才能区分空指针、栈破坏、ABI 不一致。**场景二：链接失败。** 单体仓库里一次 `undefined reference` 往往只有一行，根因却可能在几十个目标文件/库的链接顺序、C++ 名字修饰、符号可见性或版本里；符号冲突会让进程在 `main` 前退出，或运行时绑到错误实现。面试里则对应：参数怎么传、栈为何对齐、PLT/GOT、PIE/ASLR、内联汇编约束。
 
-**入口（本文的读法）**：在信息极度不对称的约束下（release 只剩 `SIGSEGV` 的 `RIP/PC`，链接只给 `undefined reference`），把全链路读成一条可核对记录：`.o` 的 `.symtab/.rela` → 链接器的 `.got/.plt` → 加载器的 `PT_LOAD` 映射 → 运行时的寄存器与栈对齐。换的只是 ISA（x86-64 / ARM64），不换的是「从符号到地址到现场」这条追溯路径。
+**入口（本文的读法）**：asm-link-arch 在 release 仅剩 SIGSEGV 的 RIP/PC、链接仅给 undefined reference 的极度信息不对称约束下，把 .o 的 .symtab/.rela → 链接器的 .got/.plt → 加载器的 PT_LOAD 映射 → 运行时寄存器与栈对齐读成一条可核对记录。换的只是 ISA（x86-64 / ARM64）。不换的是从符号到地址到现场的追溯路径。
 
 **不换的是什么**：全程不变的是 ELF 的 `.symtab/.dynsym/.rela/.got/.plt/.dynamic/.eh_frame` 记录、`ld.so` 的符号解析与 `dl_iterate_phdr`/`dl_phdr_info` 遍历顺序、SysV/AArch64 的 `caller-saved/callee-saved` 与 `rsp/x29/x30`、16-byte 对齐、返回地址/`RIP/PC` 对应规则，所以看到 x86/ARM、静态/动态、PIE/ASLR 差异时，先问它改变的是哪条 `.symtab/.rela/.got/.plt` 记录、哪条 `ld.so` 解析顺序、哪组 `rdi/rsi/x0`/`rsp/x29/x30` 保存规则，而不是先归因于 ISA 标签。
 
