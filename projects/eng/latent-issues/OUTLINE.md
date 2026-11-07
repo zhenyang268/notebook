@@ -8,7 +8,7 @@
 
 面试里它对应：epoll 惊群怎么产生、`TIME_WAIT` 能不能调、`EMFILE` 时 `accept` 返回什么、伪共享怎么测、无锁为什么难、Nagle 为什么叠加延迟。
 
-**入口（本文的读法）**：在 `epoll_wait` 唤醒多个 worker 后 `accept4` 返回 `EAGAIN`、`listen` backlog 与 `ListenOverflows`、`tcp_sock` 的 `TIME_WAIT`/2MSL 定时器、进程 `fd` 表与 `RLIMIT_NOFILE`、`TCP_NODELAY`/delayed ACK 的 `PSH/ACK` 时序、以及 `cmpxchg`/`futex` 和 64B cache line 这些硬约束下，把“偶发致命”和“单点拖垮”改写成可追踪的状态转换。换的是不再背参数结论，而是按 `errno`、`ss -tin` 的 `state/send-Q/recv-Q`、`/proc/sys/net/ipv4/*`、`lsof`/`/proc/<pid>/fd`、`strace` 的 syscall 序列、`perf c2c` 的 cache line 冲突来定位。
+**入口（本文的读法）**：在 `accept4` 返回 `EAGAIN`、`ListenOverflows`、`TIME_WAIT`/2MSL、`RLIMIT_NOFILE`、`TCP_NODELAY` 与 delayed ACK 的时序、`cmpxchg`/`futex`、64B cache line 这些硬约束下，把「偶发致命」与「单点拖垮」改写成可追踪的状态转换。换的是不再背参数结论，而是按 `errno`、`ss -tin` 的字段与计数器把现象对回机制。
 
 **不换的是什么**：全程不变的是内核可观测状态机：`epoll` 的 `ready list`/`EPOLLONESHOT` 语义、`tcp_sock` 状态与 `TIME_WAIT` 定时器、`task_struct->files` 的 `fd` 配额、TCP 发送缓冲与 `TCP_NODELAY`/delayed ACK 的字段组合、x86 `LOCK CMPXCHG`/`futex` 与 cache line 对齐；看到差异先问它改变的是哪条可观测记录：`accept4` 的 `errno`、`ss -tin` 的 `state/backlog`、`/proc/<pid>/limits` 的 `Max open files`、`perf c2c` 的 cache line 地址，还是 `strace -e trace=network,process` 的调用返回。
 

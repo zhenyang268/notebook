@@ -8,7 +8,7 @@
 
 还有一个高频静默错误：`transpose` 之后直接 `view`，要么抛 stride 不连续，要么被 `reshape` 悄悄拷贝 —— 正确性和显存都中招。
 
-**入口（本文的读法）**：在 `torch.cuda.get_device_properties().total_memory`、`nn.Module.parameters()` 的 `numel`、`dtype.itemsize`、`TensorImpl.sizes()/strides()`、`past_key_values` 的 `[batch, heads, seq_len, head_dim]`、`cudaMalloc`/`torch.cuda.memory_allocated()` 这些可检查字段下，把“面试能不能算”和“上线会不会 OOM”换成同一张账：权重、激活、KV cache、梯度、优化器状态各占多少字节。换掉的是 `model_name_or_path`、`torch.__version__`、`PYTORCH_CUDA_ALLOC_CONF` 这些不直接给出字节数的字段，换成 `state_dict` 的 key-shape-dtype、`input_ids/attention_mask` 的 `torch.Size`、`requires_grad` 与 AdamW `state` 的 `numel`。
+**入口（本文的读法）**：在「参数量、显存、算力」都能从字段里查到的前提下（`total_memory`、`numel`、`itemsize`、`TensorImpl.sizes()`、`past_key_values` 的形状、`memory_allocated()`），把「面试能不能算」和「上线会不会 OOM」合并成同一张账：权重、激活、KV cache、梯度、优化器状态各占多少字节。换的是具体架构，不换的是「形状 → 参数量 → 显存 → 能不能跑」这条估算链。
 
 **不换的是什么**：全程不变的是 `state_dict` 的 key→`TensorImpl.sizes()/strides()/dtype`、`input_ids/attention_mask` 的 `torch.Size`、`past_key_values` 的 `[batch, heads, seq_len, head_dim]`、`requires_grad` 与 AdamW `state` 的 `numel`、`cudaMalloc` 返回的 allocator bytes；看到差异先问这五项是否同口径，再查 `transpose().view()` 是否触发 `contiguous` 拷贝或 `reshape` 是否改变 `storage_offset`。
 

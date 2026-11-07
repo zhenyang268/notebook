@@ -10,7 +10,7 @@
 
 对应的面试题几乎是同一批：为什么是 B+ 树而不是 B 树或哈希、回表和覆盖索引、RR 到底防不防幻读、MVCC 快照何时创建、间隙锁锁什么、redo 与 binlog 为什么需要两阶段提交、主从延迟怎么发现。
 
-**入口（本文的读法）**：把问题落在 InnoDB 可观测对象上：B+ 树索引页的 LSN、EXPLAIN 的 type/key/rows/Extra、MVCC ReadView 的 m_ids/min_trx_id/max_trx_id、undo 版本链的 trx_id、锁结构 record/gap/next-key、redo record 的 space_id/page_no/offset、binlog event 的 GTID/position、relay log SQL thread 回放位点；据此判断并发读改写与崩溃恢复是否自洽。换的是访问路径（联合索引最左前缀、覆盖索引、回表、filesort）、隔离级别（RC/RR/ReadView 创建时机）、提交协议（redo prepare→binlog fsync→redo commit、sync_binlog、innodb_flush_log_at_trx_commit）、复制策略（异步/半同步、并行回放、GTID 等待、读己之写走主库）。
+**入口（本文的读法）**：把问题落在 InnoDB 的可观测对象上：B+ 树索引页的 LSN、`EXPLAIN` 的 type/key/rows/Extra、MVCC `ReadView` 的 m_ids/min_trx_id/max_trx_id、undo 版本链、`record/gap/next-key` 三种锁、redo 的 space_id/page_no/offset、binlog 的 GTID/position。据此判断并发读改写与崩溃恢复是否自洽；换的是访问路径、隔离级别与提交协议，不换的是「每条结论都要落到一个可查对象」。
 
 **不换的是什么**：全程不变的是 B+ 树 page 的 LSN、undo log 的 trx_id 版本链、ReadView 的 m_ids/min_trx_id/max_trx_id、redo record 的 space_id/page_no/offset、binlog event 的 GTID/position 与 relay log 回放位点；看到差异先按顺序问：EXPLAIN 的 key/rows/Extra 是否走覆盖索引或 filesort，当前读是否带 FOR UPDATE/LOCK IN SHARE MODE，隔离级别是否 RC/RR 以及 ReadView 创建时机，锁范围是否 record/gap/next-key，提交是否完成 redo prepare→binlog fsync→redo commit，从库是否满足 GTID 已执行或 Seconds_Behind_Master=0。
 

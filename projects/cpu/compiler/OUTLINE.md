@@ -10,7 +10,7 @@
 
 对应到面试，它拦的是这几类题：「SSA 是什么，phi 干什么用」「mem2reg 之后 alloca 去哪了」「寄存器不够时怎么办」「内联是不是越多越好」「这段代码为什么 -O2 和 -O0 结果不一样」。这些题的共同点是：**背名词能过一半，讲不清判据就露馅**。
 
-**入口（本文的读法）**：在源码语义、`target triple`、SysV AMD64 调用约定、`opt`/`llc`/`llvm-mca`/`perf` 可观测接口不变的前提下，本文把“代码生成层出了事”换成可复现定位：凡涉及优化收益归因、`-O2` 才崩、C/Rust ABI 边界、SSA/`phi`/`mem2reg`/`alloca`/寄存器溢出/内联，都必须落到 `opt -print-after=<pass>`、`-opt-bisect-limit`、IR 属性（`sret`/`byval`/`nonnull`/`align`）、反汇编的 `sub rsp`/寄存器分配/溢出槽、以及 `llvm-mca` 与 `perf stat` 的 IPC/cache-miss/TLB-miss 上。换的是“快 15%”“栈被踩了”“链接不报错”这类口头结论，换成具体 pass、IR 节点、寄存器分配、ABI 字段和性能计数器读数。
+**入口（本文的读法）**：在源码语义、`target triple`、SysV AMD64 调用约定、`opt`/`llc`/`llvm-mca`/`perf` 接口不变的前提下，把「代码生成层出了事」换成可复现定位：优化收益归因、只有 `-O2` 才崩、C/Rust ABI 边界、SSA/phi/mem2reg/寄存器溢出/内联，都要落到 `opt -print-after=<pass>`、`-opt-bisect-limit`、IR 属性（sret/byval/nonnull/align）或反汇编上。换的是 pass 与后端，不换的是「先定位到 pass，再定位到指令」这条顺序。
 
 **不换的是什么**：全程不变的是 C/Rust 源码语义与 UB 规则、`target triple` 与 SysV AMD64 调用约定（`sret`、`byval`、`rsp`、`rdi/rsi/rdx/rcx/r8/r9`）、以及同一 `opt`/`llc`/`llvm-mca`/`perf` 可观测管线；所以看到 `-O0` 与 `-O2`、C 与 Rust、PR 与基线差异，先问 pass 顺序、优化级别、寄存器分配结果、结构体返回路径、cache/TLB 条件是否一致，而不是先问“是不是优化器坏了”。
 
