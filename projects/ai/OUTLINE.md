@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是 `state_dict` 的 key→`TensorImpl.sizes()/strides()/dtype`、`input_ids/attention_mask` 的 `torch.Size`、`past_key_values` 的 `[batch, heads, seq_len, head_dim]`、`requires_grad` 与 AdamW `state` 的 `numel`、`cudaMalloc` 返回的 allocator bytes；看到差异先问这五项是否同口径，再查 `transpose().view()` 是否触发 `contiguous` 拷贝或 `reshape` 是否改变 `storage_offset`。
 
+**积木**：①GPU 驱动 `ioctl` 返回显存句柄与 `size_t` 字节数；它能独立验证 `TensorImpl.numel()*itemsize` 是否落入 allocator 记账。②CPU 整数乘法指令与 `CF/OF` 标志位；它能独立验证 `batch*seq_len*head_dim` 是否溢出 `uint32_t`。③Python `__dict__` 与对象 `type` 字段；它能独立验证 `state_dict` 的 key 是否绑定同一 `TensorImpl` 对象。④PCIe DMA 描述符的 address/length 字段；它能独立验证 host `torch.Tensor` 与 device `data_ptr()` 之间的字节传输范围。
+
+**最小情形**：单核单线程一次 `nn.Linear` 前向，`TensorImpl.sizes()` 给出 `[1,150528]` 与 `[1024,150528]`，`cudaMalloc` 只分配权重和输出；此情形下 `DataLoader` 多进程、NCCL `all_reduce`、`past_key_values`、AdamW `state`、`torch.compile` 图捕获不起作用。
+
+**生成**：累加 把单张量扩到 `state_dict` 全部 `TensorImpl.sizes()/strides()/dtype` 与 `past_key_values` 的 `[batch, heads, seq_len, head_dim]`，新增约束是 `storage_offset` 加 `numel*itemsize` 不越 allocator 字节边界；覆盖 把一次 `view` 扩到 `transpose().view()` 与 `reshape` 的 `TensorImpl.is_contiguous()` 分支，新增约束是 `contiguous()` 拷贝字节计入 `memory_allocated()`；最坏情形 把单 token 扩到 `L` 层、`batch`、`seq_len` 的 KV cache 与 AdamW `state` 的 `exp_avg/exp_avg_sq`，新增约束是 `cudaMalloc` 在 `memory_allocated()+reserved_memory()` 触达设备页表分配上限。
+
+**两边**：同一份权重状态在 Python 侧表示为 `state_dict` key 到 `TensorImpl.sizes()/strides()`，在 GPU 侧表示为 `data_ptr()` 与显存页表项。Python `Tensor` 对象持有 `TensorImpl.sizes()/strides()`，GPU MMU 页表持有 `data_ptr()` 对应的物理显存映射。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数的**：参数量 $N=\sum_p \mathrm{numel}(p)$，逐层可数、可复现；FLOPs/MACs，但**必须声明口径**——batch 是否为 1、序列长度取多少、是否含 bias 与激活、MACs 算 1 次还是 2 次。同一份代码用 `fvcore` 的 `FlopCountAnalysis` 和用论文口径能差 2 倍，不是谁错，是口径不同。感受野 $r_l=r_{l-1}+(k_l-1)\prod_{i<l}s_i$、输出尺寸 $\lfloor (I+2P-D(k-1)-1)/S\rfloor+1$、注意力复杂度 $O(n^2d)$——这些是**闭式可算**的，算完能被人当场复核。

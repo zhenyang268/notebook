@@ -22,6 +22,14 @@
 
 **不换的是什么**：全程不变的是“同一输入下 `PC`/`x0–x31`/`FPR`/`CSR`/内存/异常状态的转换、`RV32I` 指令语义与 `misa`/`mstatus`/`mepc`/`scause` 行为、ABI 的 `ra/sp/s0–s11`/16B 栈对齐/`callee-saved` 规则、`ecall`/`sbi` 的 `a0–a7`/`sepc`/`scause` 系统调用约定、内存模型对 `load/store/AMO` 的可见顺序、`PMU`/`difftest` 对 `retire`/`stall_frontend`/`stall_backend` 的计数口径”，所以看到差异先问“哪条指令的 `rd/rs1/rs2`、`PC`、`CSR`、`ROB` 条目、`relocation` 类型、`PLT/GOT` 槽位、`IR` operand 或 `Pass` 依赖边变了”。
 
+**积木**：①`RV32I` 指令语义与 `misa/mstatus/mepc/scause` 寄存器字段；它能独立验证 `PC`、`rd/rs1/rs2`、`mepc/scause` 在 `ecall/exception` 后是否按 ISA 转换。②`ELF` 重定位类型、`PLT/GOT` 槽位与 `PT_LOAD` 段；它能独立验证动态链接后的符号地址是否落到同一 `GOT` 槽位与 `objdump` 指令行。③`PMU retire/stall_frontend/stall_backend` 计数与 `ROB` 条目；它能独立验证一条 `PC` 的停顿是否归因到前端取指、后端执行或退休队列。④`ABI ra/sp/s0-s11/16B 栈对齐/callee-saved` 规则；它能独立验证函数返回后 `sp/ra/s0-s11` 是否恢复。
+
+**最小情形**：单核 `RV32I` 执行一条 `add rd,rs1,rs2` 并停在 `objdump` 对应指令行与机器码字节；此时 `LR/SC/fence` 多核可见顺序、`ecall/sbi` 系统调用、`PLT/GOT` 动态链接、`ROB/RS/IQ` 乱序、`PMU stall_backend`、`Triton/MLIR` lowering 都不起作用。
+
+**生成**：累加 `load/store/AMO/fence/LR/SC` 与 `TLB/page walk`；新增约束是 `x0-x31/FPR/CSR/内存字节` 必须与 `difftest` 参考模型一致。覆盖五级流水线、`ROB/RS/IQ/branch predictor` 与 `PMU retire/stall_frontend/stall_backend`；新增约束是每条 `PC` 的 `rd/rs1/rs2` 停顿必须对齐到具体 `ROB` 条目。最坏情形为 `page fault + ecall + PLT lazy binding + PMU overflow`；新增约束是 `sepc/scause/mepc`、内核栈 `trapframe`、`GOT` 槽位、`PMU counter` 必须按协议字段顺序保存或恢复。
+
+**两边**：同一份状态是 `PC/x0-x31/FPR/CSR/内存字节` 与 `ROB 条目/RS 队列/IQ 条目/pipeline 寄存器`；`difftest` 参考模型持有前者并按 `retire` 比较，RTL 核持有后者并驱动 `stall_frontend/stall_backend` 计数。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：四个文档而不是一个大文档。** 合并会立刻出现两个问题。一是验证口径不同：`asm-link-arch` 的判据是「能不能对着二进制说清每一句」（`objdump`/`readelf`/`gdb`），`riscv-core` 的判据是「difftest 零分歧 + STA 无违例」，两者的"算数"标准根本不一样，混在一份文档里会互相稀释。二是读者路径不同：只想读核的人不需要 RTL，只想造核的人不需要读 PTX 汇编。**分组是为了让每份文档只守一个判据。**

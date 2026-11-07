@@ -10,6 +10,14 @@
 
 **不换的是什么**：全程不变的是同一组 workload 的元素类型 float/int、访问步长与边界条件、随机种子与 fill 函数，同一 clock_gettime/CLOCK_MONOTONIC 计时器，同一 perf_event_open 事件集（cycles、instructions、cache-references、cache-misses、L1-dcache-load-misses、dTLB-load-misses），同一 64-byte cache line 对齐与 padding 布局，同一 warmup 次数与 median/IQR 统计口径；看到差异先问是否换了 N、后端、线程数、重复次数、sched_setaffinity 绑核、malloc/posix_memalign 分配器、编译器 -O/-march/-ffast-math 标志、GPU cudaMemcpy/kernel launch/stream 顺序、cpufreq governor。
 
+**积木**：① `clock_gettime(CLOCK_MONOTONIC)` 返回单调 `timespec`；它能独立验证 `run()` 返回的 `elapsed_ns` 字段只由两次 `clock_gettime` 差值产生。② `_mm256_add_ps` 对 `ymm` 寄存器执行 8 个 `float` 相加；它能独立验证向量宽度贡献的 `FLOP/instruction` 计数。③ `perf_event_open` 创建 `cycles`/`instructions`/`cache-misses` 计数 fd；它能独立验证加速比落在 PMU 事件窗口内。④ `sched_setaffinity` 写入 `cpu_set_t` CPU mask；它能独立验证线程留在指定物理核并绑定 `cpu_set_t` 中的单个 CPU bit。
+
+**最小情形**：单核单线程一次 `for` 循环调用 `_mm256_add_ps` 对 `posix_memalign` 分配的 `float*` 做 8 个 `float` 相加；该情形只有 `clock_gettime(CLOCK_MONOTONIC)` 与 `perf_event_open` 读取 `cycles`/`instructions`，`pthread_create`、`sched_setaffinity` 多 CPU mask、MESI snoop、`cudaMemcpy`、`cudaLaunchKernel` 均不参与。
+
+**生成**：累加 `N/8` 次 `_mm256_add_ps` 与重复次数写入 `struct result` 的 `median`/`IQR`，新增 `clock_gettime` 差值必须跨 warmup 后采样。覆盖标量、SIMD、多线程、GPU 后端时，`posix_memalign` 的 64-byte 对齐、`sched_setaffinity` 的 `cpu_set_t`、`cudaMemcpy` 的 H2D/D2H stream 必须保持同一数据结构布局。最坏情形是 `N` 非 8 倍数触发 `_mm256_maskload_ps` 尾部、线程边界跨越 64-byte cache line 触发 MESI invalidation、小 kernel 被 `cudaLaunchKernel` 与 `cudaDeviceSynchronize` 固定开销主导。
+
+**两边**：同一加速比状态可表示为用户态 `struct result` 的 `median`/`IQR` 字段与内核 `perf_event_mmap_page` 的 `cycles`/`cache-misses` 环形缓冲区。该状态的持有者分别是执行 `clock_gettime` 差值统计的用户线程与 `perf_event_open` 创建的 PMU 内核对象。
+
 ## 二、为什么这样做（功能设计）
 
 这一节写的是几个关键取舍：把哪些现成组件替换掉、替换在哪一层替换、以及为什么值得付这个代价。

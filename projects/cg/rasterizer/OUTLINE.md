@@ -19,6 +19,14 @@
 
 **不换的是什么**：全程不变的是 `argv` 字段、场景解析后的相机/图元/材质/光源数据结构、PNG `IHDR` 尺寸与 `IDAT` 像素格式、差异统计字段（三通道绝对差之和、eps、超阈值像素占比）、sRGB 编码表、`clock_gettime(CLOCK_MONOTONIC)` 计时口径；因此看到两后端差异先核对同一命令、同一解码器、同一顶点索引、同一 MVP 矩阵、同一深度比较指令、同一色彩编码表与同一统计字段，而不是先改 eps。
 
+**积木**：①IEEE-754 单精度 `fadd`、`fmul`、`fcmp` 指令与 `xmm0-xmm15` 寄存器在固定舍入模式下的位确定结果；它能独立验证 MVP 矩阵乘加指令、`1/z` 深度写入指令、透视校正 UV/normal 插值指令、sRGB 编码表查表数据结构在同一输入下得到同一位模式。②`uint32_t`、`float` 固定宽度类型与 PNG `IHDR` width/height 字段、`IDAT` 字节流协议字段；它能独立验证解码器读回的像素尺寸、通道数与 `clock_gettime(CLOCK_MONOTONIC)` 差值不随顶点数组/索引数组数据结构改变。③`write()` 系统调用对文件描述符表项的字节流写入、返回 `ssize_t` 短写约束；它能独立验证两后端 PNG 输出路径是否把同一 framebuffer 数组像素流完整落到文件。
+
+**最小情形**：单核单线程执行一条命令，场景解析成相机 `mat4`、图元 `std::vector<uint32_t>` 索引数组、材质 `vec3` 字段、光源 `vec3` 字段，扫描线循环把 1 个三角形写入 `uint32_t` framebuffer 与 `float` depth 数组，`write()` 系统调用输出一张 PNG `IDAT`。这一情形初等，因为瓦片调度、多核原子 `lock cmpxchg`、页故障处理、内核调度器队列、纹理采样 `gather` 指令、阴影贴图 `shadow2` 深度比较指令都不参与，判据只落在 `fcmp` 深度比较指令、`IHDR` width/height 字段、`clock_gettime(CLOCK_MONOTONIC)` 差值。
+
+**生成**：累加 1 个三角形到 N 个三角形索引数组与顶点数组；新增约束是每帧 `MVP` 矩阵乘加指令序列、`1/z` 深度写入指令、左上填充规则边函数 `fcmp` 判定必须对每个索引三元组可复现。覆盖相机矩阵、材质字段、光源字段、PNG `IDAT` 像素流与差异统计字段（三通道绝对差之和、eps、超阈值像素占比）的全部固定输入；新增约束是两后端 `framebuffer` 与 `depth` 数组的同一索引写入结果必须被同一解码器读回为同一 `IDAT` 像素流。最坏情形是共享边像素归属、深度平局、sRGB 编码边界、`write()` 返回 `ssize_t` 短写同时触发；新增约束是必须用左上填充规则、`1/z` 深度比较指令、`clock_gettime(CLOCK_MONOTONIC)` 差值与 PNG 解码器错误码定位，而不是修改 eps。
+
+**两边**：同一份像素状态在 CPU 侧是 `xmm` 寄存器里的线性 `float` RGBA 与 framebuffer `uint32_t` 数组里的 sRGB 编码字节，在文件侧是 PNG `IDAT` 压缩字节流与解码器内存中的 RGB 像素数组。持有者一是用户态 rasterizer 线程，它通过 `fcmp` 深度比较指令、纹理采样寄存器、`write()` 系统调用写入文件描述符表项。持有者二是内核文件描述符表项、VFS inode 与标准 PNG 解码器进程，它通过 `IHDR` width/height 字段、`IDAT` 解压输出、`clock_gettime(CLOCK_MONOTONIC)` 差值复现同一命令口径。
+
 ## 二、为什么这样做（功能设计）
 
 **把 GPU（Graphics Processing Unit，图形处理器）固定管线搬到 CPU 用户态，是这一节最核心的替换。** 用 OpenGL 或 Vulkan 等于免费拿到光栅化（rasterization）、深度测试、透视校正插值，而这三样恰好是本项目要考的内容。所以接口边界定死在「顶点进、帧缓冲出」：光栅模块的入口是已乘过 MVP（Model-View-Projection）的裁剪空间顶点数组，出口是含颜色与深度两个数组的帧缓冲（framebuffer）。边界一划，被 GPU 隐式处理掉的约定必须自己写死并写进文档：标准化设备坐标（Normalized Device Coordinates，NDC）的 $z$ 取 $[-1,1]$ 还是 $[0,1]$；屏幕空间 $y$ 轴朝上还是朝下；深度缓冲（depth buffer）存 $z$ 还是存 $1/z$；三角形填充用左上填充规则（top-left rule）决定边界像素归属，否则共享边会被画两次或一次都不画。代价是失去硬件加速，一帧从数十毫秒到秒级；可接受，因为这是离线出图，不是实时项目。

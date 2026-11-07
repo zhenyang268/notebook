@@ -15,6 +15,14 @@
 
 **不换的是什么**：全程不变的是场景文件中的 `camera.position/direction/fov`、`primitive.type/center/radius/vertices`、`material.reflectance`、`light.position`，命令行 `--width/--height/--samples`，随机种子，PPM 的 `P6` 头/宽高/最大像素值/RGB 字节序，统计报告中的 `rays_primary/rays_secondary/bvh_build_ms/nodes_visited/total_samples`，±1 像素容差、最近命中 primitive id 与 t、`depth_limit+1` 计数、方差公式；看到差异先核对这些字段、参数、种子、容差和计数口径是否被改。
 
+**积木**：①IEEE-754 浮点寄存器与 add/mul/sqrt 指令按固定舍入模式返回 double。它能独立验证 PRNG 状态寄存器生成的射线方向分量与球求交 t 在暴力遍历图元数组与 BVH 节点数组中落在同一 t 或 ±1 ulp 内。②C 结构体字段偏移与数组索引编译期确定。它能独立验证 primitive.type/center/radius/vertices、material.reflectance、light.position 与 BVH 节点 AABB 字段读写同一内存对象。③POSIX read/write 系统调用返回字节数与文件偏移。它能独立验证 PPM 的 P6 头、宽高、最大像素值、RGB 字节序与统计报告字段 rays_primary/rays_secondary/bvh_build_ms/nodes_visited/total_samples 按字节落盘。④同一核 RIP 顺序执行与通用寄存器保存循环计数器。它能独立验证单线程像素循环对 N 次采样的 total_samples、rays_primary/rays_secondary 计数与 hit record 结构体返回一致。
+
+**最小情形**：单核单线程一次操作：一个 primary ray 与两节点 BVH（根节点 + 叶节点）做一次 AABB slab 求交，一次 write 写一个 P6 像素；此时操作系统调度器、多核 MESI 协议、线程栈切换、mmap 页表复制、次级射线递归栈、shadow ray epsilon 偏移都不起作用，只依赖 RIP 顺序执行 add/mul 指令、通用寄存器中的射线原点/方向、数组索引读取 primitive id 与 hit record 结构体字段。
+
+**生成**：累加：把单像素一次求交扩到 width*height*N 次像素循环，新增 total_samples、rays_primary/rays_secondary 的整型计数器溢出约束与 PPM 输出缓冲区字节数约束；覆盖：把两节点 BVH 扩到三角形数 T 的节点扁平数组，新增 AABB slab 求交方向分量为 0 时 1/0=∞ 并挡住 0*∞=NaN 的浮点异常约束、最近命中 primitive id 与 t 对暴力遍历全部图元数组的等价约束；最坏情形：把一次 primary ray 扩到两个相对镜面平面递归到 depth_limit，新增调用栈帧深度、D+1 反射像计数、hit record 几何法线偏移 ε 对 shadow ray 自相交的约束，depth_limit 超过栈映射页时触发 SIGSEGV。
+
+**两边**：同一份场景状态在磁盘文本中表示为 camera.position/direction/fov、primitive.type/center/radius/vertices、material.reflectance、light.position 字段，持有者是 open/read 系统调用维护的文件偏移与内核页对象。同一份场景状态在进程内存中表示为结构体数组、BVH 节点扁平数组、hit record 与统计报告字段，持有者是用户态栈帧、通用寄存器和 malloc 返回的虚拟地址页表映射。
+
 ## 二、为什么这样做（功能设计）
 
 **把「光栅化（rasterization）的投影 + 深度缓冲（z-buffer）」换成「逐像素发射光线求最近命中」，是这一节最核心的替换。** 现成管线替你把可见性隐式处理掉了：深度测试、透视校正插值都由硬件完成。换掉之后必须自己确定全部约定——像素采样点在中心还是角上、相机基向量的手性、像素坐标到射线的映射 $d=\text{normalize}(f\hat{w}+x\hat{u}+y\hat{v})$、以及射线的参数区间 $[t_{\min},t_{\max}]$。代价是复杂度从「按三角形」变成「按像素 × 三角形」，这不可接受，所以 BVH 不是加分项，而是这个替换的直接后果。可接受的原因也在这里：正因为每条射线独立，阴影与反射才能作为「再发一条射线」自然存在，而这些量在屏幕空间里根本没有定义。

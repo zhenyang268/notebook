@@ -24,6 +24,14 @@
 
 **不换的是什么**：目标不变，硬件的机制类别也不变（没有哪家发明出第四种保护手段）。**所以看到任何差异，先问"这是哪条约束挤出来的"，而不是"哪家设计得更好"。**
 
+**积木**：①x86 CPL/CS.RPL 与 RISC-V sstatus.SPP/PTE.U 保证用户态不能直接执行内核代码段；它能独立验证 int 0x80/ecall/syscall 必须把 CS/RIP 或 sepc/sstatus 切换到内核入口。②x86 CR3 与 RISC-V satp 选择页表基址，x86 PTE.U/PTE.S 与 RISC-V PTE.U 控制访问权限；它能独立验证 copy_from_user/access_ok 必须读取当前 CR3/satp 与页表项权限位。③IDT/TrapVector/stvec 与 APIC/PLIC 保证 timer/I/O 中断能把 RIP/EIP 或 sepc 写入内核栈与 CSR；它能独立验证 trapframe 的 CS/RIP/RSP/RFLAGS 或 sstatus/sepc/ra 字段由硬件入口与 trap 代码填充。
+
+**最小情形**：最小情形是单核、单用户线程、一次 ecall/int 0x80/syscall 从用户页跳入内核页并返回；它初等，因为 per-CPU 变量、IPI、RCU 宽限期、TLB shootdown、schedule/context_switch 修改 task_struct 与 CR3/satp 都不触发，只有 CS/RIP/RSP/RFLAGS 或 sstatus/sepc/satp 与 trapframe 字段起作用。
+
+**生成**：累加 SMP 的 APIC/PLIC 中断、per-CPU 变量、RCU 读端、task_struct/mm_struct 多任务、pipe 的 head/tail 与 IPC message 队列；新增约束是同一物理页可被多个页表基址 CR3/satp 指向的页表项 PTE 引用，物理页帧的引用计数或 reverse map 必须存在。覆盖 JOS IPC 的 rendezvous 状态字段、xv6 pipe 的 head/tail 与 fd table、Linux file_operations/io_uring SQ/CQ 队列；新增约束是用户指针必须经 access_ok 或 copy_from_user 校验，错误必须经 errno/返回值/信号送达。最坏情形是中断在 syscall 返回路径修改 task_struct.state 或页表项 PTE，导致 trapframe 的 RIP/sepc 与返回后的用户指令流不一致；必须用 iret/sret、preempt_disable/preempt_enable、RCU quiescent state 字段约束 task_struct.state 与 trapframe 的更新顺序。
+
+**两边**：同一份执行现场有两份表示：用户态持有 RIP/EIP、RSP/ESP、CS/SS 寄存器值。内核持有 trapframe 中的 CS/RIP/RSP/RFLAGS 或 sstatus/sepc/ra 字段。
+
 ## 二、为什么这样做（功能设计）
 
 **取舍一：为什么必须从 CPU 架构讲起。** 内核代码的形状由硬件契约决定，而不是由"设计品味"决定。x86 32 位有分段、有四层环、有 TSS 提供内核栈，所以 JOS 的陷入路径里必然出现 `TSS.esp0`；RISC-V 没有分段、只有 U/S/M 三态，所以 xv6 的陷入路径里必然出现 `sscratch` 与 `stvec`；x86-64 用 `syscall/sysret` 与 `swapgs`，所以 Linux 的快速路径和中断路径是两套代码。**不先讲这一层，后面的 API 差异就变成"风格问题"。**

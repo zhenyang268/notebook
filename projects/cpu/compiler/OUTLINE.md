@@ -14,6 +14,14 @@
 
 **不换的是什么**：全程不变的是 C/Rust 源码语义与 UB 规则、`target triple` 与 SysV AMD64 调用约定（`sret`、`byval`、`rsp`、`rdi/rsi/rdx/rcx/r8/r9`）、以及同一 `opt`/`llc`/`llvm-mca`/`perf` 可观测管线；所以看到 `-O0` 与 `-O2`、C 与 Rust、PR 与基线差异，先问 pass 顺序、优化级别、寄存器分配结果、结构体返回路径、cache/TLB 条件是否一致，而不是先问“是不是优化器坏了”。
 
+**积木**：① SysV AMD64 调用约定规定整数参数依次进入 rdi/rsi/rdx/rcx/r8/r9、返回值进入 rax、rsp 在 call 前 16 字节对齐；它能独立验证 24 字节结构体跨 C/Rust 边界是否落到 sret/byval 与 sub rsp, N。② LLVM IR SSA 规定每个值单一定义、控制流汇合点用 phi 节点携带前驱边输入；它能独立验证 mem2reg 后 alloca/load/store 是否被 phi 与寄存器值替代。③ x86-64 指令语义规定 cmp/test 写入 ZF/SF/OF/CF、jne/je 读取条件标志、add/sub 可置 OF，且 C 语言把有符号溢出和越界访问定义为 UB；它能独立验证 -O0 与 -O2 反汇编里分支翻转是否来自同一 cmp 指令和标志寄存器。
+
+**最小情形**：单线程执行一个 C 函数调用，target triple x86_64-unknown-linux-gnu，-O0，一条 call 指令从 caller 进入 callee，参数只走 rdi，返回值走 rax，栈帧只有 push rbp、mov rbp,rsp、sub rsp,N、leave、ret；它能独立验证 ABI 寄存器与 rsp 偏移，此时多核 cache/TLB、内联跨模块、寄存器分配溢出、循环优化、跨语言链接都不起作用，因为只有一个函数、一个线程、一次 call 指令、没有 pass 改写 IR。
+
+**生成**：累加 opt 管线中 mem2reg/GVN/内联/寄存器分配多个 pass 对同一 IR 的改写，新增约束是 -opt-bisect-limit=N 必须能停在首个改变 alloca/phi 或 call 属性的 pass；覆盖 target triple、SysV AMD64 调用约定、C/Rust 链接符号与 IR 属性 sret/byval/nonnull/align，新增约束是 caller/callee 对 rdi/rsi/rdx/rcx/r8/r9、rax、rsp 偏移、结构体返回隐藏指针必须一致；最坏情形是寄存器不够触发 spill/reload 到 rsp 栈帧、内联放大 UB 使 -O0 正常 -O2 崩溃，新增约束是必须用 opt -print-after=<pass>、llc 反汇编、perf stat 的 cycles/instructions 或 llvm-mca 的 uops/cycle 定位到具体指令或 IR 属性。
+
+**两边**：同一份调用现场在 LLVM IR 里是 call 指令、参数类型、sret/byval/align 属性与 alloca/load/store，在 x86-64 机器码里是 rdi/rsi/rdx/rcx/r8/r9、rax、sub rsp, N、mov [rsp+K]；LLVM pass 持有 IR 与 -opt-bisect-limit 停止点，CPU 与内核持有寄存器文件、rsp 指向的栈页、trapframe 中的 rip/rsp。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数 vs 看起来专业但无法证伪。**

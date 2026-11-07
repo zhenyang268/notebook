@@ -14,6 +14,14 @@
 
 **不换的是什么**：全程不变的是 B+ 树 page 的 LSN、undo log 的 trx_id 版本链、ReadView 的 m_ids/min_trx_id/max_trx_id、redo record 的 space_id/page_no/offset、binlog event 的 GTID/position 与 relay log 回放位点；看到差异先按顺序问：EXPLAIN 的 key/rows/Extra 是否走覆盖索引或 filesort，当前读是否带 FOR UPDATE/LOCK IN SHARE MODE，隔离级别是否 RC/RR 以及 ReadView 创建时机，锁范围是否 record/gap/next-key，提交是否完成 redo prepare→binlog fsync→redo commit，从库是否满足 GTID 已执行或 Seconds_Behind_Master=0。
 
+**积木**：① CPU 的 LOCK CMPXCHG 指令保证一个 64 位字的读-改-写不可分割；它能独立验证 trx_sys 的 next_trx_id 字段、InnoDB rw_lock 状态字、undo page 的 trx_id/roll_ptr 是否被两个会话同时改写。② CPU 的 mfence 指令或 C++ atomic memory_order_seq_cst 保证 store 顺序对其他 CPU 可见；它能独立验证 redo record 的 space_id/page_no/offset 写入后，lsn 字段是否先于或后于 payload 暴露给恢复扫描。③ SATA/ATA FLUSH CACHE 命令或 NVMe Flush 命令保证控制器易失性写队列落盘；它能独立验证 binlog event 的 GTID/position 与 redo prepare 记录在 kill -9 后是否都存在于扇区。
+
+**最小情形**：单核单线程执行一次 INSERT INTO orders(id,user_id,status,created_at) VALUES(...)，主库写一个聚簇索引 leaf record，从库只有一个 SQL 线程回放一个 binlog event；此时没有第二个会话，ReadView 的 m_ids/min_trx_id/max_trx_id 集合判定不起作用，undo 版本链只有一层 trx_id/roll_ptr，record/gap/next-key 锁队列没有第二个等待者，LOCK CMPXCHG 的原子性不暴露竞态；此时没有崩溃，redo prepare→binlog fsync→redo commit 不进入恢复窗口，FLUSH CACHE 命令只执行一次；此时只有一个从库 SQL 线程，relay log 的 position/GTID 单调推进，GTID_WAIT 与 Seconds_Behind_Master 不起作用。
+
+**生成**：累加：把单会话单行 INSERT 扩到多会话并发读写 orders 表，新增 InnoDB 行锁/间隙锁等待队列、ReadView 的 m_ids/min_trx_id/max_trx_id 集合、undo 版本链的 trx_id/roll_ptr 长度、trx_sys 的 rw_trx_list 与 mutex 状态。覆盖：把单会话 INSERT 扩到 SELECT id FROM orders WHERE user_id=? AND status=0 ORDER BY created_at DESC LIMIT 20 的访问路径，新增 EXPLAIN 的 type/key/rows/Extra、联合索引最左前缀、二级索引回表聚簇索引、Using filesort 与临时表字段，要求扫描行数接近 LIMIT 20 且 key 命中 (user_id,status,created_at) 或覆盖索引。最坏情形：把正常提交扩到 kill -9、网络分区与从库回放延迟，新增 redo record 的 space_id/page_no/offset/lsn、binlog event 的 GTID/position、relay log 回放位点、GTID_WAIT 与 Seconds_Behind_Master 的判定窗口，要求崩溃恢复能区分 redo prepare 后 binlog 未 fsync 与 binlog 已 fsync 后 redo 未 commit。
+
+**两边**：同一笔已提交事务的状态在 InnoDB redo log record 的 space_id/page_no/offset/lsn 与 binlog event 的 GTID/position/row image 两份表示。前者由主库 redo log 文件页与 buffer pool dirty page 持有。后者由 binlog 文件与从库 relay log 回放队列持有。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** “加了索引变快了”不算结论，能证伪的表述是：同一 SQL 优化前后 `EXPLAIN` 的 `rows` 估计、`Extra` 里 `Using filesort` / `Using index` / `Using index condition` 的变化，以及 `Handler_read_next`、`Handler_read_rnd_next` 这类逻辑读计数的差值。事务侧的口径是 `information_schema.INNODB_TRX` 里的事务年龄、`SHOW ENGINE INNODB STATUS` 的 `LATEST DETECTED DEADLOCK` 段、`DATA_LOCK_WAITS`（视图名随版本而异，按实现而定）。复制侧的口径是 GTID gap 与回放线程状态，而不是只看 `Seconds_Behind_Master`。

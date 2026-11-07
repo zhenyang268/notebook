@@ -26,6 +26,14 @@
 
 **不换的是什么**：全程不换的是同一组可执行判据：任何差异先问它是否改变 `pc`、GPR、CSR（`mstatus/mcause/mtval`）、内存字节或 `ecall`/load/store 的可见顺序；若改变，必须用 Spike 提交日志零分歧证明，若只改 `ROB` 条目、`保留站` 发射口、`LSQ` 地址匹配、`BTB` 表项、cache `tag/dirty` 或流水级，则必须用 IPC、fmax、面积三数表证明。
 
+**积木**：①RV32I 指令编码字段 opcode/rd/rs1/rs2/funct3/funct7/imm 与 pc+4/pc+imm 更新规则；它能独立验证 add/lw/sw/jal 是否写对 x[rd]、x[rs1]、x[rs2]、imm 与 pc。②x0–x31 寄存器文件与 CSR mstatus/mcause/mtval/mepc 的读写规则；它能独立验证 ecall、illegal instruction、mret 是否写 mcause/mtval/mepc 并恢复 pc。③内存字节地址与 lw/sw 的 byte/halfword/word 访问约束；它能独立验证内存字节是否被写、未对齐访问是否触发 mcause=LOAD_ADDRESS_MISALIGNED/STORE_ADDRESS_MISALIGNED。
+
+**最小情形**：单核单线程执行一条 add x5,x1,x2，从 pc 寄存器读指令、译码、写 x5=x1+x2、写 pc=pc+4；这一情形里 ROB entry、rename map、reservation station、LSQ entry、BTB entry、I/D cache tag/dirty、mcause/mtval/mepc 都不起作用，因为没有乱序退休、分支误预测、store-to-load forwarding、cache miss、trap。
+
+**生成**：累加 IF/ID/EX/MEM/WB 流水线寄存器、forwarding mux、stall 信号、BTB entry、I/D cache tag/dirty、ROB entry、rename map、reservation station、LSQ entry，新增约束是 retire 必须按 pc 序写 x[rd]、CSR、内存字节；覆盖 riscv-tests rv32ui-p-*、随机指令序列、CoreMark 的 lw/sw/jal/ecall 交叠，新增约束是 Spike commit log 的 pc、x、CSR、内存字节必须零分歧；最坏情形是 branch mispredict flush 同时 store-to-load forwarding 命中 ROB entry/LSQ entry，新增约束是 flush 必须回滚 rename map、reservation station、LSQ entry、BTB entry 而不改已 retire 的 x、CSR、内存字节。
+
+**两边**：同一份机器态在模型侧是 pc 寄存器值、x[31] 数组、CSR mstatus/mcause/mtval/mepc 数组、内存字节数组，在 RTL 侧是 pc 寄存器、x[31] 寄存器、mstatus/mcause/mtval/mepc 寄存器、内存总线字节；模型侧持有者用 ROB entry 与 commit log 记录退休序，RTL 侧持有者用流水线寄存器与 ROB RAM 记录退休序。
+
 ## 二、为什么这样做（功能设计）
 
 **取舍一：为什么用 RV32I，而不是自造 ISA 或 x86 子集。** 自造 ISA 会把时间花在写手册、写汇编器、写编译器后端上，而这些跟微架构无关；x86 子集要先解决变长译码和 uop 转换，难度在错误的地方。RV32I 的规范只有一章，指令约 40 条，工具链（GCC、objdump、Spike、riscv-tests）全部现成，还有 Rocket/BOOM 可以逐段对照结构。**代价是失去了"自己定编码"的乐趣**——那部分恰好是 Turing Complete 的强项，两边互补。

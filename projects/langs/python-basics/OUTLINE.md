@@ -6,6 +6,14 @@
 
 **不换的是什么**：全程不变的是同一套可执行判据：每章都绑定至少一个 `assert`、一个 `sys.version`/`sys.implementation.name`/`platform.system` 成立边界和一个 `pyproject.toml`/`build-system.requires` 依赖边界，所以看到差异先问这三项是否改变，再定位到解释器版本、实现、平台、并发运行时、GC、类型标注或打包依赖层，而不是先改 `assert` 结论。
 
+**积木**：① CPython `PyObject` 头里的 `ob_refcnt` 字段与 `Py_INCREF`/`Py_DECREF` 宏：它能独立验证 `del` 后 `sys.getrefcount` 是否归零并调用 `tp_dealloc`；② CPython `type` 对象里的 `tp_iter`/`tp_iternext` 协议槽与 `StopIteration` 异常对象：它能独立验证 `for` 是否只读取这两个槽并在异常时退出循环；③ OS `epoll_create`/`epoll_wait` 系统调用与 `epoll_event.events` 字段：它能独立验证 asyncio 是否把 `await` 挂到内核 `epoll` 文件描述符而不是 `sched_yield` 系统调用。
+
+**最小情形**：单核单线程里执行一次 `a = []; a.append(1); del a`，只触发 `PyList_Append`、`ob_refcnt` 减一和 `tp_dealloc`；此时 `epoll_wait`、`fork`、`gc.collect` 的循环引用扫描不起作用。
+
+**生成**：累加 12 章的断言到 `sys.version`、`sys.implementation.name`、`platform.system` 字段和 `pyproject.toml`/`build-system.requires` 边界；覆盖 `__slots__` 布局、`dict` 哈希表、`gc` 代数、`asyncio.Task` 状态机、`multiprocessing` 的 `fork`/`spawn` 页表差异；最坏情形 `gc.collect()` 在自引用容器、`__del__` 异常、`StopIteration` 在协程帧里的传播、`fork` 后继承的 `epoll` 文件描述符上同时发生。
+
+**两边**：同一份 Python 对象状态的用户态表示是 `PyObject` 头里的 `ob_type`、`ob_refcnt` 与 `tp_dictoffset` 指向的 `__dict__`，内核态表示是进程页表里的虚拟地址映射和 `mmap` 堆页；持有者分别是 CPython 解释器用 `Py_INCREF`/`Py_DECREF` 持有引用计数，操作系统用 `brk`/`mmap` 与缺页中断持有页表项。
+
 ## 二、为什么这样做（功能设计）
 
 四块内容不是并列的清单，而是有依赖的一条主线：对象模型是底层基础，可变性决定容器、默认参数、切片的行为；迭代协议把对象模型接到控制流上，`for`、解包、生成器、`async for` 是同一套协议的不同变体；并发与内存是代价问题，GIL 决定线程能做什么，引用计数决定对象什么时候消失。章节顺序由这条主线决定，不从“哪个话题热门”出发。

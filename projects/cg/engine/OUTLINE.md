@@ -16,6 +16,14 @@
 
 **不换的是什么**：全程不换的是 scene descriptor 的 entity/component/transform hierarchy/asset manifest、event log 的 timestamp→logical frame 映射、clock source 的 frame interval sequence、state hash 的逐帧序列、handle/reference count 的帧边界失效规则、render submission list 与 visible set 的差集、subsystem timing intervals 对 frame duration 的闭合误差；看到差异先问这些字段、计数器、集合、区间哪一项先分叉。
 
+**积木**：① CPU 整数 ADD/SUB/CMP 指令对同一寄存器输入序列产生同一输出；它能独立验证累加器 a、逻辑帧号 n、Δt_fixed 比较分支是否可复现。② 语言函数调用语义让栈帧、参数寄存器与返回值寄存器按固定顺序建立和销毁；它能独立验证 scene descriptor 字段序列是否产生同一 update 调用序列。③ 系统调用 clock_gettime(CLOCK_MONOTONIC) 返回内核单调计数器值；它能独立验证 frame interval sequence 是否由同一时钟源生成。④ 语言对象生命周期规则让析构函数在作用域退出时调用；它能独立验证 asset 数据结构与 generation handle 字段是否在释放后进入失效判定。
+
+**最小情形**：单核 CPU 上单线程执行一次 fixed-step update：scene descriptor 的 entity/component/transform hierarchy/asset manifest 字段被读取，累加器 a 寄存器与 Δt_fixed 比较，逻辑帧号 n 寄存器加一，state hash 数据结构写入一帧；两节点为逻辑帧数据结构节点与 render submission list 数据结构节点。此情形下多线程调度器、异步 I/O 系统调用、GPU 命令队列内核对象、网络同步协议字段、原子内存序、上下文切换保存的寄存器现场均不起作用。
+
+**生成**：累加 把一次 update 扩到每帧多次 fixed-step update、多子系统计时区间、多资产引用计数、多绘制项排序键；新增约束是累加器 a 的余数、逻辑帧号计数器、subsystem timing intervals 对 frame duration 的闭合误差、state hash 写入顺序必须固定。覆盖 把 scene descriptor、event log timestamp→logical frame 映射、clock source frame interval sequence、render submission list 与 visible set、world query 结果全部纳入同一输入字段序列；新增约束是同一字段序列必须映射同一输出集合与同一差集。最坏情形 追帧上限 n_max 触发、旧 handle 访问已释放资产、提交列表与 visible set 差集非空、子系统计时区间溢出；新增约束是 n_max 截断后剩余 a 必须保留、generation 字段必须返回失效位、差集必须输出 entity id、计时区间必须记录溢出标志。
+
+**两边**：同一份状态在内存侧表现为 scene descriptor 的 entity/component/transform hierarchy/asset manifest 数据结构、累加器 a 寄存器、逻辑帧号计数器、state hash 数据结构、generation handle 字段；在回放日志侧表现为 timestamp→logical frame 映射、frame interval sequence、subsystem timing intervals、render submission list 与 visible set 的差集记录、逐帧 state hash 序列。持有者一侧是 engine update 循环读取 scene descriptor 与 event log 并写入提交列表、world query 结果、state hash；持有者另一侧是验证器读取日志中的 logical frame number、subsystem timing intervals、handle generation、batch key/sort key 字段并比对集合差与闭合误差。
+
 ## 二、为什么这样做（功能设计）
 
 **把可变步长逻辑换成「固定步长逻辑 + 可变步长渲染 + 追帧上限」，是这一节最核心的替换。** 现成教程把时间语义替你隐式处理掉了：你在一个 update 函数里写代码，从不追问 $\Delta t$ 从哪来、抖动多少、逻辑帧率是否恒定。换掉后必须自己定：逻辑步长 $\Delta t_{\text{fixed}}$、累加器 $a \leftarrow a+\Delta t_{\text{real}}$ 与取帧数 $n=\lfloor a/\Delta t_{\text{fixed}}\rfloor$、单帧最多追 $n_{\max}$ 帧、追不上时丢弃还是拉长、渲染侧要不要插值。代价是多一帧延迟和多一套插值代码；可接受，因为确定性与可回放是后面所有验收的前提，而单机场景里一帧延迟难以感知。

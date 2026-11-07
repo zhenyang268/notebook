@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是同一请求的 trace_id、业务主键、幂等键、状态字段、事务日志（redo log/WAL）、重试计数与补偿队列；看到差异先问重复请求由哪个唯一索引或 SETNX 拦截、状态推进由哪条 UPDATE ... WHERE version=?/stock>=1 或 Redis Lua 指令完成、失败收敛由哪张对账表或 Kafka 重试次数触发。
 
+**积木**：① CPU 原子指令 LOCK CMPXCHG/LDREX/STREX 对单个机器字的比较交换；它能独立验证 version 字段或 stock 字段在两条指令之间是否被另一核改写。② CPU 内存屏障 MFENCE/DMB 与语言 volatile 写语义；它能独立验证一个线程对 ready 标志的 store 是否被另一线程的 load 观察到。③ JVM 对象头 mark word 与 monitorenter/monitoreexit 字节码；它能独立验证同一进程内两个线程是否不会同时执行同一对象引用上的指令序列。
+
+**最小情形**：单核、单线程、两节点 socket 连接、一次 Redis GET/SET 命令时，只有寄存器中的 fd、buf 指针、单线程栈帧与 socket read/write 系统调用参与；CPU 原子指令没有竞争者，MFENCE 没有跨线程可见性窗口，monitorenter/monitoreexit 没有第二线程进入同一对象引用，epoll_wait 没有多 fd 就绪位图，Redis SETNX 没有多连接交错，InnoDB 行锁与唯一索引没有并发事务等待，Kafka partition/offset 没有重平衡。
+
+**生成**：累加 把单线程一次 socket read/write 扩到 N 个连接在 epoll_wait 返回的 fd 位图与内核 accept 队列中排队，新增 backlog 长度、连接池上限、令牌桶 refill 速率与 HTTP 429 Retry-After 字段约束。覆盖 把单机内存状态扩到 Redis key/TTL/SETNX、InnoDB 唯一索引、Kafka partition/offset、幂等表与对账任务，新增 Redis 主从复制偏移量、Kafka 分区重平衡、offset 提交语义与唯一键冲突返回码约束。最坏情形 把正常网络扩到 TCP 重传、进程 kill -9、fdatasync 返回前掉电、Kafka leader 切换与 Redis SETNX 后客户端崩溃，新增幂等键唯一索引冲突、WAL/redo log 恢复、重试计数与补偿队列状态字段约束。
+
+**两边**：同一份库存状态有两种表示：用户态服务进程寄存器与堆对象中的 int64 stock，和 InnoDB 数据页/undo log 中的行记录字段。前者由用户态线程栈与寄存器持有。后者由内核 page cache 与数据库日志管理器持有。
+
 ## 二、为什么这样做（方法论设计）
 
 **哪些是「有口径才算数」。** 量级估算必须可追溯：输入是 DAU、人均请求数、读写比、峰值系数，输出是 QPS、存储、延迟预算三个数，并且能继续推出「几台应用机、几个分片、缓存要扛多少 QPS」。这条链上任何一环断了，结论就不算数。同理，缓存要报命中率 $h=\frac{\text{hits}}{\text{hits}+\text{misses}}$ 和回源 QPS；限流要报阈值和它相对容量水位的位置；幂等要报唯一键是什么。**看起来专业但无法证伪的**是：「用 Redis 提升性能」「引入 Kafka 解耦」「做多级缓存」——这些没有基线、没有阈值、没有失效条件，追问一句「提升多少、代价是什么」就会暴露问题。

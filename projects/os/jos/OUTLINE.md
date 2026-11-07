@@ -10,6 +10,14 @@
 
 **不换的是什么**：全书只用同一批硬件材料——GDT/IDT/TSS、PTE 的那几位、原子指令、8259A/LAPIC，没有任何一章引入新的机制类别。**所以读每一章该问的是"这一层用的是权限位还是映射"，而不是"这章讲了什么新东西"。**
 
+**积木**：①x86 CPL、GDT 段 DPL、PTE 的 U/S/W/R：它能独立验证用户态执行 `movl` 写内核页或写 `PTE_W` 清掉的只读页时 CPU 会触发 `#PF`；②IDT 中断门、`int $0x30`、`TSS.esp0`、`iret`：它能独立验证用户态陷入内核时 CPU 把 `eflags`、`cs:eip`、`esp` 压到 `trapframe` 并切换到内核栈；③CR3、页表项、`PTE_COW`、`pp_ref`：它能独立验证同一物理页在不同 `Env` 页表中以不同权限映射，写 `PTE_COW` 页会触发缺页并由 `pp_ref` 决定是否复制；④`xchg`、`cli`/`sti`、`lapic`/`8259A` 寄存器：它能独立验证 SMP 下两个 CPU 同时执行 `page_alloc` 时，`xchg` 对 `spinlock.lock` 的返回值与 `cli` 对 `eflags.IF` 的清零能决定哪个 CPU 修改 `free_list`。
+
+**最小情形**：单核 QEMU 中，BIOS 把 bootsect 载入 `0x7c00`，bootloader 设置 GDT、`CR0.PE`、`CR3` 页表、IDT、TSS，进入 `i386_init`，只映射一个 `Env` 和一个用户页，执行一次 `int $0x30` 到 `sys_cputs` 并 `iret`。这一情形初等，因为 `lapic` 多 CPU 寄存器、`xchg`、`cli`/`sti`、`PTE_COW`、`pp_ref`、`sys_pipe`/`sys_read`/`sys_write`、`ide` 磁盘块读写字段都不被触发。
+
+**生成**：累加 从单 `Env` 的一次 `int $0x30` 扩到 `envs[]` 多进程、`page_insert` 多页表、`fork`/`duppage`、`sys_pipe`/`sys_read`/`sys_write`、`fs` 与 `ide` 磁盘块；覆盖 新增 `PTE_COW`、`pp_ref`、`trapframe`、`env_run` 的 `CR3` 切换、`xchg`/`cli` 对 `envs` 与空闲页链表的修改约束；最坏情形 两个 CPU 同时执行 `page_alloc` 或 `sys_write` 到同一 `pipe` 时，若 `lapic` 时钟中断与 `int $0x30` 门交错，`envs`、`pp_ref`、`pipe` 读写偏移会被同时修改。
+
+**两边**：页表项 `PTE` 与物理页 `struct PageInfo` 表示同一内存，前者被 `CR3` 指向的页表持有并由 `x86 MMU` 校验，后者被内核 `free_list`/`envs` 持有并由 `pp_ref` 计数；`trapframe` 与用户 `esp`/`eip`/`eflags` 表示同一执行现场，前者被内核栈持有并由 `iret` 恢复，后者被用户 `Env` 持有并由 `int $0x30` 门切换。
+
 ## 二、为什么这样做（功能设计）
 
 **用自家 Boot Loader 替掉 GRUB。** BIOS 只保证把第一个扇区搬到 `0x7c00` 并以实模式跳过去，剩下都是自己的事。引导器要关中断、开 A20、装 GDT、置 `CR0.PE` 切保护模式、把内核 ELF 的每个 program header 从磁盘搬到其链接地址、跳到入口。内核链接在 `0xF0100000`（虚拟）、物理落在 `0x100000`，靠一张手工写的静态页目录在开启分页的瞬间完成这个跳变。不用 multiboot 的代价是放弃通用性（这个内核只能被自己的 loader 启动），收益是 GDT、段选择子、ELF、页目录这些后面 trap 和内存管理要反复用的东西，在这里第一次被摸清楚。

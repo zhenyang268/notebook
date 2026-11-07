@@ -14,6 +14,14 @@
 
 **不换的是什么**：全程不变的是同一份 `Scene` 的 `Mesh` 顶点/索引缓冲、`Material` 纹理句柄、`Transform`/`Camera` 矩阵、`FrameId` 与输入事件时间戳，以及作为判据的 `Framebuffer` 像素、`DepthBuffer` 值、`CommandBuffer` 提交记录和 `Packet` 序号/状态字段；所以看到差异该先问是哪一数据结构、哪条指令或系统调用、哪一协议字段被改。
 
+**积木**：① IEEE-754 单精度浮点寄存器与 `mulss`/`addss` 指令；它能独立验证 MVP 矩阵乘法、视口映射、重心插值、射线 `t` 值逐位可复算。② CPU 线性地址空间中的 `struct Vertex` 数组与 `mov` 指令按字节偏移读写；它能独立验证 `rasterizer/` 与 `raytrace/` 读取同一 `Mesh` 时 `position`、`normal`、`uv`、`index` 字节偏移一致。③ `clock_gettime(CLOCK_MONOTONIC)` 返回的 `struct timespec`；它能独立验证 `engine/` 帧预算、输入事件时间戳与 `game/` `Packet` 发送间隔落在同一单调时间轴。④ `sendto`/`recvfrom` 写入 UDP 数据报的 `uint16_t seq` 字段；它能独立验证 `game/` 状态包是否重复、乱序、丢失，并与 `FrameId` 对齐。
+
+**最小情形**：单核单线程执行一次 `rasterize_triangle`：输入一个 `Triangle`、一个 `Framebuffer`、一个 `DepthBuffer`、一个 `Camera` 矩阵，输出一个像素值与一次 `DepthBuffer` 写入；此情形只依赖 `mulss`/`addss` 与 `Framebuffer`/`DepthBuffer` 数组下标，不依赖 `epoll_wait` 事件循环、`sendto` 的 `seq` 字段、`BVH` 多节点遍历、`CommandBuffer` 多命令排队、`Quaternion` 插值、`Transform` 父子链。
+
+**生成**：累加 从单三角形扩到 `Mesh` 索引数组中的 N 个三角形、从单射线扩到 `BVH` 多节点求交、从单帧扩到 `FrameId` 递增的多帧 `CommandBuffer` 提交、从单包扩到 `Packet.seq` 回绕的多状态包；新增约束是 `DepthBuffer` 同像素多三角形深度比较、`CommandBuffer` 提交记录容量、`Packet.seq` 回绕窗口。覆盖 `Scene` 的 `Mesh` 顶点/索引缓冲、`Material` 纹理句柄、`Transform`/`Camera` 矩阵、`Framebuffer` 像素、`DepthBuffer` 值、`CommandBuffer` 提交记录、`Packet` 序号/状态字段在同一 `FrameId` 与 `timespec` 输入时间戳下一致。最坏情形 多核写同一 `Framebuffer` 像素与 `DepthBuffer` 条目、`BVH` 退化到线性求交、蒙皮权重和偏离 1、`CommandBuffer` 溢出、`recvfrom` 收到重复或乱序 `Packet` 时 `seq` 与 `FrameId` 不匹配。
+
+**两边**：同一份 `FrameId` 状态：`engine/` 的 `FrameId` 变量与 `CommandBuffer` 提交记录；`game/` 的 `Packet.frame_id` 与 `Packet.seq`。引擎主循环线程持有 `FrameId` 与 `CommandBuffer`。网络线程持有 `Packet`。
+
 ## 二、为什么这样分组（功能设计）
 
 **渲染正确性与交叉验证先分开，再汇合。** `rasterizer/` 与 `raytrace/` 各自独立成篇，是因为验收方式不同：光栅化（rasterization）的判据是“逐像素能不能复现手推的变换与插值”，错了可以二分定位到某一段；光线追踪（ray tracing）的判据更像对照实验——“同一个场景，两条路径给出同一结论”。并成一个大文件，“我到底是在验管线还是在验求交”就说不清了。这两项也不并进 `cpu/`：那边关心指令、缓存、并发这类与画面无关的量，这里只关心结果对不对。

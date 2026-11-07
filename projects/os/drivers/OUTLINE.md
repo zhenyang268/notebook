@@ -25,6 +25,14 @@
 
 **不换的是什么**：全程不变的是“任一时刻只有一个持有者、每个状态转移都落到 ATA 状态位、描述符 DD/EOP、e1000 IC/IMS、块缓存 dirty 位或返回值，异常必须返回 -EIO/-ENXIO/-ENOBUFS 或回滚 superblock/bitmap/inode 的 dirty 位”，所以看到差异先问：谁写 TX/RX 描述符、谁读 ATA 状态寄存器、哪个字段表示 ERR/DRQ/BSY/DF/TXQE/RXQE/LSC/MDIC/DD/EOP、块缓存与 inode bitmap 的 dirty 位由哪个锁保护、失败时返回明确错误码还是死等。
 
+**积木**：① ATA status register 的 DRQ/BSY/DF/ERR 位；它能独立验证 IDE 数据寄存器是否可读、设备是否忙、命令是否失败。② e1000 TX/RX descriptor 的 DD/EOP 位；它能独立验证网卡是否完成描述符处理、帧边界是否结束。③ x86 `inl`/`outl` 与 MMIO `movl` 访问；它能独立验证 ATA 命令寄存器写入和 e1000 `TDT/RDT/IMS/IC` 寄存器读写是否到达硬件。
+
+**最小情形**：单核 CPU 上由一个内核线程执行一次 `outb` 发 ATA READ 命令、`inb` 轮询 DRQ、`insl` 读 512 字节，或一次 e1000 TX descriptor 写入、`TDT` 递增、轮询 DD。这一情形下 `IMS` 多中断源、`IC` 并发清除、多核 `spinlock`、页表 TLB 一致性、`trapframe` 中断嵌套都不起作用。
+
+**生成**：累加 多进程 `sys_read`/`sys_write` 经 `file`、`inode`、superblock、bitmap、块描述符的分配—释放—写回，以及 e1000 RX/TX 环、ARP/IP/UDP socket 与 web server 进程；新增约束是同一 buffer 在 CPU、块描述符表项、网卡 DMA 之间只能有一个持有者，且 `DD/EOP`、`IC`、dirty 位、`sys_read`/`sys_write` 返回值必须成对转移。覆盖 ATA `BSY` 超时、`DRQ` 不来、`DF/ERR` 置位、e1000 `TXQE/RXQE/LSC/MDIC`、满环、丢包、`-EIO/-ENXIO/-ENOBUFS` 返回、superblock/bitmap/inode dirty 回滚；新增约束是错误路径必须把 ATA `DRQ/BSY/DF/ERR` 位、descriptor `DD/EOP` 位、ARP/IP/UDP 头字段和 `sys_read`/`sys_write` 返回值清零或置错误码。最坏情形 中断在 `insl` 与 `DD` 轮询之间抢占、CPU 写 `TDT` 与网卡写 descriptor `ADDR` 竞争、设备复位后 `BSY` 不落或 `IC` 不清；新增约束是状态必须通过 `trapframe`、`IMS/IC`、descriptor `DD/EOP` 位、superblock/bitmap/inode dirty 位与 `-EIO/-ENXIO/-ENOBUFS` 错误码可判定恢复。
+
+**两边**：同一份扇区数据在 CPU 侧是内核虚拟地址下的块描述符 buffer，在 IDE/e1000 侧是 I/O 端口地址下的 `insl` 数据寄存器或物理地址下的 descriptor `ADDR` 字段。持有者分别是执行 `outb/inb/insl` 的内核线程与通过 DMA 读写 `ADDR` 的 e1000。
+
 ## 二、为什么这样做（功能设计）
 
 **取舍一：为什么先讲 PIO 再讲 DMA。** 因为 PIO 把"设备寄存器—数据搬运—完成判定"三件事摊开在最小的面上：你写 `0x1F7` 发命令、读状态位等 `DRQ`、用 `insl` 搬 512 字节、再等 `BSY` 落。没有描述符、没有中断、没有并发，错了就是轮询循环写错。**先在这种形态上把"设备是异步的"这件事变成手感，再上 DMA 与中断才有对照物。**

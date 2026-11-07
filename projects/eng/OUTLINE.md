@@ -18,6 +18,14 @@
 
 **不换的是什么**：全程不变的是请求标识、单调时钟、资源边界、状态转换表和证据链（trace id、`CLOCK_MONOTONIC`、cgroup `cpu.max/memory.max`、`RLIMIT_NOFILE`、状态机迁移表、core dump/pcap/perf.data），所以看到差异先问：输入分布、观测口径、并发/资源限制是否改变了状态转换，例如 p99 上升是 `cpu.max` 节流、futex 等待、TIME_WAIT 堆积还是 Nagle/延迟 ACK 导致。
 
+**积木**：①`LOCK CMPXCHG` 指令提供单字读改写的不可分割边；它能独立验证 `ABA` 是否出现在 `std::atomic_compare_exchange_strong` 的 expected 与 observed 值差上。②`memory_order_acquire`/`memory_order_release` 提供语言内存模型的 happens-before 边；它能独立验证 `__tsan_read8`/`__tsan_write8` 是否报告缺少同步边的读写。③`CLOCK_MONOTONIC` 提供 POSIX 单调时间戳；它能独立验证 `perf.data` 与 `core dump` 时间线是否可排序。④`write` 返回长度与 `errno` 提供系统调用错误边界；它能独立验证 `EINTR` 是否来自信号中断而非 `close` 返回。
+
+**最小情形**：单核单线程执行一次 `write(fd, buf, len)` 并读取一次 `CLOCK_MONOTONIC`；`std::atomic` 无跨线程可见性、`memory_order_acquire/release` 无 happens-before、`futex` 无等待、`epoll_wait` 无并发事件、`RLIMIT_NOFILE` 未触达、`TIME_WAIT` 无多连接、`Nagle` 与延迟 ACK 无往返，因此该情形只暴露 `errno`、返回值和单次时间戳。
+
+**生成**：累加 单线程一次 syscall 到多核 `std::thread`、多进程 `epoll_wait`、多节点 `MQ consumer lag`，新增 `cpu.max`、`memory.max`、`RLIMIT_NOFILE`、`futex` 与 `trace id` 的状态转换约束。覆盖 `EXPLAIN rows`、`__asan_report_load8`、`__tsan_read8`、`core dump`、`perf.data`、`pcap` 的同一请求链，新增观测口径必须由 `trace id`、`CLOCK_MONOTONIC` 和 `errno` 对齐。最坏情形 `cpu.max` 节流、`memory.max` OOM、`EMFILE`、`TIME_WAIT`、`Nagle`/延迟 ACK、`EINTR` 同时发生，`p99` 上升必须能由 `perf.data`、`ss`、`pcap`、`printk` 或 `errno` 区分。
+
+**两边**：同一连接状态在用户态由 `fd`、`epoll_event`、`errno` 和连接池 `std::unordered_map` 持有。同一连接状态在内核由 `tcp_sock`、`sk_buff`、`inet_timewait_sock` 与 `TIME_WAIT` 四元组持有。同一请求标识在用户态由 `trace id` 写入日志字段和 `std::string` 持有。同一请求标识在内核态由 `perf.data` 采样栈、`AF_PACKET` 抓包队列与 `audit` 记录持有。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：为什么这些能放一起，而 `os/`、`cpu/` 不能。** 这五份讨论的是**做事的方法**，与具体技术栈无关：perf 的口径可以用于任何语言，debug 的链路可以用于任何服务，system-design 的量级估算与语言无关。而 `os/`、`cpu/` 讨论的是**特定系统的知识**，换个对象就不成立。把方法与知识分开，才能避免"讲性能时混进内核细节、讲内核时混进方法论"。

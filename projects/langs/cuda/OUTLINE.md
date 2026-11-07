@@ -12,6 +12,14 @@ CUDA 相关的工程事故形态很固定：同一个 kernel 在 A100 上跑 3 m
 
 **不换的是什么**：全程不变的是 CUDA 的 SM 资源账本与语义账本——warp scheduler 发射、register file 配额、shared memory 32 bank、global memory sector 事务、`__syncthreads` 全 block 屏障、atomic 内存序与浮点加法不满足结合律；因此看到差异先问 Nsight Compute 的 `achieved occupancy`、`stall reason`、`global memory coalescing efficiency`、`shared bank conflict`、`local memory spill`、`arithmetic intensity` 是否变化，并按“occupancy 未变而 `long scoreboard` 涨查 global load 合并/延迟，`barrier` 涨查 `__syncthreads`/warp divergence，`bank conflict` 涨查 shared 索引 stride，结果非确定查 `atomicAdd`/`__shfl_down_sync` 顺序”决定改 `blockDim`、`__launch_bounds__`、`float4`/`ldg`、shared tile 或 atomic 顺序。
 
+**积木**：①`cudaLaunchKernel` 把 `gridDim`、`blockDim`、`sharedMemBytes` 写入 CUDA context 的 launch 参数，它能独立验证 kernel 是否以指定 CTA 形状进入 SM 调度队列；②SM warp scheduler 按 32 lane 的 `__activemask` 发射指令，它能独立验证 `__syncthreads` 是否让同 block 的 warp 停在 barrier PC；③global memory 32B sector 与 shared memory 32 bank 地址映射，它能独立验证 `ld.global`/`ld.shared` 是否产生 sector 缺口或 bank conflict 计数；④`__shfl_down_sync` 的 lane mask 与 `atomicAdd` 的 L2 写回，它能独立验证归约是否依赖 lane 顺序或 atomic 地址竞争。
+
+**最小情形**：`<<<1,1,0>>>` 下 `threadIdx.x=0`、`blockIdx.x=0`，一次 `cudaLaunchKernel` 执行 `c[0]=a[0]+b[0]`，只占一个 register file 槽位和一个 global memory sector，此时 `__syncthreads` 不等待其他 warp、`__shfl_down_sync` 没有 lane 间数据、shared memory bank 没有多 lane 并发访问、atomicAdd 没有同地址竞争。
+
+**生成**：累加把 `<<<1,1>>>` 扩到 `<<<gridDim.x,blockDim.x>>>` 后，`threadIdx.x + blockIdx.x*blockDim.x` 与 global memory 32B sector 对齐成为判据；覆盖把一次 `c[i]=a[i]+b[i]` 扩到 `sharedMemBytes` 中的 tile、`__syncthreads`、`ld.shared`/`st.shared` 后，32 bank 地址映射与 local memory spill 成为判据；最坏情形所有 warp 同时停在 `__syncthreads` 或同时向同一 global memory address 执行 `atomicAdd` 时，barrier stall 与 L2 atomic 序列化成为判据。
+
+**两边**：`cudaMalloc` 返回的 device virtual address 与 GPU MMU 页表映射的 HBM physical address 指向同一段显存；CUDA runtime 持有 device pointer，GPU MMU 持有页表项。`cudaEventRecord` 写入 GPU command queue 的 timestamp 与 `cudaEventElapsedTime` 返回的 host float 表示同一段 kernel 时间；GPU command processor 持有 timestamp，CUDA runtime host 持有 elapsed time。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数的**：同卡、同输入规模、同编译选项下的前后对照；roofline 上的算术强度与脊点位置；Nsight Compute 的 Speed of Light（Memory / Compute Throughput 百分比）、Achieved vs Theoretical Occupancy、stall 原因分布、shared memory bank conflict 计数、branch efficiency；CUDA event 计时的 kernel 时间中位数（含 warmup）。这些都能被第三方复现。

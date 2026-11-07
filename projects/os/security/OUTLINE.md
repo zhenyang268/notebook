@@ -22,6 +22,14 @@
 
 **不换的是什么**：全程不变的是特权级与页表边界（CS/SS、CR3/KPTI、SMEP/SMAP）、可执行性边界（NX/`PROT_EXEC`/CFI）、数据完整性与权限判定（stack canary、ELF/模块签名、引用计数、LSM `cred`/`inode` 检查），所以看到差异先问是否新增任意读写、任意函数调用、代码注入原语，是否跨过 ring3→ring0 或进程边界，是否绕过具体检查字段（canary、CFI target、`ioctl` 校验、SMAP/PAN、LSM hook、反作弊完整性哈希）。
 
+**积木**：①`CR3` 与页表项 `P`/`R/W`/`U/S`/`NX` 位给出地址空间与执行权限；它能独立验证一次 `MOV [RAX],RBX` 是否落在可写用户页或只读内核页。②`CS`/`SS` 的 CPL/RPL 与 `EFER.SCE` 给出 ring3/ring0 入口；它能独立验证一次 `SYSCALL` 是否只把 `RIP` 送入 `MSR_LSTAR` 指定的内核入口。③`RSP`、`RET` 与 stack canary/`%fs:0x28` 给出返回地址完整性；它能独立验证 `RET` 前栈槽 canary 是否等于 `%fs:0x28`。④`RIP`、`CALL`/`JMP` 与 CFI target 集合给出间接控制流校验；它能独立验证一次 `CALL [RAX]` 是否只在 `RAX` 位于 CFI 合法目标集合时把 `RAX` 装入 `RIP`。
+
+**最小情形**：单核单线程一次 `ioctl(fd, cmd, arg)` 时，`SYSCALL` 把 `RIP` 送入 `MSR_LSTAR`，`cmd` opcode 选择 `ioctl` 分支，`access_ok` 检查 `arg` 是否位于 `TASK_SIZE` 以下，`copy_from_user` 按 `cmd` 指定长度复制字段，`cred` 的 `uid`/`gid`/`cap_effective` 决定是否允许该 `ioctl`；此时 stack canary、CFI target 集合、CET `SHSTK` 不作用，因为这次操作不依赖被覆盖的 `RET` 或 `CALL [RAX]`，`spin_lock`、`futex_wait`、`per-CPU`、`RCU` 不作用，因为单核单线程不触发 `lock cmpxchg` 争用、`TLB shootdown`、`rcu_read_lock`。
+
+**生成**：累加把一次 `ioctl` 扩为 `ioctl`/`mmap`/`mprotect`/`ptrace` 序列，新增 `cmd` opcode、`arg` 指针、`TASK_SIZE`、`VMA` 的 `vm_flags`、`PROT_EXEC`、`ptrace` 的 `PTRACE_ATTACH` 与 `task_struct` 状态约束；覆盖把单线程用户态扩为 `SYSCALL`/`SYSRET`、`CR3`/`KPTI`、`CS`/`SS`、`SMEP`/`SMAP`、`LSM` 的 `cred`/`inode` 检查，新增 `task_struct`/`nsproxy` 的进程边界约束；最坏情形是任意地址读写、任意函数调用、代码注入同时成立，使 `RIP` 可跳向 `VirtualAlloc` 返回的 `PAGE_EXECUTE` 页、`RSP` 可指向 `ReadProcessMemory` 写入的 gadget、`CR3` 可被内核驱动页表修改绕过 `KPTI`。
+
+**两边**：同一份控制流现场有两种表示：用户态 `RIP`/`RSP` 寄存器，内核栈上的 `struct pt_regs` 中 `ip`/`sp` 字段。持有者也不同：用户线程在 `RET` 前持有 `RIP`/`RSP`，内核在 `SYSCALL` 入口通过 `SWAPGS` 与 `PUSH` 持有 `struct pt_regs`。
+
 ## 二、为什么这样做（功能设计）
 
 **取舍一：为什么以"原语"为中心，而不是以"漏洞类型"为中心。** 按漏洞类型讲会变成名词表（栈溢出、堆溢出、格式化字符串、UAF…）；按原语讲才有迁移性：**读原语、写原语、调用原语、跳转原语**——四类原语各自能做什么、拿到几个才能完成一次跨越权限边界的动作。缓解机制的作用也才能被正确描述：它们不是"消灭漏洞"，而是**提高凑齐原语组合的成本**。

@@ -8,9 +8,17 @@
 
 这项能力的目标不是“会跑工具”，而是把性能结论变成可复核的：口径明确、负载明确、样本明确、边界明确。
 
-**入口（本文的读法）**：在固定 SLO 字段（p99_ms、qps、error_rate、timeout_ms）、固定负载模型（open/closed-loop、连接池大小、retry 与 backoff、HTTP 429/503）和固定采样口径（`perf_event_open` 的 task-clock/cycles/instructions、`sched_switch`/`futex_wait`/`epoll_wait`、HDR histogram）这三重约束下，「达标/瓶颈/扩容」被替换为同一时间窗内可计数的边界。要读的是四组数：P99/P99.9 分布、饱和点（`run_queue_len`、accept queue 溢出）、强/弱扩展斜率、on-CPU PMU（IPC、L3 miss、TLB miss）与 off-CPU 等待栈占比。
+**入口（本文的读法）**：在固定 SLO 字段 p99_ms、qps、error_rate、timeout_ms，负载模型 open/closed-loop、连接池大小、retry 与 backoff、HTTP 429/503，采样口径 perf_event_open task-clock/cycles/instructions、sched_switch/futex_wait/epoll_wait、HDR histogram 约束下，解决达标/瓶颈/扩容的边界判定问题。
 
 **不换的是什么**：全程不变的是同一 trace_id/request_id 关联、同一 percentile 分桶与采样窗口、同一负载模型参数（并发、connection_pool_size、timeout_ms/retry_policy、CPU affinity/NUMA）、同一计数器语义（cycles/instructions 与 sched_switch/futex_wait/io_submit 时间戳）；看到差异先问：是否换了 p99 bucket、perf 采样频率、closed/open loop、重试次数、火焰图折叠规则或系统调用计数口径。
+
+**积木**：①perf_event_open 的 cycles/instructions/task-clock 计数器与 ring buffer 样本；它能独立验证一个 tid 在一个采样窗口内消耗了多少 CPU 周期、指令数和 task-clock 时间。②HDR histogram 的 bucket 计数与 p99_ms 字段；它能独立验证同一请求窗口内第 99 百分位延迟是否低于 200ms。③sched_switch、futex_wait、epoll_wait 内核事件与等待队列；它能独立验证线程是否离开 CPU 并进入调度切换、futex 等待或 fd 就绪等待。④HTTP 429/503 状态码字段与 retry/backoff 计数；它能独立验证客户端是否因 429/503 产生额外尝试请求。
+
+**最小情形**：单核单线程两节点一次 HTTP 请求：perf_event_open 只采集该 tid 的 cycles/instructions/task-clock，HDR histogram 只写入一个 bucket，sched_switch 只记录该 tid 是否被内核抢占，futex_wait/epoll_wait 不产生等待事件；NUMA distance、CPU affinity、closed/open loop、connection_pool_size、HTTP 429/503 retry/backoff 在此刻没有可验证对象。
+
+**生成**：累加 单线程一次请求到多核多连接负载模型，新增 CPU affinity、NUMA node、closed/open loop、connection_pool_size、retry/backoff 与 HTTP 429/503 字段约束；覆盖 perf_event_open task-clock/cycles/instructions、sched_switch/futex_wait/epoll_wait、HDR histogram bucket/percentile 和 trace_id/request_id 关联；最坏情形是 p99 bucket 被 retry 尝试请求计入、perf 采样频率过低漏掉 task-clock 短样本、epoll_wait/futex_wait 等待被火焰图折叠规则归入同一栈帧。
+
+**两边**：同一请求延迟状态可表示为用户态 HDR histogram 的 bucket 计数与 p99_ms 字段，也可表示为内核 perf_event_open ring buffer 中的 task-clock/cycles/instructions 样本；前者由压测线程持有，后者由内核 perf 子系统持有。
 
 ## 二、为什么这样做（方法论设计）
 

@@ -16,6 +16,14 @@
 
 **不换的是什么**：全程不变的是同一输入下可由 `objdump` 指令流、`dis` 字节码、`strace` 的 `futex`/`ioctl`、`asyncio.Task.__step` 状态、`cudaOccupancyMaxActiveBlocksPerMultiprocessor` 计数和 Nsight 访存指标重放的观测序列，所以看到差异先问是 ABI/对象头/内存序/事件循环/launch config 中哪一项变了。
 
+**积木**：① C++ Itanium ABI 的 vtable 指针与 `.eh_frame` 展开表；它能独立验证 `objdump` 中虚调用加载 `%rax` 指向 vtable 项、异常展开按 `.eh_frame` FDE 调用析构；② CPython `PyObject` 的 `ob_refcnt`/`ob_type` 与 `tp_iter`/`tp_iternext` 槽位；它能独立验证 `dis` 中 `GET_ITER`/`FOR_ITER` 调用槽位、引用计数在 `Py_INCREF`/`Py_DECREF` 处变化；③ CUDA SM 的 warp 锁步与 `__shared__` 32 bank 地址映射；它能独立验证 `Nsight` 的 `l1tex__data_bank_conflicts` 和 PTX `bar.sync`/`__syncthreads` 指令。
+
+**最小情形**：单核单线程执行一次 `std::vector` 构造析构、一次 `dis` 的 `FOR_ITER`、一次 CUDA 单线程写读 `__shared__`；此时 `std::atomic` 的 `LOCK` 指令、`PyThreadState` 切换、`asyncio` 任务队列、多 warp 的 `bar.sync` 与 `l1tex__data_bank_conflicts` 都不参与。
+
+**生成**：累加多个 `std::unique_ptr` 析构、多个 `PyObject` 引用、多个 CUDA lane 访问同一 `__shared__` 数组；覆盖 `.eh_frame` FDE、`tp_dealloc`、`asyncio.Task.__step`、`cudaOccupancyMaxActiveBlocksPerMultiprocessor`、`l1tex__data_bank_conflicts`；最坏情形 `std::atomic` 内存序错用导致 `LOCK`/`MFENCE` 缺失、`Py_DECREF` 提前归零触发 `tp_free`、32 个 lane 命中同一 bank 导致 `l1tex` 冲突计数上升。
+
+**两边**：同一份 C++ 对象状态由编译器持有为 `.eh_frame`、`.data.rel.ro` vtable 与 `this` 寄存器约定，由运行期持有为栈帧 `%rsp`/`%rbp` 和 `call` 目标；同一份 Python 对象状态由解释器持有为 `PyObject` 的 `ob_refcnt`/`ob_type`/`tp_iternext`，由字节码持有为 `dis` 中 `GET_ITER`/`FOR_ITER` 的操作数栈；同一份 CUDA 数据状态由源码持有为 `__shared__` 下标，由 SM 持有为 `l1tex` bank 事务与 `bar.sync` 屏障。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：语言与 GPU 放一起，而不是把 CUDA 塞进并行计算。** 表面上看 CUDA 更像"并行/性能"话题，但它在面试里的问法与 `cs149` 那类课程完全不同：`cs149` 问的是"加速比从哪来、访存层次怎么影响 roofline"，而 CUDA 岗位问的是"你这个 kernel 为什么 30% 占用率""共享内存 bank conflict 怎么消""为什么加了 `__syncthreads()` 反而更慢"。**后者是写代码的人直接踩的坑，与 C++ 的 UB、Python 的 GIL 是同一类问题**：语言/执行模型的约束如何变成性能与正确性。

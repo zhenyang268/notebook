@@ -14,6 +14,14 @@
 
 **不换的是什么**：全程不变的是内核对象口径：`/proc/PID/smaps` 的 `Rss`/`Pss`/`Uss` 来自页表与共享映射，`top -H`/`pidstat -u -t` 来自 `task_struct` 的 `utime`/`stime`，`ss -tan state time-wait` 来自 `sock` 状态与协议栈计数，`epoll_wait`/`read`/`accept` 的阻塞或 `EINTR` 来自 fd flags 与内核等待队列；看到差异先问字段取自哪个内核对象、采样是进程还是线程、fd 是否 `O_NONBLOCK`、触发是 `EPOLLET` 还是水平、队列是 `accept` backlog 还是 SYN 队列。
 
+**积木**：① CPU 页表项的 Present/Dirty/Accessed 位与 TLB 失效指令：它能独立验证一个虚拟页是否已映射、是否被写、是否被访问；② CPU 时间戳计数器与 task_struct 的 utime/stime 字段：它能独立验证一个线程在用户态与内核态消耗的 CPU 时间；③ inet_sock 的 sk_state 字段与 TIME_WAIT 定时器：它能独立验证 TCP 连接是否处于 TIME_WAIT 并占用本地端口；④ epoll_event 的 EPOLLET 位、O_NONBLOCK fd flags 与 read 返回 EAGAIN：它能独立验证边缘触发是否要求循环读取直到 EAGAIN。
+
+**最小情形**：单核上单线程执行 mmap 返回虚拟地址、read 读取一个页，内核只维护一个 task_struct、一个 mm_struct VMA、一个 fd table；此时 taskset、pidstat -u -t、ss -tan state time-wait、netstat -s overflow、EPOLLET 与 EAGAIN 都不产生可观测差异。
+
+**生成**：累加把单线程一次 mmap/read 扩到多线程 task_struct、多 VMA、多 socket fd 与 epoll 注册表，新增 sched_clock 线程时间、rmap 共享页计数、inet_ehash 端口占用、epoll 就绪链表约束；覆盖 /proc/PID/smaps 的 Rss/Pss/Uss、pidstat -u -t 的 utime/stime、ss -tan state time-wait 的 sk_state、epoll_wait 的 EPOLLET/O_NONBLOCK/EAGAIN 与 accept backlog/SYN queue；最坏情形是共享库与 page cache 使 Rss 高而 Pss/Uss 低，3 个 task_struct 的 utime/stime 同时增长使 top 显示 300% %CPU，TIME_WAIT 占满本地端口返回 EADDRNOTAVAIL，accept backlog overflow 使 listen 队列满并触发 netstat -s overflow 计数，EPOLLET 未循环 read 到 EAGAIN 使下一次 epoll_wait 不再返回该 fd。
+
+**两边**：同一份观测状态在用户态是 /proc/PID/smaps 的 Rss/Pss/Uss、pidstat -u -t 的 utime/stime、ss -tan state time-wait 的 sk_state 文本字段，在内核是 mm_struct VMA 页表、task_struct utime/stime、inet_sock sk_state。持有者一是读取 procfs 与 netlink 的用户态工具。持有者二是维护 mm_struct VMA 页表、task_struct utime/stime、inet_sock sk_state 的内核 mm、调度器与 TCP 协议栈。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** 内存数字必须带口径前缀：VSS / RSS / PSS / USS，四者不可互换，其中

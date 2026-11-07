@@ -17,6 +17,14 @@
 
 **不换的是什么**：全程不变的是数据结构不变量（父子指针、区间闭合性、堆序、访问标记、状态转移合法性）、边界集合（空/单元素/重复/越界/删除后 children 组合/等号与开闭区间）、证明依据（循环不变量、数学归纳、反证、交换论证）和定位手段（ASan 报告栈帧、断言、最小复现输入）；看到差异先问这四样是否同构，而不是问“写法是否不同”。
 
+**积木**：① x86-64 页表项（PTE）的 Present/R/W 位与缺页异常向量号；它能独立验证 `node->children[i]` 越界读是否落入未映射页或只读页；② C++ 的 `std::size_t` 下标运算与 `operator new/delete` 返回的指针类型；它能独立验证 B+ 树删除分支中 `i < children_count` 是否越过数组长度；③ x86-64 的 `RIP/RSP/RBP` 寄存器与调用约定；它能独立验证 `ASan` 报告栈帧中 `delete_leaf` 返回地址与 `node->children` 调用帧是否连续。
+
+**最小情形**：单核单线程上执行一次 B+ 树删除，父节点 `children[0]` 与子节点 `parent` 两个指针构成一条边，`RIP` 沿 `node->children[0]->parent` 前进一次，`RSP` 只压一层 `delete_leaf` 调用帧；这一情形下 `TLB` 多核一致性、`mmap` 的 `vm_area_struct` 并发修改、`ASan` 多线程 `ThreadLocal` 栈帧都不起作用，因为只有一个 CPU 上下文和一个内核 `mm_struct` 地址空间。
+
+**生成**：累加把一次删除累加到红黑树 `node->left/right/parent` 与 B+ 树 `children_count` 的连续修改序列；新增约束是每次 `operator delete` 后 `use-after-free` 标记必须能对应到 `ASan` 的 `heap-buffer-overflow` 报告行号。覆盖数组双指针 `left/right` 闭区间、栈 `push/pop` 前 `top` 判空、堆 `sift-down` 子节点下标 `2*i+1` 与 `2*i+2`；新增约束是循环不变量必须落在 `std::vector::size()` 与索引寄存器 `RAX/RDX` 可检查的边界上。最坏情形是 B+ 树根节点 `children[0]` 为空、红黑树删除触发 `double-black` 传播、二分 `while (left <= right)` 在 `std::size_t` 下溢；新增约束是 `vm_area_struct` 中相邻页的 `PROT_NONE` 与 `mid = left + (right-left)/2` 的整数溢出检查必须同时成立。
+
+**两边**：同一份 `children[i]` 越界状态，用户态 `node->children` 数组把它表示为 `i * sizeof(Node*)` 的字节偏移；内核 `vm_area_struct` 把它表示为 `vma->vm_start` 与 `vma->vm_end` 的页区间。持有者：`malloc` 的 `arena` 数据结构持有被释放对象的 `next_free` 指针；`ASan` 的 `ThreadLocal` 栈帧持有 `heap-use-after-free` 报告的 `alloc_stack` 与 `free_stack`。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：为什么合在一起而不是各自单列。** 两个目录名字几乎一样，分开放在顶层时读者要在两处之间跳；但它们服务的场景确实不同——一个是"我的实现有 bug，怎么定位"，一个是"面试官出了一道题，怎么开口"。放在一起能把关系说清：**题库给你题型骨架，基座体检给你实现细节与工具手感**。面试里最强的一句往往是"这个结构我实现过，删除时那两种 children 组合最容易错，我用 ASan 复现过"。

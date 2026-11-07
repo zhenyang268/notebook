@@ -16,6 +16,14 @@
 
 **不换的是什么**：全程不变的是 ISA 指令语义、`RFLAGS` 条件码、`CR3/PTE` 页表结构、`MESI` cache-line 状态、`lock cmpxchg` 的原子语义和 `syscall/sysret` 边界，所以看到耗时差异时先问 `perf_event_open` 的 `instructions` 与 `cycles` 是否同比例变化、`cache-misses`/`branch-misses`/`TLB-misses`/`stalled-cycles-backend` 是否同向变化，再问 ROB/RS/LSU 是否出现 `load/store queue full`、`memory order buffer full`、`prefetcher miss` 或 `DRAM bank/row-buffer conflict`。
 
+**积木**：①`CPUID` 暴露的 ISA 扩展与 `CR0/CR4` 控制位给出指令语义与分页模式边界；它能独立验证 `perf_event_open` 的 `instructions` 与 `cycles` 是否按同一 ISA 语义计数。②`CR3` 指向的 `PTE` 与 `TLB` 表项给出虚拟地址到物理地址的映射；它能独立验证 `mov rax, [rbx]` 的 `cache-misses` 与 `TLB-misses` 是否落在同一页映射。③`MESI` 协议字段与 `lock cmpxchg` 原子语义给出 cache line 状态迁移与原子总线周期；它能独立验证多核 `perf_event_open` 的 `cache-misses` 是否来自共享 `cache line` 迁移而非 `instructions` 变化。④`ROB`、`RS`、`LSQ` 队列深度与 `stalled-cycles-backend` 给出乱序窗口与访存队列饱和；它能独立验证 `cycles` 增长是否对应 `load/store queue full` 或 `memory order buffer full`。
+
+**最小情形**：最小情形是单核单线程执行一条 `mov rax, [rbx]`，由 `perf_event_open` 读取 `instructions`、`cycles`、`cache-misses`、`TLB-misses`；此刻 `BTB`/`BHT`、`syscall`/`sysret`、`MESI`、`lock cmpxchg`、`ROB`/`RS`/`LSQ` 满不起作用，因为该情形没有分支、没有系统调用边界、没有跨核共享 `cache line`、没有原子总线周期、没有多条指令填满队列。
+
+**生成**：累加把单条 `mov` 扩到 `syscall`/`sysret` 与 `CR3` 切换的多线程进程，新增 `TLB` 刷新、`PTE` 遍历与 `perf_event_open` 的 `TLB-misses` 约束；覆盖把无分支单线程扩到含 `jmp`/`call` 与 `SIMD` 的乱序流，新增 `BTB`/`BHT` 误预测、`ROB`/`RS`/`LSQ` 深度、`SIMD` 端口与 `branch-misses`/`stalled-cycles-backend` 约束；最坏情形是 `MESI` cache line 迁移、`LSQ` 满、`DRAM row-buffer` 冲突同时出现，`cycles` 被 `cache-misses`、`stalled-cycles-backend` 与 `memory order buffer full` 分拆到后端访存。
+
+**两边**：同一条 `mov` 的虚拟地址由用户态 `RIP`/`RSP` 现场持有，物理地址由 `CR3` 指向的 `PTE` 与 `TLB` 表项持有；同一组执行窗口计数由 `read(perf_event_fd)` 读出的 `instructions`/`cycles` 用户态缓冲区持有，由内核 `struct perf_event` 与 PMU 计数器对象持有。
+
 ## 二、为什么这样做（方法论设计）
 
 四个取舍：

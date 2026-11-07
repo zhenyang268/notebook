@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是 commit SHA、lockfile、test case ID、expected value、random seed、clock/syscall 注入、contract schema 字段、junit.xml 的 pass/fail、coverage.xml 的行/分支/条件计数、CI exit code；看到差异先问“是这些输入/断言对象/契约字段变了导致 junit.xml、coverage.xml、contract diff 或 CI exit code 变，还是只是 CI stage 顺序、retry 策略、mock 注入点、coverage 阈值或 allow_failure 配置变了”。
 
+**积木**：① CPU 条件跳转指令根据 EFLAGS.ZF 选择下一条指令地址；它能独立验证同一寄存器输入下 assert 比较指令是否落入通过分支或失败分支。② JVM 字节码行号表与分支探针记录 method/line/branch counter；它能独立验证某条 if 指令对应的分支是否被执行并写入 coverage.xml counter。③ waitpid 系统调用返回 task_struct 的 exit_code 字段；它能独立验证 test runner 子进程是否以非零退出码终止并映射为 CI exit code。
+
+**最小情形**：单核 CPU 单线程执行一次 cmp 指令比较寄存器中的返回值与 expected value，根据 EFLAGS.ZF 写一个 junit.xml testcase @status=pass，两节点只交换一个 contract schema 字段，一次 read syscall 返回固定 errno。此情形没有 scheduler 上下文切换、没有多核 cache line 共享、没有 coverage.xml 聚合、没有 CI fail-fast、没有 flaky retry 标记、没有 property seed 多样本。
+
+**生成**：累加 把一次 cmp 指令扩展到多个 test case ID，每个 test case ID 对应一个 junit.xml testcase 元素；新增约束是同一 commit SHA 下 testcase ID 集合与 expected value 必须固定。覆盖 把单行分支扩展到 coverage.xml line/branch/condition counter 集合；新增约束是共享序列化/鉴权工具类被改动的 if 指令必须有对应 branch counter 增量。最坏情形 把一次 pass/fail 扩展到同一 commit SHA 多次重跑的 junit.xml testcase @status 序列；新增约束是任意两次结果翻转必须写入 flaky retry 标记且 allow_failure 不得吞掉该标记。
+
+**两边**：同一份 pass/fail 状态表示为 kernel task_struct 的 exit_code 整数和 junit.xml testcase @status 字符串。前者由 kernel scheduler 在 waitpid 返回给 CI runner 时持有。后者由 junit parser 在解析文件时持有。
+
 ## 二、为什么这样做（方法论设计）
 
 核心取舍一：**有口径才算数**。“我们测试比较充分”“CI 比较快”“覆盖率还行”都不可证伪。可证伪的表述必须带三要素：指标名、分母、阈值来源。例如“本次变更的新增行分支覆盖率不低于阈值（阈值按仓库风险等级设）”“同一 commit 重跑出现结果翻转的用例计入 flaky 清单”。反过来，“我们用了测试金字塔”如果没有用例数、耗时、维护成本的分布数据，就只是口号。

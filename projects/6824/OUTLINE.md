@@ -12,6 +12,11 @@
 
 **不换的是什么**：全程不变的是 `currentTerm` 不回退、`votedFor` 每任期最多一次、`commitIndex` 只由多数派 `matchIndex` 推进且不回退、已多数派落盘的 `log[index].term` 不可被覆盖、`applyCh` 只能投递 `lastIncludedIndex < index <= commitIndex` 的日志且不跳序、`lastIncludedIndex/lastIncludedTerm` 只能截断 `lastApplied` 之前的已应用前缀；看到差异先检查 `currentTerm` 是否回退、`votedFor` 是否重复、`commitIndex` 是否被未经多数派 `matchIndex` 确认的日志推进、`log[index].term` 是否被截断、`applyCh` 是否跳序、快照边界是否越过 `lastApplied`。
 
+**积木**：①CPU 的 compare-and-swap 指令保证单个字 `votedFor` 的读改写不可分割，它能独立验证同一 `currentTerm` 下两个 goroutine 是否都写入 `votedFor`；②Go runtime 的 channel 同步交接保证 `applyCh` 发送方与接收方在 `lastApplied+1` 的 `log[index]` 上完成一次交接，它能独立验证 `applyCh` 是否跳序或重复投递；③文件系统 `fsync` 系统调用保证 `currentTerm`、`votedFor`、`log[index].term` 的内核文件写入在返回前到达块设备，它能独立验证 `RequestVote` 回复字段发出前落盘顺序。
+**最小情形**：单核、单 goroutine、两节点、一次 `Start(cmd)` 时，`currentTerm`、`votedFor`、`log[index].term`、`commitIndex`、`matchIndex`、`prevLogIndex/prevLogTerm`、`applyCh` 只在一组内存字段和一条 `AppendEntries` 消息中移动；选举超时定时器、`fsync` 落盘顺序、多数派 `matchIndex`、`InstallSnapshot`、`lastIncludedIndex/lastIncludedTerm`、goroutine 调度交错都不起作用。
+**生成**：累加 3/5 节点、并发 `Start(cmd)`、`RequestVote`/`AppendEntries`/`InstallSnapshot` RPC 字段、`currentTerm`/`votedFor`/`commitIndex`/`matchIndex`/`lastIncludedIndex/lastIncludedTerm`/`applyCh` 的跨节点同步，新增 `prevLogIndex/prevLogTerm` 匹配、多数派 `matchIndex` 推进 `commitIndex`、`fsync` 先于回复的约束；覆盖 leader 宕机重启、网络分区、少数派隔离、整组断电重启、快照压缩、落后节点追日志，新增 `log[index].term` 不可覆盖已多数派落盘条目、`applyCh` 不跳序、`lastIncludedIndex/lastIncludedTerm` 不越过 `lastApplied` 的约束；最坏情形是 `currentTerm` 回退、`votedFor` 重复、`commitIndex` 被未经多数派 `matchIndex` 确认的 `log[index].term` 推进、`log[index].term` 被截断、`applyCh` 跳序、快照边界越过 `lastApplied`，由 `Start(cmd)` 返回的 `(index, term)`、RPC 字段、日志落盘字节、快照元组给出反例。
+**两边**：内存中的 `currentTerm`、`votedFor`、`log[index].term`、`commitIndex`、`matchIndex`、`lastApplied`、`lastIncludedIndex/lastIncludedTerm` 与磁盘上的 `raftstate` 记录、日志文件条目、快照元组是同一份共识状态。Raft goroutine 持有内存字段并写 `applyCh`，文件系统持有落盘字段并决定断电重启后 `Start(cmd)`、`RequestVote`、`AppendEntries` 的初始值。
+
 ## 二、为什么这样做（功能设计）
 
 **替换掉的是什么。** 现实里没人手写共识——用 etcd/raft 或 hashicorp/raft 的库，几行代码就能起一个复制组。这个项目把那层库整个抽掉自己写，只保留两样给定的东西：一个可注入丢包、延迟、乱序、重复、断网的 RPC 框架，和一个只能整块读写字节的假磁盘。也就是说，「不可靠」的两个来源是给定的，不替换；被换掉的是中间那层「把不可靠通信变成可靠全序」的逻辑。

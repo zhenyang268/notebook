@@ -20,6 +20,14 @@
 
 **不换的是什么**：全程不变的是陷入入口（`CS/SS` selector、`RIP/RSP`、`TSS RSP0`、`syscall/sysret` 或 `int/iret`）、地址转换（`CR3` + 页表项 `U/R/W/NX/P`）、系统调用分发（syscall number → dispatch table → `task_struct`/`Env`/fd table）、队列所有权（descriptor ring 的 head/tail 由软件或硬件哪端推进）、完成通知（IRQ/EOI 或轮询状态位）和对象生命周期（引用计数、fd 表、inode/socket 状态机）；因此看到差异先问：它是否改变了“谁推进 head/tail、谁设置页表权限位、陷入时 RIP/RSP 来自哪里、syscall number 落到哪个分发表、数据经过哪个 buffer/descriptor”。
 
+**积木**：①`syscall`/`sysret` 与 `MSR_LSTAR`/`MSR_STAR`/`MSR_FMASK` 保存 `RIP/RSP/RFLAGS/CS/SS`；它能独立验证用户态陷入内核时 `RIP` 是否从 `MSR_LSTAR` 进入、返回时 `RFLAGS` 是否被 `MSR_FMASK` 清零。②`CR3` + `PTE.P/U/R/W/NX` + `CR2` + `PFEC`；它能独立验证 CPU 是否按页表权限位拒绝访问并把故障地址写入 `CR2`。③PCI BAR + MMIO 寄存器偏移 + 描述符环 `head/tail` + `DD` 完成位；它能独立验证 e1000 收包时 CPU 与 DMA 对描述符的写所有权是否由 `tail` 与 `DD` 标记。
+
+**最小情形**：单核单线程执行一次 `read(fd, buf, 1)`：`syscall` 把用户 `RIP/RSP` 切换到 `TSS.rsp0`/`RSP0` 指向的内核栈，内核用 `task_struct`/`Env` 查 `fd table`，`copy_to_user` 写 `buf`，`sysret` 返回；此情形下 `smp_call_function`、`TLB shootdown IPI`、`spinlock_irqsave`、`per-CPU runqueue`、`RCU`、`epoll 边缘触发`、`e1000 RSS 多队列` 均不触发。
+
+**生成**：累加 单线程一次 `read` 到多线程 `fork/exec/exit` 与多核 `schedule`，新增 `task_struct->rcu`、`mm->mmap_sem`、`rq->lock`、`TLB flush`、`COW 引用计数`；覆盖 `syscall number`、`dispatch table`、`Env/task_struct`、`CR3/PTE`、`descriptor ring head/tail`、`IRQ/EOI` 的落点；最坏情形 `copy_from_user` 遇到用户指针跨页缺页、NX 页执行、e1000 DMA 与 CPU 同时写描述符、ROP 覆盖返回地址，触发 `CR2`、`PFERR`、`DD`、`RIP/RSP` 改变。
+
+**两边**：用户态现场 / 内核栈上的 trapframe：用户态持有 `RIP/RSP/RAX` 与 `CS/SS` selector；内核持有 `pt_regs`/`Env->env_tf` 与 `TSS.rsp0`。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：分成两份而不是合成一份。** 两者的判据根本不同。`jos` 的判据是**你写的代码能不能通过 lab 的检验**（页表映射对不对、陷入现场是否精确、COW 引用计数是否平衡），错一次程序就崩；`linux-api` 的判据是**你能不能用一个命令或一个系统调用解释真实症状**（380% 是哪几个字段、`ss -i` 里哪个计数在涨）。合成一份文档会让"实现正确"与"解释正确"互相稀释。

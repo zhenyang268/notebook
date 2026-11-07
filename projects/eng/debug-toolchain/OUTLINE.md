@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是同一 ELF 的 `build-id`、`.text` 指令字节、崩溃 `RIP`、`/proc/pid/maps` 映射区间和共享内存的 happens-before 边，所以 `-O2` 崩而 `-O0` 不崩、ASan 不报而 TSan 报、attach 后线程正常时，先核对 core 与 debuginfo 的 `build-id`、`RIP` 是否落在 `.text` 且访问地址是否未映射、mutex `lock/unlock` 是否覆盖读写、以及 `TSan`/`ASan` 插桩是否改变 happens-before 边或 shadow memory 检查范围。
 
+**积木**：①x86-64 `RIP/RSP/RBP` 寄存器、`SIGSEGV`/`SIGBUS` 异常和 `siginfo_t.si_addr` 字段；它能独立验证崩溃指令地址、栈指针、访问地址是否落在 `/proc/pid/maps` 的 `vm_area_struct` 映射区间内。②ELF `.note.gnu.build-id`、`.text` 指令字节和 DWARF `.debug_line` 行号表；它能独立验证 core 中的 `RIP` 是否属于同一二进制并映射到源码行。③C++ `happens-before` 边、`pthread_mutex_lock`/`pthread_mutex_unlock` 调用和 `TSan` shadow memory；它能独立验证两个共享访问之间是否存在同步顺序边。④Linux `RLIMIT_CORE`、`core_pattern`、`elf_core_dump` 写入的 `NT_PRSTATUS`/`NT_FILE` note；它能独立验证进程收到致命信号时是否生成 core 以及 core 是否保存 `pt_regs` 与映射表。
+
+**最小情形**：单核单线程执行 `mov (%rax), %rbx`，`RAX` 指向未映射虚拟地址，内核页错误处理投递 `SIGSEGV` 并填写 `siginfo_t.si_addr`，`RLIMIT_CORE` 非零时 `elf_core_dump` 写 `core_pattern` 指定的 core；此时 `TSan` happens-before 图、`ASan` shadow memory/redzone、`perf` 多核 tracepoint 不起作用，因为只有一个线程、一个 CPU、一个访问指令。
+
+**生成**：累加 `clone`/`pthread_create` 创建的多线程 `/proc/pid/task` 与多核 `perf` tracepoint，新增 `TSan` happens-before 边和 `ASan` shadow memory 检查范围约束。覆盖 `SIGSEGV`/`SIGBUS`、`build-id`/`.debug_line`、`core_pattern`/`coredumpctl`、`RIP/RSP/RBP` 与 `/proc/pid/maps` 映射区间，新增 core 与 debuginfo 必须同一 ELF `build-id` 约束。最坏情形 多线程写共享 `std::string` 且 `pthread_mutex_lock`/`pthread_mutex_unlock` 未覆盖读写，`TSan` 报告两个访问位置但无 happens-before 边，`ASan` 不报而 `SIGSEGV` 在 `RAX` 指向未映射地址时触发。
+
+**两边**：同一崩溃现场在用户态表示为 `RIP/RSP/RBP`、`/proc/pid/maps` 映射区间和 ELF `.note.gnu.build-id`，由 `gdb`/`lldb` 读取。同一崩溃现场在内核态表示为 `pt_regs`、`vm_area_struct` 和 `siginfo_t.si_addr`，由 `elf_core_dump` 写入 core。
+
 ## 二、为什么这样做（方法论设计）
 
 **有口径才算数。** 本方法论要求每条结论都带可核验的判据：崩溃要能还原到 `(线程, 帧, 源码行, 访问地址)`；内存错误要有一份 sanitizer 报告指明“谁申请、谁释放、第一次越界发生在哪一行”；数据竞争要有 happens-before 边 $a \rightarrow b$ 的断裂点，即两个冲突访问各自的位置与中间缺失的同步。做不到这些的，一律降级为“假设”，标在问题单上而不是结论里。

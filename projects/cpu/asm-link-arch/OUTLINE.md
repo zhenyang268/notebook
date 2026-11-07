@@ -8,6 +8,14 @@
 
 **不换的是什么**：全程不变的是 ELF 的 `.symtab/.dynsym/.rela/.got/.plt/.dynamic/.eh_frame` 记录、`ld.so` 的符号解析与 `dl_iterate_phdr`/`dl_phdr_info` 遍历顺序、SysV/AArch64 的 `caller-saved/callee-saved` 与 `rsp/x29/x30`、16-byte 对齐、返回地址/`RIP/PC` 对应规则，所以看到 x86/ARM、静态/动态、PIE/ASLR 差异时，先问它改变的是哪条 `.symtab/.rela/.got/.plt` 记录、哪条 `ld.so` 解析顺序、哪组 `rdi/rsi/x0`/`rsp/x29/x30` 保存规则，而不是先归因于 ISA 标签。
 
+**积木**：① ELF `.symtab`/`.dynsym` 的 `st_value`、`st_size`、`st_info`、`st_other`、`st_shndx` 字段；它能独立验证一个符号是 `SHN_UNDEF`、`SHN_ABS`、GLOBAL、LOCAL、HIDDEN 还是 WEAK。② x86-64 `RIP` 与 ARM64 `PC` 在异常现场保存的指令地址；它能独立验证 `SIGSEGV` 的 faulting PC 对应 `.text` 的哪条指令与哪条 `call foo@plt`。③ SysV `rdi/rsi/rdx/rcx/r8/r9`、`rsp` 与 AArch64 `x0-x7`、`sp`、`x29/x30` 的调用约定；它能独立验证参数是否按寄存器传入、返回地址是否可在 `rsp+8`、`x30`、`[sp+8]` 取回、栈是否满足 16-byte 对齐。
+
+**最小情形**：单核单线程执行一条 `call foo@plt`，`.symtab` 只有 `foo` 一个 UND/DEF 记录，`.rela.text` 只有一条 `R_X86_64_PLT32`/`R_AARCH64_CALL26`，`.plt` 只有一个桩，`.got` 只有一个槽，`RIP/PC`、`rsp/sp`、`x0-x7`、`x29/x30` 构成唯一现场；此时 `dl_iterate_phdr`、`dl_phdr_info`、`LD_DEBUG=bindings`、`pthread_create`、`mmap` ASLR、`.dynamic` 的 `DT_NEEDED` 遍历、`.eh_frame` 跨函数 unwind 都不起作用。
+
+**生成**：累加多个 `.o` 的 `.symtab`/`.dynsym`、`.rela`、`.plt`/`.got`、`.eh_frame` 与共享对象 `.dynamic`/`DT_NEEDED`；新增 `.rela` 链接顺序、`.symtab` 的 `STV_HIDDEN`/`STV_DEFAULT` 可见性、`.dynsym` 的 `SHT_GNU_versym` 版本、`.plt`/`.got` 延迟绑定约束。覆盖 x86-64 SysV 与 ARM64 AArch64 的 `rdi/rsi/rdx/rcx/r8/r9`/`rsp` 与 `x0-x7`/`sp/x29/x30`、16-byte 对齐、caller-saved/callee-saved、`R_X86_64_*`/`R_AARCH64_*` 重定位类型；新增跨 ISA 的 `.rela` 记录与 `RIP/PC`、`rsp/sp`、`x29/x30` 现场对照约束。最坏情形是 PIE/ASLR 下 `dl_iterate_phdr`/`dl_phdr_info` 给出基址、`.got` 被运行时改写、`.plt` 绑定到错误 `st_value`、`rsp/sp` 被栈破坏或 ABI 不一致污染；必须用 `.eh_frame`、`RIP/PC`、`x29/x30`、`LD_DEBUG=bindings`、`readelf -s` 的 UND/DEF、`objdump -d` 的 `call foo@plt` 交叉核对。
+
+**两边**：同一份状态是 `foo` 的可执行地址：链接期表示为 `.symtab`/`.dynsym` 的 `st_value`、`.rela` 的 `R_X86_64_PLT32`/`R_AARCH64_CALL26`、`.plt`/`.got` 偏移；运行期表示为 `ld.so` 写入 `.got` 的解析地址、`dl_phdr_info` 基址、`RIP/PC` 跳转目标。链接器 `ld` 持有 `.symtab`、`.dynsym`、`.rela`、`.plt`、`.got`、`.eh_frame`；`ld.so`、内核 `mm_struct`、`vm_area_struct`、`struct pt_regs` 持有 `PT_LOAD` 映射、`.got` 槽、`sigcontext`、`mcontext`。
+
 ## 二、为什么这样做（方法论设计）
 
 - **有口径才算数。** 每个结论要能落到可复查输出：`readelf -s` 的 UND/DEF、`objdump -d` 的 `call foo@plt`、GDB 的 `p/x $rsp`、`LD_DEBUG=bindings` 的绑定行。不能落到证据的，如“ARM 更省电”“延迟绑定更快”，不作为结论。

@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是内核可观测状态机：`epoll` 的 `ready list`/`EPOLLONESHOT` 语义、`tcp_sock` 状态与 `TIME_WAIT` 定时器、`task_struct->files` 的 `fd` 配额、TCP 发送缓冲与 `TCP_NODELAY`/delayed ACK 的字段组合、x86 `LOCK CMPXCHG`/`futex` 与 cache line 对齐；看到差异先问它改变的是哪条可观测记录：`accept4` 的 `errno`、`ss -tin` 的 `state/backlog`、`/proc/<pid>/limits` 的 `Max open files`、`perf c2c` 的 cache line 地址，还是 `strace -e trace=network,process` 的调用返回。
 
+**积木**：①x86 `LOCK CMPXCHG` 指令对 8 字节对齐内存位置提供原子读改写；它能独立验证 `atomic_compare_exchange_strong` 返回值与 `cmpxchg` 写入的内存字节是否一致。②C11 `memory_order_seq_cst` 对 `stdatomic.h` 原子变量提供全局顺序；它能独立验证 `atomic_load` 与 `atomic_store` 是否被编译器拆成普通 `mov` 或重排。③Linux `futex` 系统调用对 `futex_word` 提供 `FUTEX_WAIT`/`FUTEX_WAKE` 队列语义；它能独立验证 `FUTEX_WAIT` 返回 `EAGAIN` 时 `futex_word` 是否已被其他线程改写。④64 字节 cache line 与 `perf c2c` 记录共享行访问；它能独立验证两个相邻变量是否落在同一 cache line 地址。
+
+**最小情形**：单线程调用一次 `accept4` 从 `epoll` ready list 取出 fd，`errno` 只记录 `EAGAIN` 或成功 fd；两节点一次 TCP 关闭使 `tcp_sock` 进入 `TIME_WAIT` 定时器；此时没有多 worker 的 `EPOLLONESHOT` 复位竞争、没有 `futex` 等待队列、没有 `LOCK CMPXCHG` 竞争、没有 `RLIMIT_NOFILE` 与 `EMFILE` 边界。
+
+**生成**：累加 多个 worker 线程在 `epoll_wait` 返回的 ready list 上并发调用 `accept4`，`EPOLLONESHOT` 复位事件并累加 `/proc/net/netstat` 的 `ListenOverflows`；覆盖 数万短连接使 `tcp_sock`/`inet_timewait_sock` 进入 `TIME_WAIT`，`ss -tan state time-wait` 与 `/proc/sys/net/ipv4/ip_local_port_range` 对账 ephemeral 端口，`/proc/<pid>/limits` 的 `Max open files` 与 `task_struct->files` 的 fd 表对账 `EMFILE`；最坏情形 `accept4` 返回 `EMFILE` 后 `tcp_sock` 的 accept queue 仍按 backlog 增长，`ListenOverflows`、`TIME_WAIT` 计数与 `ip_local_port_range` 同时逼近上限，`perf c2c` 的共享 cache line 与 `futex` 唤醒队列把 `perf stat` 的 `cpu-clock` 和 `ss -tin` 的 `delayed ack` 字段映射到内核计数器。
+
+**两边**：同一份 accept 队列状态在内核 `tcp_sock->sk_accept_queue` 与 `ss -tin` 的 `Recv-Q/Send-Q/backlog` 字段；内核 TCP 栈持有 `tcp_sock`，用户态 worker 持有 `ss -tin` 输出。同一份 fd 配额在 `task_struct->files->fdt` 与 `/proc/<pid>/limits`、`/proc/<pid>/fd`；内核 `files_struct` 持有 fd 表，用户态进程持有 `accept4` 返回的 `errno`。同一份 `TIME_WAIT` 状态在 `inet_timewait_sock` 与 `ss -tan state time-wait` 字段；内核 `timewait_sock` 持有 `TIME_WAIT` 定时器，用户态 `ss` 持有连接表快照。
+
 ## 二、为什么这样做（方法论设计）
 
 这套方法的核心取舍是：只对“有口径”的结论买单。有口径 = 能写出触发条件、观测指标、判据、修复代价；缺一项，结论就退化成名词解释。

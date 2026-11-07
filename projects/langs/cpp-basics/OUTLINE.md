@@ -6,6 +6,14 @@
 
 **不换的是什么**：全程不变的是：对象状态由模板实例化后的类型布局、值/引用绑定与构造函数/析构函数调用决定，资源释放由 std::unique_ptr/std::shared_ptr 所有权、RAII 析构顺序和 operator new/delete、close(fd)、pthread_mutex_lock/unlock、pthread_create/join 等调用决定，容器与算法行为由 std::vector::push_back 的 size/capacity、std::unordered_map::find 的桶与 iterator 失效、std::sort 的比较/移动次数曲线决定，并发与错误路径由 std::atomic::memory_order、happens-before、__cxa_throw/std::terminate 决定；因此看到差异先问构造函数/析构函数是否执行、拷贝/std::move/swap 是否转移所有权、异常是否展开、迭代器是否失效、锁或 atomic 是否建立 happens-before。
 
+**积木**：①x86-64 `lock cmpxchg` 与 `std::atomic::fetch_add` 提供同一 `std::atomic<int>` 地址上的读改写不可分割；它能独立验证多线程 `fetch_add` 后 `std::atomic::load` 返回的 `value` 是否等于调用次数。②`operator new` 与 `operator delete` 提供堆分配返回虚拟地址或抛出 `std::bad_alloc`；它能独立验证 `Vector::reserve` 失败时 `size`、`capacity`、`data` 是否回到调用前状态。③`__cxa_throw` 与栈展开提供异常路径按构造逆序析构局部对象；它能独立验证 `ScopeGuard` 是否执行 `close(fd)` 与 `pthread_mutex_unlock`。
+
+**最小情形**：单核单线程一次 `std::vector::push_back` 与一次 `std::vector` 析构，使 `size`、`capacity`、`data` 经历 0/0/nullptr 到 1/1/堆地址再回到 0/0/nullptr，并执行一次 `operator new`、一次 `placement new` 与一次析构函数；此时 `std::atomic::memory_order`、`pthread_mutex_lock/unlock`、`__cxa_throw`、`std::shared_ptr` 控制块引用计数、`std::unordered_map` 桶重排根本不起作用。
+
+**生成**：累加 `std::vector::push_back` 调用次数与 `operator new/delete` 次数，新增 `size/capacity` 倍增、拷贝构造函数与移动构造函数调用次数；覆盖 `std::move`、`swap`、`std::unique_ptr::reset` 与 `std::vector::erase`，新增所有权转移、`data` 指针失效与迭代器失效约束；最坏情形 `std::unordered_map::insert` 触发 `rehash` 与 `std::sort` 触发比较函数与移动次数曲线，新增桶数组、迭代器失效与算法调用次数约束。
+
+**两边**：`std::vector<int>::data` 指向的堆缓冲区在用户态 `rdi`/`rsi` 寄存器与 `std::vector` 对象内存布局中表示为虚拟地址、`size` 与 `capacity`，持有者是 `std::vector`；同一堆缓冲区在内核 `mm_struct` 页表映射与 `operator delete` 路径中表示为可释放物理页帧，持有者是 `mm_struct` 与 `operator delete`。
+
 ## 二、为什么这样做（功能设计）
 
 核心设计是把标准库里最容易被面试追问、又最容易被黑盒化的组件替换成教学版，而不是只读标准。替换发生在用户态接口层：场景程序只依赖值语义、迭代器/视图、所有权接口，底层可在“教学版”和“标准版”之间切换，用同一组场景对比行为。不碰内核态，线程与原子原语仍用标准库，只在外面加可观测壳，避免把项目做成操作系统课。必须自己实现的约定包括：构造函数建立不变量、析构释放资源；moved-from 对象保持有效但值未指定；迭代器失效规则；`unique_ptr` 表达独占，`shared_ptr` 的控制块线程安全与对象线程安全分开。

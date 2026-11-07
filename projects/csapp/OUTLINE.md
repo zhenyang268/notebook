@@ -12,6 +12,14 @@
 
 **不换的是什么**：全程不变的是补码溢出与 IEEE-754 位级语义、x86-64 调用约定与栈帧布局、Cache 映射/替换策略、ELF 符号绑定/重定位格式、POSIX 信号与进程状态机、`malloc`/`free` 的堆块元数据与对齐不变量、`pthread` 互斥/条件变量的同步语义，因此看到差异时先问它落在位掩码/返回值、`%rsp`/`%rbp`/callee-saved 寄存器、set/line 状态与 eviction、符号绑定与 `.rela` 条目、`sigmask`/进程状态、header/footer/bin 链、锁顺序与条件谓词中的哪一层。
 
+**积木**：①C 语言与 x86-64 提供 `~`、`&`、`^`、`|`、`<<`、`>>` 运算符与补码 `int` 位宽。它能独立验证 `bitAnd`/`logicalShift` 的位掩码与 `Tmin` 取负。②x86-64 提供 `%rsp`、`%rbp`、`%rax`、`%rbx`、`%r12`–`%r15` 与 `push`、`pop`、`call`、`ret`、`leave` 指令。它能独立验证 `prologue` 后 `%rsp` 偏移、`epilogue` 前 `%rbp` 链、返回地址与 callee-saved 寄存器是否恢复。③IEEE-754 binary64 提供 `sign`、`exponent`、`fraction` 位字段、非规格数隐含位、round-to-even 与 `cvtsi2sd`、`cvttsd2si`、`ucomisd` 指令。它能独立验证 `floatScale2`、`floatFloat2Int`、`floatNeg` 的 64 位模式、`ucomisd` 的 `ZF`/`CF`/`PF` 标志、`cvttsd2si` 的向零截断与溢出标志。④ELF64、虚拟内存、POSIX 与 pthread 提供 `Shdr`、`Phdr`、`.symtab`、`.rela.text`、`STB_GLOBAL`、`R_X86_64_PC32`、`R_X86_64_64`、`PT_LOAD`、`PTE`、`mm_struct->pgd`、`fork`、`execve`、`setpgid`、`waitpid`、`sigprocmask`、`pthread_mutex_lock`、`pthread_cond_wait`、`futex` 与内核 `task_struct`、`sigpending`、`sigmask`。它能独立验证 `STB_GLOBAL` 符号绑定、`.rela.text` 重定位条目、`PTE` 物理帧号、`sigprocmask` 阻塞窗口、`waitpid` 返回的 `WIFEXITED`/`WEXITSTATUS`、`pthread_mutex_lock` 的 `cmpxchg` 地址、`pthread_cond_wait` 谓词检查。
+
+**最小情形**：单核单线程执行一次 `bitAnd` 的 `and` 指令、一次 `floatScale2` 的 `xmm0` 位模式、一次 `call`/`ret` 的 `%rsp` 栈帧、一次 `access` 的 set/line 命中、一次 `mmap` 的 `PT_LOAD`、一次 `fork`/`execve`/`waitpid` 的 `task_struct` 状态、一次 `mm_malloc` 的 header/footer 写入、一次 `pthread_mutex_lock` 的 `cmpxchg`；此时 `lock cmpxchg`、`SIGCHLD` 合并、同一 set 内 `LRU` 替换、`.rela.text` 符号解析、空闲 bin 链分裂、条件变量虚假唤醒不起作用。
+
+**生成**：累加从单次 `and`/`cvtsi2sd`/`call`/`access`/`mmap`/`fork`/`mm_malloc`/`pthread_mutex_lock` 扩展到随机输入序列、多 `set/line` 状态、多 `.rela.text` 条目、多 `task_struct`、多 heap block、多 `pthread_cond_wait` 唤醒，新增 `hit/miss/eviction` 顺序、`STB_GLOBAL` 符号解析、`sigpending` 合并、header/footer/bin 链、`pthread_mutex_lock` 获取顺序与 `pthread_cond_wait` 条件谓词的约束。覆盖 `Tmin`、`0x0000000000000001` 非规格数、`%rbx`/`%r12` callee-saved、`hit/miss/eviction` 计数、`R_X86_64_PC32` 符号解析、`sigpending`/`sigmask`、header/footer/bin 链、`pthread_mutex_lock` 获取顺序与 `pthread_cond_wait` 条件谓词。最坏情形是多核 `lock cmpxchg` 竞争、`SIGCHLD` 风暴、同一 set 内 `LRU` 连续驱逐、`.rela.text` 符号冲突与重定位溢出、堆外部碎片使 `mm_malloc` 失败、条件变量虚假唤醒使 `pthread_cond_wait` 谓词检查重复。
+
+**两边**：同一份状态可表示为用户进程页表中的虚拟地址 `0x400000` 与内核 `mm_struct->pgd` 指向的页表项 `PTE` 中的物理帧号。持有者分别是用户进程页表与内核 `mm_struct->pgd`，对应 `mmap`/`execve` 映射与 `switch_to` 切换的 `task_struct->thread` 现场。
+
 ## 二、为什么这样做（功能设计）
 
 核心思路是**逐个替换掉现成组件**，而且替换点都选在「抽象边界」上——正是教材用一句话带过、你从没亲手实现过的那一层。
