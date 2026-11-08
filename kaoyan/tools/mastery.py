@@ -13,7 +13,11 @@
     python3 tools/mastery.py                 # 分布总览
     python3 tools/mastery.py --list M0       # 列出某档（含 M3+ / M0 这种筛选）
     python3 tools/mastery.py --set 408-CO-0305 M3
+    python3 tools/mastery.py --batch scores.txt   # 批量记（每行「KP 档」），- 表示 stdin
     python3 tools/mastery.py --check         # 只校验值域（lint 用）
+
+为什么有 --batch（2026-11-08 加）：摸底时要一次改上百条，逐条 --set 得敲一百多次，
+实际结果就是「摸到一半放弃、账本继续是假的」。批量的代价只有一次文件重写。
 """
 import re
 import sys
@@ -82,6 +86,50 @@ def main():
             p.write_text("\n".join(lines), encoding="utf-8")
         print(f"{kp} → {tier}" if hit else f"✗ 找不到 {kp}")
         sys.exit(0 if hit else 1)
+
+    if "--batch" in args:
+        i = args.index("--batch")
+        src = args[i + 1] if i + 1 < len(args) else "-"
+        if src == "-":
+            text = sys.stdin.read()
+        else:
+            p_in = Path(src)
+            text = (p_in if p_in.is_absolute() else ROOT / p_in).read_text(encoding="utf-8")
+        plan, bad = {}, []
+        for ln in text.split("\n"):
+            ln = ln.split("#")[0].strip()
+            if not ln:
+                continue
+            parts = re.split(r"[\s,]+", ln)
+            if len(parts) < 2:
+                bad.append(ln)
+                continue
+            kp, tier = parts[0].strip("`"), parts[1].upper()
+            if tier not in TIERS:
+                bad.append(ln)
+                continue
+            plan[kp] = tier
+        hit = {kp: 0 for kp in plan}
+        for name in FILES:
+            p = ROOT / "syllabus" / name
+            lines = p.read_text(encoding="utf-8").split("\n")
+            for j, ln in enumerate(lines):
+                m = ROW.match(ln)
+                if not m or m.group(1) not in plan:
+                    continue
+                cells = [c.strip() for c in ln.strip().strip("|").split("|")]
+                if len(cells) < 7:
+                    sys.exit(f"{m.group(1)} 没有掌握列，先跑结构脚本")
+                cells[-1] = plan[m.group(1)]
+                lines[j] = "| " + " | ".join(cells) + " |"
+                hit[m.group(1)] += 1
+            p.write_text("\n".join(lines), encoding="utf-8")
+        ok = [k for k, v in hit.items() if v]
+        miss = [k for k, v in hit.items() if not v]
+        print(f"写入 {len(ok)} 个 KP" + (f"；✗ 找不到 {len(miss)} 个：{miss[:8]}" if miss else ""))
+        if bad:
+            print(f"✗ 跳过不合法行 {len(bad)} 条：{bad[:5]}")
+        sys.exit(0 if ok and not miss and not bad else 1)
 
     if "--list" in args:
         tier = args[args.index("--list") + 1].upper()
