@@ -1,6 +1,5 @@
 # READING.md — 教材读法与不做边界
 
-> 自 `graphics` 仓 `docs/reference/math-criteria.md` 迁入（2026-11-13）。
 > **方法层（怎么算看懂）在 `../LEARNING.md`**；本文只放两件：**不做什么** 与 **教材怎么读**。
 
 ---
