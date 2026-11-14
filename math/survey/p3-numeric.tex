@@ -103,7 +103,7 @@ $R$ 为 $n\times n$ 上三角（thin QR）。
 \]
 第二项与 $x$ 无关，故只需解上三角方程。成立条件：$A$ 列满秩（否则 $R$ 奇异，需换 QR 带列选主元或 SVD）。
 
-\field{判据} 原文未给——\texttt{qr.hpp} 的「三」段\textbf{没有写最小二乘}，这条属缺口（见第 \ref{sec:audit} 节）。
+\field{判据} 原文未给——\texttt{qr.hpp} 的「三」段\textbf{没有写最小二乘}，这条属缺口。
 $m<n$ 的情形库统一抛错，不做退化处理。
 
 \field{前置} N3。

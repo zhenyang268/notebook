@@ -128,7 +128,7 @@ for.body:
 
 层级是嵌套的：`ModulePassManager` → `CGSCCPassManager`（调用图上的强连通分量，内联住在这一层）→ `FunctionPassManager` → `LoopPassManager`。`opt -passes='function(mem2reg)'` 这种 DSL 直接对应嵌套结构，`require<loops>` / `print<loops>` 用来取分析结果。
 
-失效契约才是这一章真正的重点：`PreservedAnalyses::all()` 表示什么都没坏，`none()` 表示全失效，`preserve<DominatorTreeAnalysis>()`、`preserveSet<CFGA
+失效契约才是这一章真正的重点：`PreservedAnalyses::all()` 表示什么都没坏，`none()` 表示全失效，`preserve<DominatorTreeAnalysis>()`、`preserveSet<CFGAnalyses>()` 就是把「CFG 形状没变、相关分析不必重算」显式告诉 PassManager——漏标或标错，轻则后续 pass 白算一遍，重则拿着失效的分析结果做出错误变换。
 
 ## 第 5 章 从源码到 IR：Clang 的 AST 与 CodeGen 如何分工
 
@@ -238,7 +238,7 @@ IR -> SelectionDAGBuilder -> 类型/操作合法化 -> DAGCombine
 GlobalISel: IR -> IRTranslator -> Legalizer -> RegBankSelect -> InstructionSelect
 ```
 
-指令选择的核心是 `.td` 里的指令定义与匹配模式，TableGen 生成 matcher；复杂寻址
+指令选择的核心是 `.td` 里的指令定义与匹配模式，TableGen 生成 matcher；复杂寻址模式（base+index×scale+disp 这类）也是 `.td` 模式的一部分，选中哪条机器指令、寻址操作数怎么折叠，都由匹配模式与代价决定。
 
 ## 第 8 章 目标描述与 ABI：调用约定、栈帧布局、重定位
 

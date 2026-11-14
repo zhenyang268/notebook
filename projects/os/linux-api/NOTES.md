@@ -172,7 +172,7 @@ munmap(p, len + 4096);
 
 **对应命令与读法**
 
-1. `pmap -x PID` → 列 `Address Kbytes RSS Dirty Swap Mode Mapping` → `Kbytes` 是该 VMA 的虚拟大小，`RSS` 是当前驻留物理页；末尾 `total` 行给合计。看 `[heap]` 增长判断 brk 扩张，看大量 `[ anon ]` 判断 mmap 分配。**会骗你**：`total` 的 RSS 会把
+1. `pmap -x PID` → 列 `Address Kbytes RSS Dirty Swap Mode Mapping` → `Kbytes` 是该 VMA 的虚拟大小，`RSS` 是当前驻留物理页；末尾 `total` 行给合计。看 `[heap]` 增长判断 brk 扩张，看大量 `[ anon ]` 判断 mmap 分配。**会骗你**：`total` 的 RSS 会把共享库、映射文件的页一并计入，多进程相加必然重复；判泄漏看 USS 或 PSS，不要看 RSS 总和。
 
 ## 第 5 章 内存占用口径：VSS / RSS / PSS / USS、缺页与共享页
 
@@ -210,7 +210,7 @@ printf("RSS=%ld KiB\n", res * sysconf(_SC_PAGESIZE) / 1024);
 1. `free -m` → 看 `available` 而不是 `free` → 它是内核估算的“还能给新应用多少”（扣除 low watermark 与不可回收 slab）→ 骗你处：`buff/cache` 含 tmpfs/shmem，这部分**不可回收**，tmpfs 写满时 `available` 才掉，平时容易漏判。
 2. `vmstat 1 5` → 跳过第一行（开机以来均值）；看 `si/so`（换页 KB/s）、`free`、`cache`、`wa` → `si/so` 长期非 0 是真缺内存 → 骗你处：`cache` 列不含 SReclaimable slab，也不反映碎片，空闲页够但 order-3 分配失败它看不出来。
 3. `cat /proc/PID/statm` → 第 1 列 `size` 是 VSS（页），第 2 列 `resident` 是 RSS（页）→ 差值大说明“申请了没碰” → 骗你处：`resident` 含共享页，多进程相加必然重复计算。
-4. `grep -E 'R
+4. `grep -E '^(Rss|Pss)' /proc/PID/smaps_rollup` → 一次给出全进程 Rss/Pss 合计，与 `pmap -x` 的 total 对得上 → 看 Pss 随时间单调涨才是真泄漏 → **会骗你**：老内核没有 `smaps_rollup`，逐段读 `smaps` 开销大。
 
 ## 第 6 章 内存故障定位：OOM killer、泄漏、碎片与回收
 
@@ -453,7 +453,7 @@ int fd2 = open(p, O_RDWR|O_CREAT|O_DIRECT, 0644);     /* 绕过页缓存 */
 2. `iotop -o -b -n 2 -d 5`（需 root，依赖内核 `CONFIG_TASK_IO_ACCOUNTING`/`TASK_DELAY_ACCT`）→ 看 `DISK WRITE` 与 `IO>` 两列 → `IO>` 高说明进程在等 I/O 而不是在算 → 会骗你：异步回写由 `kworker`/`flush-*` 完成，脏页的“账”算在 `kworker` 头上，你看到的是回写者不是元凶；容器里经常只看到宿主进程。
 3. `grep -E '^(Cached|Dirty|Writeback|Buffers|MemFree)' /proc/meminfo` → `Dirty` 是尚未回写的脏页，`Writeback` 是正在回写的页 → `Dirty` 持续接近 `dirty_ratio` 说明写入速率超过设备能力，`write()` 已经在被限流 → 会骗你：`Cached` 含 tmpfs/shmem（`Shmem` 行），不代表全是可回收的文件页；瞬时值波动大，要连续采样。
 4. `perf trace -p <pid> -e write,fsync,fdatasync -s`（需 root 或放宽 `perf_event_paranoid`）→ 看各系统调用次数、总耗时、平均耗时 → 直接量化“`fsync` 吃掉了多少时间”：次数多但平均很短是正常的 WAL 批量；单次 `fsync` 上百 ms 就是设备屏障或队列问题 → 会骗你：只覆盖系统调用时间，不含回写线程后续的真实 I/O；高频率下有可观测开销。
-5. `cat /proc/<pid>/io` → `wchar` 是 `write` 累计字节，`write_bytes` 是“导致发往存储层的字节”，`cancelled_write_bytes` 是被丢弃的脏页 → 两者接近且都很大，说明是 `O_DIRECT`/`O_SYNC` 或回写已跟不上的 buffered 写；`write_bytes` 远小于 `wchar` 说明数据还躺在页缓存里 → 会骗你：
+5. `cat /proc/<pid>/io` → `wchar` 是 `write` 累计字节，`write_bytes` 是“导致发往存储层的字节”，`cancelled_write_bytes` 是被丢弃的脏页 → 两者接近且都很大，说明是 `O_DIRECT`/`O_SYNC` 或回写已跟不上的 buffered 写；`write_bytes` 远小于 `wchar` 说明数据还躺在页缓存里 → 会骗你：这些是进程开机以来的累计值，看当下忙不忙要隔一段时间采两次相减；数值大不等于此刻在写盘。
 
 ## 第 11 章〔网络〕socket 与 TCP 生命周期：从 listen 到 close 的每个状态
 
