@@ -10,8 +10,8 @@
 | 改 `math/*.tex`（正文 / 证明 / 公式） | `math/STRUCTURE.md`（总账 + 编译命令 + 写作规约在哪） |
 | 改 `math/survey/` | `math/survey/CONTRACT.md`（条目格式、状态词白名单、更新触发） |
 | 改 `math/bridges/` | `math/bridges/README.md`（骨架 S1–S6、覆盖矩阵） |
-| 学数学的深度与流程 | `LEARNING.md` |
-| 考研体系 L0–L4 | `kaoyan/` 各级目录 |
+| 数学/系统学习的问题路由、深度与质量判据 | `LEARNING.md` |
+| 考研讲解、判卷与归档 | `kaoyan/LEARNING.md` + `kaoyan/AGENTS.md`（不套用数学学习的验收线） |
 | 工程线（服务面试） | `projects/` |
 
 ## 二、硬规则

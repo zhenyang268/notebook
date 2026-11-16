@@ -26,6 +26,14 @@
 
 **两边**：同一连接状态在用户态由 `fd`、`epoll_event`、`errno` 和连接池 `std::unordered_map` 持有。同一连接状态在内核由 `tcp_sock`、`sk_buff`、`inet_timewait_sock` 与 `TIME_WAIT` 四元组持有。同一请求标识在用户态由 `trace id` 写入日志字段和 `std::string` 持有。同一请求标识在内核态由 `perf.data` 采样栈、`AF_PACKET` 抓包队列与 `audit` 记录持有。
 
+**积木**：① `LOCK CMPXCHG` 指令提供单字原子比较交换；它能独立验证 `ABA` 是否缺少 `LOCK CMPXCHG` 保护。② `clock_gettime(CLOCK_MONOTONIC)` 系统调用提供不受 `settimeofday` 影响的时基；它能独立验证超时是否来自 `adjtime`/`settimeofday` 跳变。③ `tcp_sock` 内核对象与 TCP 四元组提供 `TIME_WAIT` 状态机；它能独立验证短连接压测端口占用是否来自 `2MSL`。④ `RLIMIT_NOFILE` 与 `file` 内核对象提供 fd 分配边界；它能独立验证 `fd 耗尽` 是否来自 `open`/`socket` 未关闭。
+
+**最小情形**：单核单线程对 socket fd 执行一次 `write(fd, buf, len)`，内核对象 `file` 与 `sk_buff` 只被一个 `task_struct` 访问；此时 `LOCK CMPXCHG`、`futex_wait`、`epoll_wait` 惊群、伪共享 cache line、`TCP_NODELAY` 与延迟 ACK 的 `ACK` 字段竞争均不起作用。
+
+**生成**：累加多核多线程与多连接，`clone` 引入 `task_struct`/`futex_wait`，`socket`/`epoll_create` 引入 `tcp_sock`/`epoll_wait` 状态机，约束是每个共享字必须有 `LOCK CMPXCHG` 或 `futex` 等待队列保护且每个 fd 受 `RLIMIT_NOFILE` 限制。覆盖 `pthread_create` 的栈、`epoll_wait` 的就绪队列、`tcp_sock` 的状态、`perf_event_open` 的样本，约束是它们必须分别用 `gdb`、`ss`、`perf.data`、`/proc/PID/status` 取证。最坏情形是 `fd 耗尽`、`OOM killer`、`cgroup cpu.max` 节流、`TIME_WAIT` 堆积、`EINTR` 同时发生，约束是 p99 上升必须先区分 `cpu.max` 节流、`futex` 等待、`tcp_sock` `TIME_WAIT` 堆积、`read`/`write` 返回 `errno=EINTR`。
+
+**两边**：`RIP`/`RSP` 寄存器与内核栈上的 `pt_regs` 保存同一执行位置，`tcp_sock` 与 `ss -tn state time-wait` 输出保存同一 `TIME_WAIT` 状态。持有者是 `task_struct` 与内核栈、`tcp_sock` 与 `ss` 进程。
+
 ## 二、为什么这样分组（功能设计）
 
 **取舍一：为什么这些能放一起，而 `os/`、`cpu/` 不能。** 这五份讨论的是**做事的方法**，与具体技术栈无关：perf 的口径可以用于任何语言，debug 的链路可以用于任何服务，system-design 的量级估算与语言无关。而 `os/`、`cpu/` 讨论的是**特定系统的知识**，换个对象就不成立。把方法与知识分开，才能避免"讲性能时混进内核细节、讲内核时混进方法论"。

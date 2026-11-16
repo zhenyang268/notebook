@@ -29,7 +29,7 @@
 
 ---
 
-## 一、操作系统：`os/` 分组（1 + 5）
+## 一、操作系统：`os/` 分组（1 + 6）
 
 | 子项目 | 一句话 | 面试主打 |
 |---|---|---|
@@ -38,8 +38,9 @@
 | `os/kernel-compare/` | JOS / xv6 / Linux **为什么完全不同**：CPU 架构给了什么材料 → 内核形状 → API 形状（10 章） | 陷入路径三家用什么指令、`trampoline` 为什么存在、`clone` 的资源划分、API 对照表与「不能互换」的论证 |
 | `os/drivers/` | 驱动在做什么：JOS 的 IDE 盘（PIO）与 e1000 网卡（MMIO+DMA+中断）+ Linux 的五层配套（8 章） | 状态位顺序、块缓存引用计数、描述符环所有权、环满丢包、设备模型与 DMA API、中断上下半部、NAPI |
 | `os/security/` | **边界与对抗**：内存破坏 → 原语（读/写/调用/跳转）→ 控制流劫持 → ROP → 内核提权 → 侧信道；外挂与反作弊作为"同一组原语、不同获取方式"的对照（10 章） | 原语框架、ROP 三段式栈布局、缓解机制的"假设—违反"表、`copy_from_user` 与 SMEP/SMAP/KPTI、外挂四层能力与检测面、为什么反作弊要进内核 |
+| `os/virtualization/` | **把一台机器切成多台**：VT-x/EL2 的世界切换、EPT 两跳、I/O 四级台阶（全模拟→virtio→vhost→直通）、KVM 的 `ioctl` 与最小 VMM、QEMU 的设备/块/迁移，再对照容器、WSL1/WSL2、gVisor、Firecracker（10 章） | 一次 VM exit 的成本模型、EPT vs 影子页表的判据、`ioeventfd`/`irqfd` 如何绕开 QEMU、virtio 环为什么无锁、容器为什么不是轻量 VM、WSL1/WSL2 各自慢在哪一层 |
 
-> 五层是同一台机器：`linux-api` 是你天天用的那一侧，`jos` 是你自己造的那一侧，`kernel-compare` 解释两者为什么不同，`drivers` 解释硬件怎么被接进来，`security` 解释这些边界里哪一条会被跨过。**顺序：用户态（十分钟可验证）→ 内核态（要真调通 lab）→ 横向对比 → 设备层 → 安全（要先知道边界在哪）。**
+> 六层是同一台机器：`linux-api` 是你天天用的那一侧，`jos` 是你自己造的那一侧，`kernel-compare` 解释两者为什么不同，`drivers` 解释硬件怎么被接进来，`security` 解释这些边界里哪一条会被跨过，`virtualization` 解释这些边界怎么被复制成好几份、每复制一次要付多少钱。**顺序：用户态（十分钟可验证）→ 内核态（要真调通 lab）→ 横向对比 → 设备层 → 安全（要先知道边界在哪）→ 虚拟化（要把前面四个概念同时反转一遍）。**
 >
 > `security/` 只讲机制与判据：不给可用利用代码、不针对商业游戏/反作弊提供绕过步骤，实验限定在自己写的程序或公开 CTF 环境。
 
@@ -134,6 +135,6 @@
 ```bash
 cd notebook
 python3 kaoyan/tools/lint.py                                  # 两件套齐、无 QUICK/DESIGN
-python3 .gen/w4/gates.py 4                                    # 36 个两件套单元（30 叶子 + 6 分组）
+python3 .gen/w4/gates.py 4                                    # 37 个两件套单元（31 叶子 + 6 分组）
 # 考试线的真题/词表校验不在这里，见 kaoyan/README.md
 ```
