@@ -42,9 +42,10 @@ def collect():
     s = {}
 
     # —— syllabus：KP 以主键表的行首编号为准（模板：| `408-DS-0101` | …）
+    # 英语一的主键表不在 syllabus/ 里：它是题型型表，活在本目录根 `english1.md`（2026-11-16 迁回主线）。
     kp = {}
     for name, pref in (("408", r"408"), ("math1", r"M1"), ("english1", r"E1"), ("politics", r"P1")):
-        f = ROOT / "syllabus" / f"{name}.md"
+        f = ROOT / "english1.md" if name == "english1" else ROOT / "syllabus" / f"{name}.md"
         ids = set(re.findall(rf"`({pref}-[A-Z]{{2,3}}-[\d]{{2,8}})`", f.read_text(encoding="utf-8"))) if f.exists() else set()
         kp[name] = len(ids)
     s["kp"] = kp
@@ -107,12 +108,27 @@ def collect():
     s["mastery_done"] = s["mastery_M3"] + s["mastery_M4"]
     s["mastery_rows"] = len(rows)
 
+    # —— 英语一（2026-11-16 迁回主线）：讲义篇数 + 词汇唯一数与覆盖
+    eng = ROOT / "english1"
+    lectures = sorted(p for p in eng.glob("[0-9][0-9]-*.md")) if eng.exists() else []
+    s["eng_lectures"] = len(lectures)
+    wdir = eng / "words"
+    wgroups = sorted(p for p in wdir.glob("[0-9][0-9]-*.md") if not p.name.startswith("97-")) if wdir.exists() else []
+    s["eng_word_groups"] = len(wgroups)
+    uniq = set()
+    for p in (sorted(wdir.glob("*.md")) if wdir.exists() else []):
+        t = p.read_text(encoding="utf-8")
+        uniq |= {w.lower() for w in re.findall(r"^-\s+`([^`]+)`", t, re.M)}
+        uniq |= {w.lower() for w in re.findall(r"^\|\s*\d+\s*\|\s*`([^`]+)`", t, re.M)}
+    s["eng_words_unique"] = len(uniq)
+    s["eng_word_lines"] = count_lines(sorted(wdir.glob("*.md"))) if wdir.exists() else 0
+
     # —— projects
     pj = REPO / "projects"
     s["projects"] = len([d for d in pj.iterdir() if d.is_dir()]) if pj.exists() else 0
 
     # —— 分层行数（只统计正文，便于看"哪层虚"）
-    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "quick", "note", "exam", "drill")}
+    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "quick", "note", "exam", "drill", "english1")}
     return s
 
 
@@ -137,7 +153,8 @@ def render(s):
 |---|---|---|
 | 408 考点（KP） | **{s['kp']['408']}** | `syllabus/408.md` 主键表行数 |
 | 数一考点（KP） | **{s['kp']['math1']}** | `syllabus/math1.md` |
-| 主键 KP 合计 | **{s['kp_main']}** | 与 `note/` 文件数应相等（英语政治已移出主线） |
+| 英一考点（KP） | **{s['kp']['english1']}** | `english1.md`（题型型主键表，不在 `syllabus/`） |
+| 主键 KP 合计 | **{s['kp_main']}** | 408 + 数一，与 `note/` 文件数应相等（英语一不建 `note/`，政治已移出主线） |
 | `note/` 考点文件 | **{s['note_files']}** | 一考点一文件（粒度锁） |
 | `exam/` 章讲义 | **{s['exam_chapters']}** | 2026-11-04 起归零：讲义正文归档，`exam/` 只留真题 |
 
@@ -172,13 +189,24 @@ def render(s):
 
 > 记账命令：`python3 tools/mastery.py --set <KP> M3`；总览：`python3 tools/mastery.py`。
 
-## 五、其它
+## 五、英语一（2026-11-16 迁回主线）
+
+| 项 | 数量 | 说明 |
+|---|---|---|
+| 题型讲义 | **{s['eng_lectures']}** | `english1/[0-9][0-9]-*.md`（六篇题型 + 词汇导览） |
+| 词汇主题组 | **{s['eng_word_groups']}** | `english1/words/01–30`（大纲补全 `97-` 不计入组数） |
+| 词汇唯一词 | **{s['eng_words_unique']}** | 主题组行 + 补全表行去重后的唯一词数（口径同 `words/README.md` 与闸门 5530） |
+| 词汇源行数 | {s['eng_word_lines']} | `english1/words/` 全部 md 行数 |
+
+> 词汇闸门口径：唯一词 **≥ 5530**（大纲总量）。跨表重复（同一词既在主题组又在补全表）允许，计数只算一次。
+
+## 六、其它
 
 | 项 | 数量 | 说明 |
 |---|---|---|
 | `projects/` 项目目录 | {s['projects']} | 副线，初试前冻结 |
 
-## 六、各层行数（看"哪层虚"）
+## 七、各层行数（看"哪层虚"）
 
 | 层 | 行数 |
 |---|---|
@@ -187,6 +215,7 @@ def render(s):
 | `note/` | {L['note']} |
 | `exam/` | {L['exam']} |
 | `drill/` | {L['drill']} |
+| `english1/` | {L['english1']} |
 """
 
 
