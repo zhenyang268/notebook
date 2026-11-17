@@ -57,11 +57,9 @@ def collect():
     s["note_files"] = len(note)
     s["note_lines"] = count_lines(note)
 
-    ex = [p for p in mds(ROOT / "exam")
-          if p.name not in ("README.md", "ROADMAP.md")
-          and not any(x.startswith("真题") for x in p.relative_to(ROOT / "exam").parts)]
-    s["exam_chapters"] = len(ex)
-    s["exam_lines"] = count_lines(ex)
+    lec = [p for p in mds(ROOT / "lectures") if p.name != "ROADMAP.md"]
+    s["lecture_files"] = len(lec)
+    s["lecture_lines"] = count_lines(lec)
 
     zt = ROOT / "exam" / "真题"
     years = sorted(p for p in zt.glob("*.md") if re.fullmatch(r"20\d\d", p.stem)) if zt.exists() else []
@@ -128,7 +126,7 @@ def collect():
     s["projects"] = len([d for d in pj.iterdir() if d.is_dir()]) if pj.exists() else 0
 
     # —— 分层行数（只统计正文，便于看"哪层虚"）
-    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "quick", "note", "exam", "drill", "english1")}
+    s["lines"] = {k: count_lines(mds(ROOT / k)) for k in ("syllabus", "lectures", "quick", "note", "exam", "drill", "english1")}
     return s
 
 
@@ -156,7 +154,7 @@ def render(s):
 | 英一考点（KP） | **{s['kp']['english1']}** | `english1.md`（题型型主键表，不在 `syllabus/`） |
 | 主键 KP 合计 | **{s['kp_main']}** | 408 + 数一，与 `note/` 文件数应相等（英语一不建 `note/`，政治已移出主线） |
 | `note/` 考点文件 | **{s['note_files']}** | 一考点一文件（粒度锁） |
-| `exam/` 章讲义 | **{s['exam_chapters']}** | 2026-11-04 起归零：讲义正文归档，`exam/` 只留真题 |
+| `lectures/` 章讲义 | **{s['lecture_files']}** | 一章一篇；2026-11-18 从 `_archive` 迁回主线 |
 
 ## 二、真题库
 
@@ -211,6 +209,7 @@ def render(s):
 | 层 | 行数 |
 |---|---|
 | `syllabus/` | {L['syllabus']} |
+| `lectures/` | {L['lectures']} |
 | `quick/` | {L['quick']} |
 | `note/` | {L['note']} |
 | `exam/` | {L['exam']} |

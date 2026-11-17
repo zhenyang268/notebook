@@ -46,7 +46,7 @@ def check_kp_refs(kps):
     n = 0
     refs = [p for p in sorted((ROOT / "syllabus").glob("*.md"))
             if p.name not in {"408.md", "math1.md", "english1.md", "politics.md"}]
-    for p in refs + sorted((ROOT / "exam").rglob("*.md")):
+    for p in refs + sorted((ROOT / "exam").rglob("*.md")) + sorted((ROOT / "lectures").rglob("*.md")):
         if not p.exists():
             continue
         for m in re.finditer(r"`((?:408|M1|E1|P1)-[A-Z]{2,3}-[\d]{2,8})`", p.read_text(encoding="utf-8")):
@@ -92,6 +92,36 @@ def check_exam(kps):
         hits = sorted({w for w in ENGINE_WORDS if w in text})
         if hits:
             warn(f"[exam] 出现工程词 {hits}：{rel}")
+    return n
+
+
+def check_lectures(kps):
+    """章讲义（一章一文件）：文件名、KP 引用、四段骨架、无复习计划、无工程词。"""
+    n = 0
+    for p in sorted((ROOT / "lectures").rglob("*.md")):
+        rel = p.relative_to(ROOT)
+        if p.name in ("ROADMAP.md", "README.md"):
+            continue
+        text = p.read_text(encoding="utf-8")
+        n += 1
+        if not re.match(r"^\d{2}-.+\.md$", p.name):
+            err(f"[lectures] 文件名不合规（应为 NN-章名.md）：{rel}")
+        refs = set(re.findall(r"`((?:408|M1|E1|P1)-[A-Z]{2,3}(?:-\d{2,8})?)`", text))
+        if not refs:
+            err(f"[lectures] 全章没有引用任何 KP：{rel}")
+        for kp in sorted(refs):
+            if not KP_RE.match(kp):
+                err(f"[lectures] KP 格式不合法：{rel} -> {kp}")
+            elif kp not in kps:
+                err(f"[lectures] KP 不在 syllabus 中：{rel} -> {kp}")
+        for seg in ("## 一、本章考点", "## 二、正文", "## 三、真题落点", "## 四、易错"):
+            if seg not in text:
+                err(f"[lectures] 缺「{seg}」段：{rel}")
+        if "复习计划" in text:
+            err(f"[lectures] 正文里仍有复习档位行（应进 reviews/REVIEWS.md）：{rel}")
+        hits = sorted({w for w in ENGINE_WORDS if w in text})
+        if hits:
+            warn(f"[lectures] 出现工程词 {hits}：{rel}")
     return n
 
 
@@ -411,6 +441,7 @@ def main():
     strict = "--strict" in sys.argv
     kps = collect_kps()
     n_exam = check_exam(kps)
+    n_lec = check_lectures(kps)
     n_drill = check_drill(kps)
     n_proj = check_projects()
     check_projects_kp()
@@ -425,7 +456,7 @@ def main():
     n_zt = check_zhenti_format()
     check_landing()
 
-    print(f"syllabus KP 数：{len(kps)}　exam 真题篇章：{n_exam}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
+    print(f"syllabus KP 数：{len(kps)}　exam 真题篇章：{n_exam}　章讲义：{n_lec}　drill 文件：{n_drill}　quick 文件：{n_quick}　"
           f"projects 目录：{n_proj}　note 文件：{n_note}　计算清单：{n_calc} 项　主键表行：{n_tab}　"
           f"KP 引用：{n_ref}　失效路径：{n_link}　真题 {n_zt} 年")
     for w in warns:
