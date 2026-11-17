@@ -1,4 +1,6 @@
-# kernel-compare · JOS / xv6 / Linux 的设计出发点与 API 对比
+# kernel-compare · xv6 / Linux（附 JOS 历史对照）
+
+> **2026-11-17 口径**：主线读 xv6 ↔ Linux 两列；JOS 列只作历史参照（项目已归档，`.gen/archive/jos-2026-11-17/`），不再作为动手线。凡是拿 JOS 举的例，都要标注「已归档」。
 
 > 同一个问题（让用户程序跑起来），三个系统给出三种答案。本文只做**因果对比**：CPU 架构给了什么材料，内核因此长成什么样，API 又因此是什么形状。
 > 设备层细节在 `../drivers/`，用户态 API 用法在 `../linux-api/`，JOS 逐 lab 实现见 `../jos/`。

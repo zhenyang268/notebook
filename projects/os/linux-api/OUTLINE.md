@@ -42,49 +42,51 @@ $$\mathrm{PSS}=\mathrm{USS}+\sum_i \frac{\mathrm{shared}_i}{n_i}$$
 
 **常见错误做法为什么错（要算代价）。** `kill -9` 不留现场 → 无法复盘，同类故障复发；跨机比较 `top` 的 `%CPU` → 核数与配额不同，结论可能反向；把 page cache 当泄漏 → 触发无谓重启与流量切换；把 `select` 换成 `epoll` 就认为能扛 → 没解决每连接状态机和数据拷贝，复杂度上升收益为零；不处理 `EINTR`、不设 `SA_RESTART` → 表现为低频偶发失败，线上排查成本极高。
 
+**取舍：为什么补一层设计视角。** 上面的口径与判据回答的是「这个数字/返回值是什么意思」，但不回答「这个 API 的形状是被哪个决定定下来的」——每个 API 症状背后都是一个内核决定：共享集合由谁定（`fork` 复制 fd 表 vs `clone` 的 `CLONE_FILES`）、内存增长由谁定（`brk` 单调顶 vs `mmap` 可回收）、事件通知由谁定（阻塞读 vs `epoll` 就绪表）、错误如何报告（返回值/`errno` vs 信号）、权限主体是谁（无 vs uid/root）、持久化时机由谁定（`write` 即返回 vs `fsync` 才落盘）。**只走到「谁做决定」这一层，不展开 `task_struct` / `mm_struct` / `files_struct` 的字段与函数流**：本章册的承诺是「看哪个字段、走哪条判据」，具体结构归 `kernel-compare` 或 xv6。**代价**：这一层会和内核章部分重叠（同一份「谁管什么」，那边讲结构、这边讲决定的后果），所以只写决定与其可观察后果，不重写结构；判定为删掉不亏——症状层没有它，「为什么 API 长这样」永远是背下来的。边界：这一层不新增工具、不新增判据，只把已有症状归到六个决定上（`NOTES.md` 第 0 章 + 附录 D）。
+
 ## 三、章节大纲
 
 **[CPU]**
 
-**第 1 章 进程与线程**：fork 的写时复制、exec 的替换语义、wait 回收与僵尸、clone 的共享开关；父子共享 fd 表还是 file 结构。能答「fork 后子进程改变量父进程看得见吗、fd 偏移共享吗」。命令：`ps`、`top`、`pstree`、`pidof`、`strace -f -e trace=clone`。
+**第 1 章 进程与线程**：fork 的写时复制、exec 的替换语义、wait 回收与僵尸、clone 的共享开关；父子共享 fd 表还是 file 结构。能答「fork 后子进程改变量父进程看得见吗、fd 偏移共享吗」。命令：`ps`、`top`、`pstree`、`pidof`、`strace -f -e trace=clone`。→ 设施/块：进程创建与 pid 表（B5 进程块）、fd 表与 open file description（B6 文件描述符块）
 
-**第 2 章 CPU 占用与调度**：nice 的影响面、亲和性与缓存局部性、实时策略与饥饿、被抢占的观测方式。能答「`%CPU` 300% 在 32 核机器上算不算高」。命令：`top -H`、`pidstat -u -t`、`taskset`、`chrt`、`perf stat`。
+**第 2 章 CPU 占用与调度**：nice 的影响面、亲和性与缓存局部性、实时策略与饥饿、被抢占的观测方式。能答「`%CPU` 300% 在 32 核机器上算不算高」。命令：`top -H`、`pidstat -u -t`、`taskset`、`chrt`、`perf stat`。→ 设施/块：CPU 时间记账与调度器（B5 进程块）
 
-**第 3 章 时间与定时**：单调时钟与墙钟的区别、定时器精度、忙等与阻塞的代价差。能答「为什么不能用 `gettimeofday` 做超时计时」。命令：`time`、`strace -T`、`/proc/timer_list`、`perf sched`。
+**第 3 章 时间与定时**：单调时钟与墙钟的区别、定时器精度、忙等与阻塞的代价差。能答「为什么不能用 `gettimeofday` 做超时计时」。命令：`time`、`strace -T`、`/proc/timer_list`、`perf sched`。→ 设施/块：时钟源与定时器设施（时钟源 + hrtimer，进程块借用）
 
 **[内存]**
 
-**第 4 章 虚拟内存与 mmap**：brk 与 mmap 的分配路径、`mprotect` 的页粒度、地址空间布局。能答「malloc 大块与小块的落点差异」。命令：`pmap -x`、`/proc/PID/maps`、`/proc/PID/smaps`。
+**第 4 章 虚拟内存与 mmap**：brk 与 mmap 的分配路径、`mprotect` 的页粒度、地址空间布局。能答「malloc 大块与小块的落点差异」。命令：`pmap -x`、`/proc/PID/maps`、`/proc/PID/smaps`。→ 设施/块：地址空间与 VMA（B1 虚拟内存块）、页表与缺页（B2 页表块）
 
-**第 5 章 内存占用口径**：VSS/RSS/PSS/USS 的定义与误用、缺页类型、共享页归属。能答「RSS 涨到几十 G 是不是泄漏」。命令：`free -m`、`vmstat`、`/proc/PID/statm`、`smem`。
+**第 5 章 内存占用口径**：VSS/RSS/PSS/USS 的定义与误用、缺页类型、共享页归属。能答「RSS 涨到几十 G 是不是泄漏」。命令：`free -m`、`vmstat`、`/proc/PID/statm`、`smem`。→ 设施/块：物理页分配与反向映射计数（B3 物理内存块）
 
-**第 6 章 内存故障定位**：OOM killer 的选择依据、泄漏与碎片的区分、回收路径。能答「dmesg 里 oom-kill 那一段该看哪几个字段」。命令：`dmesg -T`、`/proc/buddyinfo`、`/proc/zoneinfo`、`valgrind massif`。
+**第 6 章 内存故障定位**：OOM killer 的选择依据、泄漏与碎片的区分、回收路径。能答「dmesg 里 oom-kill 那一段该看哪几个字段」。命令：`dmesg -T`、`/proc/buddyinfo`、`/proc/zoneinfo`、`valgrind massif`。→ 设施/块：页回收与水印判据（B3 物理内存块）、OOM 选择（B5 进程块）
 
 **[文件]**
 
-**第 7 章 文件 IO 与 fd 语义**：open 标志组合、偏移共享、`O_APPEND` 的原子性、EINTR 来源。能答「两个进程同时写同一文件如何保证不串」。命令：`lsof -p`、`/proc/PID/fd`、`ulimit -n`、`strace -e trace=openat`。
+**第 7 章 文件 IO 与 fd 语义**：open 标志组合、偏移共享、`O_APPEND` 的原子性、EINTR 来源。能答「两个进程同时写同一文件如何保证不串」。命令：`lsof -p`、`/proc/PID/fd`、`ulimit -n`、`strace -e trace=openat`。→ 设施/块：fd 表与 open file description（B6 文件描述符块）
 
-**第 8 章 标准 IO 与缓冲**：stdio 三态缓冲、行缓冲在管道下退化为全缓冲的坑。能答「为什么重定向到文件后日志不刷新」。命令：`stdbuf`、`strace -e trace=write -c`、`wc -c`。
+**第 8 章 标准 IO 与缓冲**：stdio 三态缓冲、行缓冲在管道下退化为全缓冲的坑。能答「为什么重定向到文件后日志不刷新」。命令：`stdbuf`、`strace -e trace=write -c`、`wc -c`。→ 设施/块：用户态缓冲与 write 系统调用边界（B6 文件描述符块）
 
-**第 9 章 元数据与目录**：inode 与 dentry、硬链接与软链接的失效差异、`stat` 的三个时间。能答「`df` 有余量但写不进去是什么原因」。命令：`stat`、`df -i`、`du -sh`、`ls -li`、`find -inum`。
+**第 9 章 元数据与目录**：inode 与 dentry、硬链接与软链接的失效差异、`stat` 的三个时间。能答「`df` 有余量但写不进去是什么原因」。命令：`stat`、`df -i`、`du -sh`、`ls -li`、`find -inum`。→ 设施/块：inode / dentry 命名层（B7 文件系统块）
 
-**第 10 章 IO 栈与页缓存**：buffered 与 direct IO 的代价、`fsync` 的保证范围、写放大来源。能答「`fsync` 到底刷了什么、为什么不能替代 `fdatasync`」。命令：`iostat -x`、`iotop -o`、`/proc/meminfo` 的 `Cached`/`Dirty`、`perf trace`。
+**第 10 章 IO 栈与页缓存**：buffered 与 direct IO 的代价、`fsync` 的保证范围、写放大来源。能答「`fsync` 到底刷了什么、为什么不能替代 `fdatasync`」。命令：`iostat -x`、`iotop -o`、`/proc/meminfo` 的 `Cached`/`Dirty`、`perf trace`。→ 设施/块：页缓存与块设备 IO 路径（B8 块 IO 块）
 
 **[网络]**
 
-**第 11 章 socket 与 TCP 生命周期**：从 listen 到 close 的状态迁移、每个状态下内核做了什么。能答「`CLOSE_WAIT` 堆积是谁的问题」。命令：`ss -tanp`、`/proc/net/tcp`、`netstat -s`。
+**第 11 章 socket 与 TCP 生命周期**：从 listen 到 close 的状态迁移、每个状态下内核做了什么。能答「`CLOSE_WAIT` 堆积是谁的问题」。命令：`ss -tanp`、`/proc/net/tcp`、`netstat -s`。→ 设施/块：TCP 状态机与协议栈（B9 网络块）
 
-**第 12 章 IO 多路复用**：select/poll/epoll 的复杂度与拷贝差别、边缘触发的重试语义。能答「ET 为什么必须配非阻塞 fd」。命令：`ss -s`、`/proc/PID/fd` 中的 `eventpoll`、`strace -e trace=epoll_wait`。
+**第 12 章 IO 多路复用**：select/poll/epoll 的复杂度与拷贝差别、边缘触发的重试语义。能答「ET 为什么必须配非阻塞 fd」。命令：`ss -s`、`/proc/PID/fd` 中的 `eventpoll`、`strace -e trace=epoll_wait`。→ 设施/块：就绪通知与等待队列（B10 事件等待块）、fd 表（B6）
 
-**第 13 章 链路与丢包诊断**：重传与乱序的区分、队列与缓冲膨胀、MTU 与分片。能答「重传率高但带宽不低说明什么」。命令：`ss -i`、`nstat`、`ip -s link`、`tcpdump -i any port`。
+**第 13 章 链路与丢包诊断**：重传与乱序的区分、队列与缓冲膨胀、MTU 与分片。能答「重传率高但带宽不低说明什么」。命令：`ss -i`、`nstat`、`ip -s link`、`tcpdump -i any port`。→ 设施/块：链路队列与协议栈计数（B9 网络块）
 
-**第 14 章 连接边界**：backlog 的有效值 $\text{backlog}_{\text{eff}}=\min(\text{listen backlog},\ \text{somaxconn})$、TIME_WAIT 归属、端口耗尽。能答「调大 backlog 为什么没效果」。命令：`ss -tan state time-wait`、`sysctl net.ipv4`、`netstat -s` 的 overflow 段。
+**第 14 章 连接边界**：backlog 的有效值 $\text{backlog}_{\text{eff}}=\min(\text{listen backlog},\ \text{somaxconn})$、TIME_WAIT 归属、端口耗尽。能答「调大 backlog 为什么没效果」。命令：`ss -tan state time-wait`、`sysctl net.ipv4`、`netstat -s` 的 overflow 段。→ 设施/块：accept 队列与端口分配（B9 网络块、B10 等待队列）
 
 **[进程]**
 
-**第 15 章 信号与可重入**：屏蔽与未决、处理函数与主流程的竞态、async-signal-safe 的边界。能答「信号处理函数里为什么不能 `printf`」。命令：`kill -l`、`strace -e trace=signal`、`/proc/PID/status` 的 `SigQ`/`SigBlk`。
+**第 15 章 信号与可重入**：屏蔽与未决、处理函数与主流程的竞态、async-signal-safe 的边界。能答「信号处理函数里为什么不能 `printf`」。命令：`kill -l`、`strace -e trace=signal`、`/proc/PID/status` 的 `SigQ`/`SigBlk`。→ 设施/块：信号投递与可中断睡眠（B6 进程块、B10 等待队列）
 
-**第 16 章 IPC**：管道、FIFO、共享内存、信号量、消息队列的取舍与生命周期归属。能答「共享内存为什么必须自带同步」。命令：`ipcs`、`ipcmk`、`ls -l /dev/shm`、`strace -e trace=shmget`。
+**第 16 章 IPC**：管道、FIFO、共享内存、信号量、消息队列的取舍与生命周期归属。能答「共享内存为什么必须自带同步」。命令：`ipcs`、`ipcmk`、`ls -l /dev/shm`、`strace -e trace=shmget`。→ 设施/块：共享物理页与内核对象生命周期（B3 物理内存块、B11 IPC 块）
 
 **附录 A 与 macOS / Windows 的差异速查**（不占章）：进程创建模型（`fork`/`posix_spawn`/`CreateProcess`）、事件通知模型（就绪 vs 完成：`epoll`/`kqueue`/IOCP）、内存压力行为（OOM killer / 压缩内存 / 提交即占用）、可观测接口（`/proc` 专有 vs ETW）。只列会造成误判的差异。
 
